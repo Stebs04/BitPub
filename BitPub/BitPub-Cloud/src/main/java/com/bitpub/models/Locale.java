@@ -1,5 +1,8 @@
 package com.bitpub.models;
 
+// Permette di marcare esplicitamente quali campi includere nel JSON
+import com.google.gson.annotations.Expose;
+
 /**
  * Rappresenta un'entità Locale all'interno del sistema.
  * Gestisce le informazioni anagrafiche e di rete associate a un nodo periferico (Edge).
@@ -7,28 +10,41 @@ package com.bitpub.models;
  */
 public class Locale {
 
+    //Rendo gli atributi della classe visibili al JSON
+    @Expose
     private Long id;
+    @Expose
     private String name;
+    @Expose
     private String ipAddressEdge;
 
     /**
      * Costruttore completo per la classe Locale.
      *
-     * @param nome           Il nome descrittivo del locale.
+     * @param name          Il nome descrittivo del locale.
      * @param ipAddressEdge  L'indirizzo IP del server edge associato.
      * @throws IllegalArgumentException se il nome o l'IP sono nulli o stringhe vuote.
      */
-    public Locale(String nome, String ipAddressEdge) {
+    public Locale(String name, String ipAddressEdge) {
         // Validazione input: garantisce l'integrità dei dati obbligatori
-        if (nome == null || nome.isBlank()) {
+        if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Campo nome mancante!!!");
         }
         if (ipAddressEdge == null || ipAddressEdge.isBlank()) {
             throw new IllegalArgumentException("Campo ip mancante!!!");
         }
 
-        this.name = nome;
+        this.name = name;
         this.ipAddressEdge = ipAddressEdge;
+    }
+
+    /**
+     * Costruttore senza argomenti (No-Args).
+     * Necessario per le librerie di framework (come GSON e JPA) che creano
+     * l'istanza tramite riflessione prima di popolarne i campi.
+     */
+    public Locale(){
+
     }
 
     /**
