@@ -37,3 +37,17 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Maven
+target/
+*/target/
+
+# OS
+.DS_Store
+Thumbs.db
