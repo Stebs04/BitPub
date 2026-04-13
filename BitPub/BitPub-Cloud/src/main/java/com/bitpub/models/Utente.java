@@ -2,6 +2,8 @@ package com.bitpub.models;
 
 //Importazione di bcrypt per hashing della password
 import org.mindrot.jbcrypt.BCrypt;
+// Permette di marcare esplicitamente quali campi includere nel JSON
+import com.google.gson.annotations.Expose;
 
 /**
  * Rappresenta un Utente all'interno del dominio applicativo.
@@ -11,19 +13,25 @@ import org.mindrot.jbcrypt.BCrypt;
  */
 public class Utente {
 
+    //Rendo gli atributi della classe visibili al JSON
     /** L'identificativo univoco dell'utente, tipicamente generato dal database. */
+    @Expose
     private Long id;
 
     /** Il nome utente scelto per la visualizzazione e/o l'accesso. */
+    @Expose
     private String nickname;
 
     /** Il livello di privilegio assegnato all'utente (es. ADMIN, USER). */
+    @Expose
     private String ruolo;
 
     /** Il nome anagrafico dell'utente. */
+    @Expose
     private String nome;
 
     /** Il cognome anagrafico dell'utente. */
+    @Expose
     private String cognome;
 
     /** L'età dell'utente, espressa in anni. */
@@ -62,6 +70,15 @@ public class Utente {
 
         // Genera un "salt" casuale e cifra la password in chiaro usando l'algoritmo BCrypt
         this.password = BCrypt.hashpw(password, BCrypt.gensalt());
+    }
+
+    /**
+     * Costruttore senza argomenti (No-Args).
+     * Necessario per le librerie di framework (come GSON e JPA) che creano
+     * l'istanza tramite riflessione prima di popolarne i campi.
+     */
+    public Utente(){
+
     }
 
     /**
