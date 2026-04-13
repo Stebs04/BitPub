@@ -10,10 +10,10 @@
   <name>BitPub</name>
   <url>http://maven.apache.org</url>
     <modules>
-        <module>BitPub Simulator</module>
         <module>BitPub-Edge</module>
         <module>BitPub-Cloud</module>
         <module>BitPub-JavaFX</module>
+        <module>BitPub-Simulators</module>
     </modules>
 
     <properties>
