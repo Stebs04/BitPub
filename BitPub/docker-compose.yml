@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  # Definizione del servizio Database
+  db:
+    image: postgres:16
+    container_name: bitpub-db-container
+    environment:
+      - POSTGRES_DB=bitpub_db
+      - POSTGRES_USER=bitpub_user
+      - POSTGRES_PASSWORD=bitpub2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - bitpub_data:/var/lib/postgresql/data
+
+volumes:
+  bitpub_data:

@@ -2,15 +2,13 @@ package com.bitpub.cloud;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan; // Aggiungi questa
 
-// Questa annotazione magica dice a Spring: "Ehi, questa è un'app Spring Boot,
-// configura tutto in automatico basandoti sulle dipendenze che abbiamo nel pom.xml!"
 @SpringBootApplication
+@EntityScan("com.bitpub.models") // Dice a Spring di guardare dentro models per creare le tabelle!
 public class BitPubCloudApplication {
-
     public static void main(String[] args) {
-        // Questo comando avvia il server integrato (Tomcat) e mette l'app in ascolto
         SpringApplication.run(BitPubCloudApplication.class, args);
-        System.out.println("Modulo BitPub-Cloud avviato con successo! Le API REST sono pronte.");
+        System.out.println("Modulo BitPub-Cloud avviato con successo!");
     }
 }
