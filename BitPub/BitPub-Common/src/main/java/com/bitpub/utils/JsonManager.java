@@ -2,6 +2,7 @@ package com.bitpub.utils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.bitpub.models.Partita;
 
 /**
  * Classe di utilità per la gestione della serializzazione e deserializzazione JSON.
@@ -21,6 +22,8 @@ public class JsonManager {
         return new GsonBuilder()
                 // Fondamentale: ignora tutti i campi che NON hanno l'annotazione @Expose
                 .excludeFieldsWithoutExposeAnnotation()
+                // In questo modo Gson saprà come smistare Biliardo e Freccette!
+                .registerTypeAdapter(Partita.class, new PartitaDeserializer())
                 // Finalizza la configurazione e crea l'oggetto pronto all'uso
                 .create();
     }
