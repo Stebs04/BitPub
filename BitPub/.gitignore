@@ -51,3 +51,11 @@ target/
 # OS
 .DS_Store
 Thumbs.db
+
+# =========================
+# Sicurezza e Certificati
+# =========================
+# Ignora TUTTE le chiavi private in qualsiasi cartella del progetto
+*.key
+
+BitPub-Security/certs/
