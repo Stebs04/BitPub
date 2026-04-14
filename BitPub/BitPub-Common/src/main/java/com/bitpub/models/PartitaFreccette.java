@@ -1,5 +1,6 @@
 package com.bitpub.models;
 
+import com.google.gson.annotations.Expose;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
@@ -10,12 +11,15 @@ import jakarta.persistence.Table;
 public class PartitaFreccette extends Partita {
 
     // Identifica se è la modalità classica 501, 301, Cricket, ecc.
+    @Expose
     private String modalita;
 
     // Quante volte i giocatori hanno totalizzato il punteggio massimo in un turno
+    @Expose
     private int numero180;
 
     // Statistica della precisione sul centro del bersaglio (es. 15.5 per 15.5%)
+    @Expose
     private double percentualeBullseye;
 
     // Costruttore vuoto (sempre obbligatorio per JPA e GSON)

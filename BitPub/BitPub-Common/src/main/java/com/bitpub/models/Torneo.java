@@ -1,5 +1,6 @@
 package com.bitpub.models;
 
+import com.google.gson.annotations.Expose;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -9,12 +10,17 @@ public class Torneo {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Expose
     private Long id;
 
+    @Expose
     private String nome;
+    @Expose
     private String premio;
 
+    @Expose
     private LocalDate dataInizio;
+    @Expose
     private LocalDate dataFine;
 
     // Relazione: Un torneo ha una lista di molte partite.
@@ -22,6 +28,7 @@ public class Torneo {
     // "cascade = CascadeType.ALL" significa che se eliminiamo il torneo,
     // eliminiamo automaticamente anche le partite collegate!
     @OneToMany(mappedBy = "torneo", cascade = CascadeType.ALL)
+    @Expose
     private List<Partita> partite;
 
     // Costruttore vuoto
