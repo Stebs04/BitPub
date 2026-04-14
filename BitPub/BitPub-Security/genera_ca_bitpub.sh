@@ -47,5 +47,5 @@ openssl req -new -x509 -days 3650 -key ca.key -out ca.crt \
 # Stampa un messaggio di successo per confermare che l'intero flusso è terminato senza errori.
 echo "--- Operazione completata con successo! ---"
 
-# Fornisce un promemoria finale sulla natura e la posizione dei file generati.
+# Fornisce un promemoria finale sulla natura e la posizione dei file generati..
 echo "Troverai i file 'ca.key' (DA TENERE SEGRETO) e 'ca.crt' (PUBBLICO) nella cartella 'certs'."
