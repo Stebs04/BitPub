@@ -1,4 +1,4 @@
-package com.bitpub.common.models; // Modifica il package in base a dove l'ha messo Timothy
+package com.bitpub.models; // Modifica il package in base a dove l'ha messo Timothy
 
 /**
  * Modello specifico per le partite di Biliardo.
