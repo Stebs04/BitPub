@@ -16,6 +16,7 @@
         <module>BitPub-Cloud</module>
         <module>BitPub-JavaFX</module>
         <module>BitPub-Simulators</module>
+        <module>BitPub-Common</module>
     </modules>
 
     <properties>

@@ -1,5 +1,6 @@
 package com.bitpub.models;
 
+import com.google.gson.annotations.Expose;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -11,13 +12,13 @@ public abstract class Partita {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Expose private Long id;
 
     // Usiamo LocalDateTime per registrare giorno e ora esatta dell'evento
-    private LocalDateTime orarioInizio;
-    private LocalDateTime orarioFine;
+    @Expose private LocalDateTime orarioInizio;
+    @Expose private LocalDateTime orarioFine;
 
-    private String tipoGioco;
+    @Expose private String tipoGioco;
 
     // Relazione: Molte partite possono appartenere a un solo Torneo
     @ManyToOne

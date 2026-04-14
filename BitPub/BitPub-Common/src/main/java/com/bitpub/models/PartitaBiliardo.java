@@ -1,5 +1,7 @@
 package com.bitpub.models; // Modifica il package in base a dove l'ha messo Timothy
 
+import com.google.gson.annotations.Expose;
+
 /**
  * Modello specifico per le partite di Biliardo.
  * Estende la classe base Partita ereditandone i dati comuni.
@@ -7,8 +9,11 @@ package com.bitpub.models; // Modifica il package in base a dove l'ha messo Timo
 public class PartitaBiliardo extends Partita {
 
     // Campi specifici del Biliardo
+    @Expose
     private String specialita;
+    @Expose
     private int serieMassimaPalleImbucate;
+    @Expose
     private int falli;
 
     /**
