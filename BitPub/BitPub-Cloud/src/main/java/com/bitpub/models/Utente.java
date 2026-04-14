@@ -1,7 +1,7 @@
 package com.bitpub.models;
 
 //Importazione di bcrypt per hashing della password
-import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 // Permette di marcare esplicitamente quali campi includere nel JSON
 import com.google.gson.annotations.Expose;
 
