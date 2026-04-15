@@ -2,6 +2,7 @@ package com.bitpub.controllers;
 
 import com.bitpub.models.Torneo;
 import com.bitpub.repository.TorneoRepository;
+import com.bitpub.utils.HateoasResource; // Aggiunto per importare il Wrapper HATEOAS
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,7 +11,7 @@ import java.util.Optional;
 
 /**
  * Controller REST per la gestione dei Tornei.
- * Architettura rigorosamente State-Less.
+ * Architettura rigorosamente State-Less con supporto HATEOAS.
  */
 @RestController
 @RequestMapping("/api/tornei")
@@ -19,6 +20,36 @@ public class TorneoController {
     // 1. Colleghiamo il Controller al Database!
     @Autowired
     private TorneoRepository torneoRepository;
+
+    /**
+     * GET: Recupera un torneo e inietta i percorsi HATEOAS (Fase 13).
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<HateoasResource<Torneo>> getTorneo(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        // Cerchiamo il torneo nel DB
+        Optional<Torneo> torneoTrovato = torneoRepository.findById(id);
+
+        if (torneoTrovato.isPresent()) {
+            Torneo torneo = torneoTrovato.get();
+
+            // Creiamo il contenitore HATEOAS con i dati del torneo
+            HateoasResource<Torneo> risorsa = new HateoasResource<>(torneo);
+
+            // TIMOTHY: Iniettiamo i percorsi dinamici (Il nodo _links)
+            risorsa.addLink("self", "/api/tornei/" + id);
+            risorsa.addLink("aggiorna_torneo", "/api/tornei/" + id);
+            risorsa.addLink("elimina_torneo", "/api/tornei/" + id);
+            risorsa.addLink("iscrivi_partecipanti", "/api/tornei/" + id + "/partecipanti");
+
+            // Restituiamo il JSON arricchito!
+            return ResponseEntity.ok(risorsa);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
     /**
      * POST: Crea e salva un nuovo torneo nel database.
@@ -30,7 +61,7 @@ public class TorneoController {
 
         System.out.println("[API REST] Richiesta creazione torneo. Token: " + authHeader);
 
-        // 2. Salviamo fisicamente il dato nel Database PostgreSQL
+        // Salviamo fisicamente il dato nel Database PostgreSQL
         torneoRepository.save(nuovoTorneo);
 
         return ResponseEntity.ok("Torneo salvato con successo nel database!");
