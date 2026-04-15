@@ -10,5 +10,16 @@
     </parent>
 
     <artifactId>bitpub-simulators</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>com.bitpub</groupId>
+            <artifactId>bitpub-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>
