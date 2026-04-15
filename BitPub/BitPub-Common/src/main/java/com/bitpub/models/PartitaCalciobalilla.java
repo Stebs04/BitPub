@@ -14,6 +14,12 @@ import jakarta.persistence.Table;
 public class PartitaCalciobalilla extends Partita {
 
     @Expose
+    private int goalRossi;
+
+    @Expose
+    private int goalBlu;
+
+    @Expose
     private int totaleGol;
 
     @Expose
@@ -38,11 +44,13 @@ public class PartitaCalciobalilla extends Partita {
      * @param totaleRullate Conteggio totale delle infrazioni/rullate rilevate.
      * @param durataMediaPallinaSecondi Tempo medio di permanenza della pallina in campo.
      */
-    public PartitaCalciobalilla(int totaleGol, int totaleRullate, int durataMediaPallinaSecondi) {
+    public PartitaCalciobalilla(int totaleGol, int totaleRullate, int durataMediaPallinaSecondi, int goalRossi, int goalBlu) {
         super();
         super.setTipoGioco("CALCIOBALILLA");
         this.totaleGol = totaleGol;
         this.totaleRullate = totaleRullate;
+        this.goalBlu = goalBlu;
+        this.goalRossi = goalRossi;
         this.durataMediaPallinaSecondi = durataMediaPallinaSecondi;
     }
 
@@ -62,4 +70,18 @@ public class PartitaCalciobalilla extends Partita {
 
     /** @param durataMediaPallinaSecondi Media calcolata in secondi. */
     public void setDurataMediaPallinaSecondi(int durataMediaPallinaSecondi) { this.durataMediaPallinaSecondi = durataMediaPallinaSecondi; }
+
+    /** @param goalRossi totale dei goal fatta dai rossi */
+    public void setGoalRossi(int goalRossi) {this.goalRossi = goalRossi;}
+
+    /** @param goalBlu totale dei goal fatta dai blu */
+    public void setGoalBlu(int goalBlu) {this.goalBlu = goalBlu;}
+
+    public int getGoalRossi() {
+        return goalRossi;
+    }
+
+    public int getGoalBlu() {
+        return goalBlu;
+    }
 }

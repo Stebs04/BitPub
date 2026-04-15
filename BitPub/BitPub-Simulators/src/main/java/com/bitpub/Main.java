@@ -1,33 +1,32 @@
 package com.bitpub;
 
-import com.bitpub.simulators.SimFreccette;
+import com.bitpub.SimFreccette;
+import com.bitpub.SimCalciobalilla;
 
 public class Main {
     public static void main(String[] args) {
         System.out.println("--- Avvio dei Simulatori IoT BitPub ---");
 
-        // 1. Prepariamo i dati del nostro bersaglio
-        // Usiamo "127.0.0.1" (che significa localhost) perché per ora stiamo
-        // facendo i test sul tuo stesso computer, dove poi girerà il nodo Edge.
+        // Configurazione comune per la rete locale
         String idLocale = "pub_centrale";
-        String idDispositivo = "freccette_A";
         String ipEdgeNodo = "127.0.0.1";
 
-        // 2. "Costruiamo" il nostro simulatore usando la classe che hai creato prima
-        SimFreccette mioBersaglio = new SimFreccette(idLocale, idDispositivo, ipEdgeNodo);
-
-        // 3. Affidiamo il simulatore a un "Thread" (un processo parallelo)
-        // Questo è il Multithreading: permette alle tue freccette di giocare
-        // contemporaneamente al Biliardo di Luca e al Calciobalilla di Stefano!
+        // CONFIGURAZIONE FRECCETTE (Timothy) ---
+        String idFreccette = "freccette_A";
+        SimFreccette mioBersaglio = new SimFreccette(idLocale, idFreccette, ipEdgeNodo);
         Thread threadFreccette = new Thread(mioBersaglio);
 
-        // 4. Facciamo partire la partita!
+        // CONFIGURAZIONE CALCIOBALILLA (Stefano) ---
+        String idCalciobalilla = "calciobalilla_1";
+        SimCalciobalilla mioTavolo = new SimCalciobalilla(idLocale, idCalciobalilla, ipEdgeNodo);
+        Thread threadCalciobalilla = new Thread(mioTavolo);
+
+        // AVVIO MULTITHREADING ---
+        // Avviamo i motori in parallelo.
+        // start() crea un nuovo flusso di esecuzione per ogni simulatore.
         threadFreccette.start();
+        threadCalciobalilla.start();
 
-        System.out.println("Comando di avvio inviato al simulatore Freccette.");
-
-        // --- SPAZIO PER GLI ALTRI COLLEGHI ---
-        // Qui sotto, in futuro, Stefano e Luca aggiungeranno le righe per
-        // avviare anche SimCalciobalilla e SimBiliardo.
+        System.out.println("Sistema avviato: Freccette (" + idFreccette + ") e Calciobalilla (" + idCalciobalilla + ") sono online.");
     }
 }

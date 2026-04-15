@@ -50,6 +50,7 @@
                 <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
                 <version>${paho.mqtt.version}</version>
             </dependency>
+
         </dependencies>
     </dependencyManagement>
 
