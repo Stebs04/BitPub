@@ -1,4 +1,4 @@
-package com.bitpub.simulators;
+package com.bitpub;
 
 import com.bitpub.utils.MqttFreccetteTopics;
 import org.eclipse.paho.client.mqttv3.MqttClient;
