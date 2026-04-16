@@ -11,4 +11,11 @@
 
     <artifactId>bitpub-edge</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.eclipse.paho</groupId>
+            <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
+        </dependency>
+    </dependencies>
+
 </project>
