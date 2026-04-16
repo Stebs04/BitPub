@@ -1,6 +1,7 @@
 package com.bitpub.models; // Modifica il package in base a dove l'ha messo Timothy
 
 import com.google.gson.annotations.Expose;
+import jakarta.persistence.*;
 
 /**
  * Modello specifico per le partite di Biliardo.
@@ -8,11 +9,15 @@ import com.google.gson.annotations.Expose;
  */
 public class PartitaBiliardo extends Partita {
 
+    @Column(nullable = false)
     // Campi specifici del Biliardo
     @Expose
     private String specialita;
+
+    @Column(name = "serie_massima_palle_imbucate")
     @Expose
     private int serieMassimaPalleImbucate;
+
     @Expose
     private int falli;
 

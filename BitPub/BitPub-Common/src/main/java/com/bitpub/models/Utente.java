@@ -5,6 +5,11 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 // Permette di marcare esplicitamente quali campi includere nel JSON
 import com.google.gson.annotations.Expose;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "utenti")
+
 /**
  * Rappresenta un Utente all'interno del dominio applicativo.
  * Questa classe modello contiene le informazioni di base per l'autenticazione
@@ -13,15 +18,19 @@ import com.google.gson.annotations.Expose;
  */
 public class Utente {
 
-    //Rendo gli atributi della classe visibili al JSON
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     /** L'identificativo univoco dell'utente, tipicamente generato dal database. */
     @Expose
     private Long id;
 
+    @Column(nullable = false, unique = true) // Nickname univoco
+    @Expose
     /** Il nome utente scelto per la visualizzazione e/o l'accesso. */
     @Expose
     private String nickname;
 
+    @Column(nullable = false)
     /** Il livello di privilegio assegnato all'utente (es. ADMIN, USER). */
     @Expose
     private String ruolo;
@@ -37,9 +46,11 @@ public class Utente {
     /** L'età dell'utente, espressa in anni. */
     private int anni;
 
+    @Column(unique = true) // Email univoca
     /** L'indirizzo e-mail dell'utente, utilizzato per comunicazioni e recupero account. */
     private String email;
 
+    @Column(nullable = false)
     /** La credenziale di accesso. */
     private String password;
 
