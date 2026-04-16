@@ -1,47 +1,68 @@
 package com.bitpub.mqtt;
 
+import com.bitpub.security.TlsUtility;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 /**
- * Gestore della connessione MQTT dall'Edge verso il server Cloud.
- * Implementa la resilienza offline tramite Durable Session.
+ * Gestore della connettività MQTT per l'integrazione tra l'Edge Node e il backend Cloud.
+ * Configura il client per garantire la persistenza dei dati e la sicurezza del trasporto.
+ *
+ * <p>Caratteristiche principali: Sessioni durevoli, TLS mutuo e auto-reconnect.</p>
+ *
+ * @author Timothy (Architettura Sessioni)
+ * @author Stefano Bellan 20054330 (Modulo Sicurezza TLS)
  */
 public class CloudMqttManager {
 
     /**
-     * Crea e configura il client MQTT per il Cloud.
-     * * @param brokerCloudUrl L'indirizzo del Cloud (es. "ssl://cloud.bitpub.com:8883")
-     * @param nomeLocale Il nome univoco del locale (es. "Milano-1")
-     * @return Il client configurato e pronto alla connessione
+     * Factory method per la creazione e configurazione del client MQTT Cloud.
+     * Implementa la logica di "Store and Forward" necessaria per gestire l'intermittenza della rete.
+     *
+     * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://cloud.bitpub.com:8883").
+     * @param nomeLocale     Identificativo testuale del locale per la generazione del ClientID.
+     * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
+     * @throws MqttException Se l'URL del broker non è valido o l'istanziazione fallisce.
      */
     public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws MqttException {
 
-        // --- TIMOTHY: 1. ClientID Statico ---
-        // Generiamo un ID fisso per questo specifico Edge Node.
-        // Se si disconnette e si riconnette, il Cloud lo riconoscerà sempre!
+        // Definizione ClientID statico: critico per il ripristino della sessione lato broker
         String clientIdFisso = "Edge-" + nomeLocale;
 
+        // Utilizzo MemoryPersistence per i metadati del client; la persistenza dei messaggi
+        // a lungo termine è delegata alla Durable Session del broker.
         MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
-        // Configurazione delle opzioni di connessione
         MqttConnectOptions connOpts = new MqttConnectOptions();
 
-        // --- TIMOTHY: 2. Durable Session (Clean Session = false) ---
-        // TASSATIVO: Impostando false, abilitiamo la sessione persistente.
-        // Fondamentale per il paradigma "Store and Forward".
+        /*
+         * CONFIGURAZIONE SESSIONE (Ref: Timothy)
+         * setCleanSession(false) abilita la "Durable Session": il broker mantiene
+         * le sottoscrizioni e i messaggi QoS 1/2 anche se il client è offline.
+         */
         connOpts.setCleanSession(false);
-
-        // Aggiungiamo anche la riconnessione automatica per comodità
         connOpts.setAutomaticReconnect(true);
 
-        // --- SPAZIO PER STEFANO (Setup TLS) ---
-        // Qui Stefano inserirà il codice per validare ca.crt generato dal vostro script OpenSSL
-        // Esempio futuro: connOpts.setSocketFactory(StefanoTlsUtility.getSocketFactory());
+        /*
+         * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
+         * Percorso relativo per il certificato CA, mappato sulla struttura del workspace.
+         */
+        String caFilePath = "../BitPub-Security/ca.crt";
 
-        System.out.println("[EDGE] Client Cloud configurato con ID statico: " + clientIdFisso + " e CleanSession=false");
+        try {
+            // Iniezione della SocketFactory custom per il trust degli endpoint Cloud
+            connOpts.setSocketFactory(TlsUtility.getSocketFactory(caFilePath));
+            System.out.println("[EDGE-INFO] TLS Setup: Certificato caricato da " + caFilePath);
+        } catch (Exception e) {
+            // LOGICA DI FALLBACK: Un errore qui impedisce la comunicazione sicura.
+            System.err.println("[EDGE-FATAL] Impossibile configurare il layer SSL/TLS. Abort.");
+            e.printStackTrace();
+            // TODO: Introdurre un sistema di Health Check per segnalare il nodo come "Degradato"
+        }
+
+        System.out.println("[EDGE] Client Cloud pronto. ID: " + clientIdFisso + " (Durable Session abilitata)");
 
         return cloudClient;
     }
