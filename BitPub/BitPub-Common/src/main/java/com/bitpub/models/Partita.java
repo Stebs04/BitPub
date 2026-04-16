@@ -1,10 +1,11 @@
 package com.bitpub.models;
 
 import com.google.gson.annotations.Expose;
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import jakarta.persistence.*;
 
 @Entity
+@Table(name = "partite")
 // Questa annotazione dice a Spring/Hibernate: "Crea una tabella per i campi comuni qui,
 // e tabelle separate per i campi specifici di Biliardo o Freccette, unendole con un JOIN"
 @Inheritance(strategy = InheritanceType.JOINED)
