@@ -2,19 +2,29 @@ package com.bitpub.models;
 
 // Permette di marcare esplicitamente quali campi includere nel JSON
 import com.google.gson.annotations.Expose;
+import jakarta.persistence.*;
 
 /**
  * Rappresenta un'entità Locale all'interno del sistema.
  * Gestisce le informazioni anagrafiche e di rete associate a un nodo periferico (Edge).
  * @author Stefano Bellan 20054330
  */
+
+@Entity // Indica a JPA che questa classe è una tabella del DB
+@Table(name = "locali") // Specifica il nome della tabella
+
 public class Locale {
 
-    //Rendo gli atributi della classe visibili al JSON
+    @Id // Chiave primaria
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Expose
     private Long id;
+
+    @Column(nullable = false) // Il nome non può essere nullo nel DB
     @Expose
     private String name;
+
+    @Column(name = "ip_address_edge", nullable = false)
     @Expose
     private String ipAddressEdge;
 
