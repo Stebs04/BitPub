@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="mainPane" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.bitpub.controllers.MainController">
+
+    <left>
+        <VBox spacing="10.0" style="-fx-background-color: #2c3e50; -fx-width: 200px;">
+            <padding>
+                <Insets top="20" right="10" bottom="20" left="10"/>
+            </padding>
+
+            <Label text="BitPub" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;">
+                <VBox.margin><Insets bottom="20"/></VBox.margin>
+            </Label>
+
+            <Button text="Dashboard Generale" onAction="#mostraDashboard" maxWidth="Infinity" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
+            <Button text="Calciobalilla" onAction="#mostraCalciobalilla" maxWidth="Infinity" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
+            <Button text="Freccette" onAction="#mostraFreccette" maxWidth="Infinity" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
+            <Button text="Biliardo" onAction="#mostraBiliardo" maxWidth="Infinity" style="-fx-background-color: #34495e; -fx-text-fill: white;"/>
+
+            <Spacer VBox.vgrow="ALWAYS" />
+            <Separator />
+            <Label text="v1.0.0 (SemVer)" style="-fx-text-fill: #95a5a6; -fx-font-size: 10px;" />
+        </VBox>
+    </left>
+
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-background-color: #ecf0f1;">
+            <Label text="Seleziona un gioco dal menu per iniziare" style="-fx-text-fill: #7f8c8d;" />
+        </StackPane>
+    </center>
+
+</BorderPane>
