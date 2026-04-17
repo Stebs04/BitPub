@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import com.bitpub.services.PersistenceService;
+import com.bitpub.cloud.service.ElaborazioneEventiService;
 
 /**
  * Gateway di ricezione Cloud-side.
@@ -31,7 +33,7 @@ public class CloudMqttGateway implements MqttCallback {
      * Servizio di persistenza per l'interfacciamento con PostgreSQL via JPA/Hibernate.
      */
     @Autowired
-    private PersistenceService persistenceService;
+    private ElaborazioneEventiService elaborazioneEventiService;
 
     /**
      * Lifecycle Hook di Spring: inizializza la connessione MQTT dopo l'iniezione delle dipendenze.
@@ -84,7 +86,7 @@ public class CloudMqttGateway implements MqttCallback {
          * Il salvataggio avviene nel thread di callback di Paho.
          * Assicurarsi che salvaMessaggio() gestisca correttamente le transazioni DB.
          */
-        persistenceService.salvaMessaggio(topic, payload);
+       elaborazioneEventiService.processaESalvaEvento(topic, new String(message.getPayload(), StandardCharsets.UTF_8));
     }
 
     /**
