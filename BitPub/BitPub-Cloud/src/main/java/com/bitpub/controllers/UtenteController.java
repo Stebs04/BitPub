@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * @author Stefano Bellan 20054330
  */
 @RestController
-@RequestMapping("/api/utenti")
+@RequestMapping(value = "/api/utenti", produces = "application/resources.v1+json")
 public class UtenteController {
 
     @Autowired
