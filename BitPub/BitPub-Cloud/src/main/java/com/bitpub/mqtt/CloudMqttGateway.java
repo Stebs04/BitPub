@@ -1,12 +1,12 @@
 package com.bitpub.mqtt;
 
 import com.bitpub.services.PersistenceService;
-import com.bitpub.utils.MqqtCalciobalillaTopics;
+import com.bitpub.utils.MqttCalciobalillaTopics;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -58,7 +58,7 @@ public class CloudMqttGateway implements MqttCallback {
             client.connect(options);
 
             // Sottoscrizione con QoS 1 per attivare il meccanismo di acknowledgment del broker
-            client.subscribe(MqqtCalciobalillaTopics.TOPIC_CLOUD, 1);
+            client.subscribe(MqttCalciobalillaTopics.TOPIC_CLOUD, 1);
 
             System.out.println("[CLOUD GATEWAY] Connesso e in ascolto sui topic dei locali...");
         } catch (MqttException e) {
