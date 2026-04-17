@@ -25,7 +25,6 @@ public class Utente {
     private Long id;
 
     @Column(nullable = false, unique = true) // Nickname univoco
-    @Expose
     /** Il nome utente scelto per la visualizzazione e/o l'accesso. */
     @Expose
     private String nickname;

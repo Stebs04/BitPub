@@ -9,7 +9,7 @@ package com.bitpub.utils;
  *
  * @author Stefano Bellan 20054330
  */
-public class MqqtCalciobalillaTopics {
+public class MqttCalciobalillaTopics {
 
     // Root principale della gerarchia MQTT per l'ecosistema BitPub.
     public static final String ROOT = "bitpub/locali";
