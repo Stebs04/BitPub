@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
  * Espone le API per operazioni CRUD integrando il supporto HATEOAS per la navigazione delle risorse.
  */
 @RestController // Marca la classe come controller REST (risposte in JSON di default)
-@RequestMapping("/api/locali") // Base path per tutti gli endpoint di questo controller
+@RequestMapping(value = "/api/locali", produces = "application/resources.v1+json") // Base path per tutti gli endpoint di questo controller
 public class LocaleController {
 
     @Autowired // Injection del repository tramite il container di Spring
