@@ -1,3 +1,5 @@
+package com.bitpub.models;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,17 +17,18 @@ class Link {
 /**
  * Risorsa specifica per il Biliardo con supporto HATEOAS.
  */
-public class BiliardoResource {
+
+public class ResourceSupport {
     // Dati dell'evento (es. palla numero 8 in buca)
     private String idEvento;
     private String tipoAzione;
     private String idSquadra;
     private String idMatch;
 
-    // Il nodo richiesto dalle specifiche: _links [cite: 80]
     private Map<String, Link> _links = new HashMap<>();
 
-    public BiliardoResource(String idEvento, String tipoAzione, String idSquadra, String idMatch) {
+
+    public ResourceSupport(String idEvento, String tipoAzione, String idSquadra, String idMatch) {
         this.idEvento = idEvento;
         this.tipoAzione = tipoAzione;
         this.idSquadra = idSquadra;
