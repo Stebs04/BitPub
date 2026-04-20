@@ -1,26 +1,59 @@
 package it.unibo.bitpub.javafx.controller;
 
-import javafx.fxml.FXML;
-import javafx.scene.control.TextArea;
+import it.unibo.bitpub.javafx.network.BiliardoApiClient;
 import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import java.net.http.HttpRequest;
+import java.net.URI;
 
 public class BiliardoUIController {
 
-    // L'annotazione @FXML collega questa variabile all'elemento nel file FXML
+    // Riferimenti agli elementi grafici (definiti nel file FXML)
     @FXML
-    private TextArea eventiBiliardoArea;
-
-    // Questo metodo viene chiamato quando premi il pulsante "Aggiorna Dati Biliardo"
+    private Label serieMassimaLabel;
     @FXML
-    public void aggiornaDati() {
-        // Simuliamo l'arrivo di dati dal server Cloud in background
-        new Thread(() -> {
-            String nuovoEvento = "Evento: Palla 8 in buca! (Ricevuto da API REST)\n";
+    private ListView<String> storicoListView;
 
-            // REGOLA FONDAMENTALE: Aggiorniamo la UI solo tramite Platform.runLater
-            Platform.runLater(() -> {
-                eventiBiliardoArea.appendText(nuovoEvento);
-            });
-        }).start();
+    private BiliardoApiClient apiClient;
+
+    // Metodo chiamato in automatico da JavaFX quando la schermata viene caricata
+    @FXML
+    public void initialize() {
+        this.apiClient = new BiliardoApiClient();
+    }
+
+    // Metodo collegato a un pulsante "Carica Statistiche" nella UI
+    @FXML
+    public void caricaDatiDashboard() {
+        // Luca, qui simuliamo la creazione della richiesta.
+        // Ricorda che l'header 'Accept' sarà gestito da Timothy!
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:8080/api/v1/biliardo/statistiche"))
+                .GET()
+                .build();
+
+        // 1. Facciamo la chiamata asincrona
+        apiClient.getStatisticheBiliardo(request)
+                // 2. thenAccept dice cosa fare quando i dati sono pronti
+                .thenAccept(statistiche -> {
+
+                    // 3. REGOLA FONDAMENTALE: Aggiorniamo la grafica tramite il thread di JavaFX
+                    Platform.runLater(() -> {
+                        // Popoliamo la Label con il numero massimo
+                        serieMassimaLabel.setText(String.valueOf(statistiche.getSerieMassimaPalle()));
+
+                        // Svuotiamo e riempiamo la lista dello storico
+                        storicoListView.getItems().clear();
+                        storicoListView.getItems().addAll(statistiche.getStoricoPartite());
+                    });
+
+                })
+                .exceptionally(errore -> {
+                    // Gestione di un eventuale errore di rete (es. Cloud Server spento)
+                    System.err.println("Errore di connessione: " + errore.getMessage());
+                    return null;
+                });
     }
 }

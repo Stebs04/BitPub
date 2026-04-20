@@ -39,4 +39,20 @@ public class BiliardoApiClient {
                     return gson.fromJson(jsonBody, BiliardoResource.class);
                 });
     }
+
+    /**
+     * Richiede le statistiche del Biliardo al server Cloud.
+     * @param request La richiesta HTTP configurata con l'URL delle statistiche
+     * @return Una "promessa" (CompletableFuture) che conterrà le statistiche
+     */
+    public CompletableFuture<BiliardoStatistiche> getStatisticheBiliardo(HttpRequest request) {
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(jsonBody -> {
+                    // GSON trasforma il JSON nel nostro nuovo oggetto BiliardoStatistiche
+                    return gson.fromJson(jsonBody, BiliardoStatistiche.class);
+                });
+    }
+
+
 }
