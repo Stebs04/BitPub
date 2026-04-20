@@ -13,11 +13,12 @@
     <description>Workspace Parent per il sistema BitPub</description>
 
     <modules>
+        <module>BitPub-Common</module>
         <module>BitPub-Edge</module>
         <module>BitPub-Cloud</module>
         <module>BitPub-JavaFX</module>
         <module>BitPub-Simulators</module>
-        <module>BitPub-Common</module>
+
     </modules>
 
     <properties>
