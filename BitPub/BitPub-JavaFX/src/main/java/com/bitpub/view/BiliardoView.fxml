@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" alignment="CENTER" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="it.unibo.bitpub.javafx.controller.BiliardoUIController">
+
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <Label text="Dashboard Biliardo" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+
+    <Label text="Ultimi Eventi:"/>
+    <TextArea fx:id="eventiBiliardoArea" editable="false" prefHeight="200" prefWidth="300"/>
+
+    <Button text="Aggiorna Dati Biliardo" onAction="#aggiornaDati"/>
+
+</VBox>
