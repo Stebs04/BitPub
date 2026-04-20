@@ -7,7 +7,8 @@
 <?import javafx.scene.effect.*?>
 <?import javafx.scene.Group?>
 <!-- Autore Stefano Bellan 20054330 -->
-<BorderPane prefWidth="1920.0" prefHeight="1080.0"
+<BorderPane prefWidth="860.0" prefHeight="640.0"
+            maxWidth="Infinity" maxHeight="Infinity"
             xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.bitpub.controllers.CalciobalillaUIController"
             style="-fx-background-color: #1a1a1a;">
