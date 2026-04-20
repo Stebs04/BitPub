@@ -50,10 +50,13 @@ public class FreccetteDashboardController {
                 .thenAccept(risposta -> {
                     // Stefano: Estrazione dati e link HATEOAS
                     List<PartitaFreccette> partiteRicevute = (List<PartitaFreccette>) risposta.getData();
-
+                    
                     String linkUpdate = "";
                     if (risposta.getLinks() != null && risposta.getLinks().containsKey("update")) {
-                        linkUpdate = risposta.getLinks().get("update").getHref();
+                        RispostaHateoas.LinkDettaglio link = (RispostaHateoas.LinkDettaglio) risposta.getLinks().get("update");
+                        if (link != null) {
+                            linkUpdate = link.getHref();
+                        }
                     }
 
                     final String finalLink = linkUpdate;

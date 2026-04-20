@@ -1,20 +1,21 @@
-package it.unibo.bitpub.javafx.network;
+package com.bitpub.network;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 import com.google.gson.Gson;
-import it.unibo.bitpub.cloud.model.BiliardoResource; // Assicurati di importare il modello corretto
+import com.bitpub.models.BiliardoResource;
+import com.bitpub.model.BiliardoStatistiche;
 
-public class BiliardoApiClient {
+public class BiliardoAPIClient {
 
     // L'HttpClient nativo di Java 11+
     private final HttpClient httpClient;
     // GSON per la deserializzazione
     private final Gson gson;
 
-    public BiliardoApiClient() {
+    public BiliardoAPIClient() {
         this.httpClient = HttpClient.newHttpClient();
         this.gson = new Gson();
     }
