@@ -17,27 +17,22 @@ import java.io.IOException;
  * Gestisce la navigazione tra i moduli (Biliardo, Calciobalilla, Freccette)
  * e il caricamento dinamico delle view nel pannello centrale.
  *
- * @author BitPub Team
+ * View disponibili al momento:
+ *   - DashboardView.fxml         → dashboard generale (placeholder)
+ *   - CalciobalillaView.fxml     → modulo calciobalilla (implementato)
+ *   - BiliardoView.fxml          → modulo biliardo (implementato)
+ *   - FreccetteView.fxml         → placeholder (non ancora implementato)
+ *
+ * @author Stefano Bellan 20054330
  */
 public class MainController {
 
-    @FXML
-    private StackPane contentArea;
-
-    @FXML
-    private Button btnDashboard;
-
-    @FXML
-    private Button btnCalciobalilla;
-
-    @FXML
-    private Button btnFreccette;
-
-    @FXML
-    private Button btnBiliardo;
-
-    @FXML
-    private Label statusLabel;
+    @FXML private StackPane contentArea;
+    @FXML private Button btnDashboard;
+    @FXML private Button btnCalciobalilla;
+    @FXML private Button btnFreccette;
+    @FXML private Button btnBiliardo;
+    @FXML private Label statusLabel;
 
     /**
      * Inizializzazione automatica al caricamento del FXML.
@@ -49,82 +44,93 @@ public class MainController {
     }
 
     /**
-     * Mostra la dashboard generale con i KPI principali.
+     * Mostra la dashboard generale.
+     * Carica DashboardView.fxml se presente, altrimenti mostra placeholder.
      */
     @FXML
     public void mostraDashboard() {
         impostaBottoneAttivo(btnDashboard);
-        caricaVista("DashboardView.fxml", "Dashboard Generale");
+        caricaVista("view/DashboardView.fxml", "Dashboard", "⬡");
     }
 
     /**
      * Mostra la vista del modulo Calciobalilla.
+     * View implementata: CalciobalillaView.fxml
      */
     @FXML
     public void mostraCalciobalilla() {
         impostaBottoneAttivo(btnCalciobalilla);
-        caricaVista("view/CalciobalillaView.fxml", "Calciobalilla");
+        caricaVista("view/CalciobalillaView.fxml", "Calciobalilla", "⚽");
     }
 
     /**
      * Mostra la vista del modulo Freccette.
+     * View non ancora implementata: verrà mostrato il placeholder.
      */
     @FXML
     public void mostraFreccette() {
         impostaBottoneAttivo(btnFreccette);
-        caricaVista("view/FreccetteView.fxml", "Freccette");
+        caricaVista("view/FreccetteView.fxml", "Freccette", "🎯");
     }
 
     /**
      * Mostra la vista del modulo Biliardo.
+     * View implementata: BiliardoView.fxml
      */
     @FXML
     public void mostraBiliardo() {
         impostaBottoneAttivo(btnBiliardo);
-        caricaVista("view/BiliardoView.fxml", "Biliardo");
+        caricaVista("view/BiliardoView.fxml", "Biliardo", "🎱");
     }
 
     /**
      * Carica dinamicamente una vista FXML nel pannello centrale con animazione fade.
+     * Se il file FXML non esiste o non è ancora implementato, mostra un placeholder stilizzato.
      *
-     * @param nomeFile  Nome del file FXML da caricare dalla cartella resources.
-     * @param titolo    Titolo del modulo per logging.
+     * @param percorso  Percorso del file FXML relativo a resources/
+     * @param titolo    Nome del modulo (per statusLabel e placeholder)
+     * @param icona     Emoji/icona da mostrare nel placeholder
      */
-    private void caricaVista(String nomeFile, String titolo) {
+    private void caricaVista(String percorso, String titolo, String icona) {
         try {
-            var url = getClass().getResource("/" + nomeFile);
+            var url = getClass().getResource("/" + percorso);
 
-            // Se la risorsa non esiste, mostra placeholder senza tentare il caricamento
             if (url == null) {
-                mostraPlaceholder(titolo);
+                mostraPlaceholder(titolo, icona);
                 return;
             }
 
             FXMLLoader loader = new FXMLLoader(url);
             Node vista = loader.load();
 
-            // Animazione fade-out della vista corrente
-            if (!contentArea.getChildren().isEmpty()) {
-                Node corrente = contentArea.getChildren().get(0);
-                FadeTransition fadeOut = new FadeTransition(Duration.millis(150), corrente);
-                fadeOut.setFromValue(1.0);
-                fadeOut.setToValue(0.0);
-                fadeOut.setOnFinished(e -> {
-                    contentArea.getChildren().setAll(vista);
-                    animaFadeIn(vista);
-                });
-                fadeOut.play();
-            } else {
-                contentArea.getChildren().setAll(vista);
-                animaFadeIn(vista);
-            }
+            sostituisciVista(vista);
 
             if (statusLabel != null) {
                 statusLabel.setText("Modulo attivo: " + titolo);
             }
 
         } catch (IOException e) {
-            mostraPlaceholder(titolo);
+            mostraPlaceholder(titolo, icona);
+        }
+    }
+
+    /**
+     * Sostituisce la vista corrente nel contentArea con animazione fade-out/fade-in.
+     */
+    private void sostituisciVista(Node nuovaVista) {
+        if (!contentArea.getChildren().isEmpty()) {
+            Node corrente = contentArea.getChildren().get(0);
+            FadeTransition fadeOut = new FadeTransition(Duration.millis(150), corrente);
+            fadeOut.setFromValue(1.0);
+            fadeOut.setToValue(0.0);
+            fadeOut.setOnFinished(e -> {
+                contentArea.getChildren().setAll(nuovaVista);
+                animaFadeIn(nuovaVista);
+            });
+            fadeOut.play();
+        } else {
+            contentArea.getChildren().setAll(nuovaVista);
+            animaFadeIn(nuovaVista);
         }
     }
 
@@ -139,27 +145,36 @@ public class MainController {
     }
 
     /**
-     * Mostra un pannello placeholder per le viste non ancora implementate.
+     * Mostra un pannello placeholder stilizzato per le viste non ancora implementate.
      *
-     * @param nomeModulo Nome del modulo da visualizzare nel placeholder.
+     * @param nomeModulo Nome del modulo
+     * @param icona      Icona/emoji da mostrare
      */
-    private void mostraPlaceholder(String nomeModulo) {
-        VBox placeholder = new VBox(12);
-        placeholder.setStyle("-fx-alignment: center; -fx-padding: 40;");
+    private void mostraPlaceholder(String nomeModulo, String icona) {
+        VBox placeholder = new VBox(16);
+        placeholder.setStyle("-fx-alignment: center; -fx-padding: 60;");
 
-        Label icona = new Label("⚙");
-        icona.setStyle("-fx-font-size: 48px; -fx-text-fill: #3d85c8; -fx-opacity: 0.6;");
+        Label lblIcona = new Label(icona);
+        lblIcona.setStyle("-fx-font-size: 52px; -fx-text-fill: #3d85c8; -fx-opacity: 0.5;");
 
-        Label titolo = new Label("Modulo " + nomeModulo);
-        titolo.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #e0e0e0;");
+        Label lblTitolo = new Label("Modulo " + nomeModulo);
+        lblTitolo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e2e8f0; -fx-font-family: 'Courier New';");
 
-        Label sottotitolo = new Label("Vista in fase di sviluppo");
-        sottotitolo.setStyle("-fx-font-size: 13px; -fx-text-fill: #6c757d;");
+        Label lblSottotitolo = new Label("Vista in fase di sviluppo");
+        lblSottotitolo.setStyle("-fx-font-size: 13px; -fx-text-fill: #4a5568; -fx-font-family: 'Courier New';");
 
-        placeholder.getChildren().addAll(icona, titolo, sottotitolo);
+        Label lblBadge = new Label("COMING SOON");
+        lblBadge.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #f6ad55; " +
+                "-fx-background-color: #2d1f00; -fx-padding: 4 12; -fx-background-radius: 12; " +
+                "-fx-border-color: #f6ad55; -fx-border-width: 1; -fx-border-radius: 12;");
 
-        contentArea.getChildren().setAll(placeholder);
-        animaFadeIn(placeholder);
+        placeholder.getChildren().addAll(lblIcona, lblTitolo, lblSottotitolo, lblBadge);
+
+        sostituisciVista(placeholder);
+
+        if (statusLabel != null) {
+            statusLabel.setText("Modulo attivo: " + nomeModulo + " (placeholder)");
+        }
     }
 
     /**
