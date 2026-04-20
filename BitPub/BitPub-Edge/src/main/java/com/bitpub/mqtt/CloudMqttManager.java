@@ -49,7 +49,7 @@ public class CloudMqttManager {
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
          * Percorso relativo per il certificato CA, mappato sulla struttura del workspace.
          */
-        String caFilePath = "../BitPub-Security/ca.crt";
+        String caFilePath = "../BitPub-Security/certs/ca.crt";
 
         try {
             // Iniezione della SocketFactory custom per il trust degli endpoint Cloud
