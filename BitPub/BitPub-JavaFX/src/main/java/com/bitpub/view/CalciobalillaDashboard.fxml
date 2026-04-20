@@ -8,6 +8,8 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
+<!-- Autore Stefano Bellan 20054330 -->
+
 <VBox alignment="TOP_CENTER" spacing="25.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="com.bitpub.controllers.CalciobalillaDashboardController"
       style="-fx-background-color: #111827; -fx-font-family: 'Segoe UI', 'Roboto', sans-serif;">

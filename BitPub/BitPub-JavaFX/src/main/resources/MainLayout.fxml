@@ -5,6 +5,8 @@
 <?import javafx.scene.shape.*?>
 <?import javafx.geometry.Insets?>
 
+<!-- Autore Stefano Bellan 20054330 -->
+
 <BorderPane
     prefHeight="720.0"
     prefWidth="1100.0"
