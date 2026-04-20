@@ -1,3 +1,6 @@
+package com.bitpub.controllers;
+
+import com.bitpub.models.BiliardoResource;
 import com.google.gson.Gson;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
