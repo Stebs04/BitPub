@@ -1,7 +1,7 @@
 package com.bitpub.controllers;
 
 import com.bitpub.network.RestClient;
-import it.unibo.bitpub.javafx.model.BiliardoStatistiche;
+import com.bitpub.model.BiliardoStatistiche;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;

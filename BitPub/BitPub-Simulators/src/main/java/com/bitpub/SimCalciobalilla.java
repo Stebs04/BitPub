@@ -1,7 +1,7 @@
 package com.bitpub;
 
 import com.bitpub.models.PartitaCalciobalilla;
-import com.bitpub.utils.MqqtCalciobalillaTopics;
+import com.bitpub.utils.MqttCalciobalillaTopics;
 import com.google.gson.Gson;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -62,7 +62,7 @@ public class SimCalciobalilla implements Runnable {
             System.out.println("Calciobalilla " + idDispositivo + " connesso all'Edge: " + edgeBrokerUrl);
 
             // Recupera il topic corretto dalla utility class dedicata
-            String topic = MqqtCalciobalillaTopics.getTopicPubblicazione(idLocale, idDispositivo);
+            String topic = MqttCalciobalillaTopics.getTopicPubblicazione(idLocale, idDispositivo);
 
             // Stato interno della partita corrente
             PartitaCalciobalilla partita = new PartitaCalciobalilla();
