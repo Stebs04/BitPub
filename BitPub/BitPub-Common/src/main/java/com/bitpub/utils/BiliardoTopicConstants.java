@@ -1,4 +1,4 @@
-package it.bitpub.edge.mqtt;
+package com.bitpub.utils;
 
 /**
  * Costanti per l'albero dei topic MQTT relativi al Biliardo.
