@@ -1,5 +1,6 @@
 package com.bitpub.controllers;
 
+import com.bitpub.models.CalciobalillaStats;
 import com.bitpub.models.PartitaCalciobalilla;
 import com.bitpub.repository.PartitaCalciobalillaRepository;
 import com.bitpub.utils.HateoasResource;
@@ -12,8 +13,8 @@ import java.util.stream.Collectors;
 
 /**
  * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
- * Espone gli endpoint necessari per il recupero dei dati seguendo i principi HATEOAS
- * per garantire l'esplorabilità dell'API.
+ * Espone gli endpoint per il recupero delle singole partite (HATEOAS) e per il
+ * calcolo delle statistiche aggregate globali.
  *
  * @author Stefano Bellan 20054330
  */
@@ -52,6 +53,25 @@ public class CalciobalillaController {
         return repository.findById(id)
                 .map(p -> ResponseEntity.ok(aggiungiLinkHateoas(p)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Fornisce le statistiche globali aggregate di tutto il sistema Calciobalilla.
+     * Raggruppa i dati su falli (rullate) e vittorie per squadra.
+     *
+     * @return ResponseEntity contenente l'oggetto {@link CalciobalillaStats}.
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<CalciobalillaStats> getStats() {
+        // Gestione del potenziale null restituito da SUM() su un database vuoto
+        int rullate = repository.countTotalRullate() != null ? repository.countTotalRullate() : 0;
+
+        // Recupero dei conteggi distribuiti per squadra tramite query custom
+        int vRossi = repository.countVittorieRossi();
+        int vBlu = repository.countVittorieBlu();
+
+        // Incapsulamento nel DTO specifico per la risposta JSON
+        return ResponseEntity.ok(new CalciobalillaStats(rullate, vRossi, vBlu));
     }
 
     /**
