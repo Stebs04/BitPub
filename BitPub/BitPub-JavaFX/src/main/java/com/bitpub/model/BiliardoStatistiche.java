@@ -1,4 +1,4 @@
-package it.unibo.bitpub.javafx.model;
+package com.bitpub.model;
 
 import java.util.List;
 
