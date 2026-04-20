@@ -18,7 +18,7 @@ class Link {
  * Risorsa specifica per il Biliardo con supporto HATEOAS.
  */
 
-public class ResourceSupport {
+public class BiliardoResource {
     // Dati dell'evento (es. palla numero 8 in buca)
     private String idEvento;
     private String tipoAzione;
@@ -28,7 +28,7 @@ public class ResourceSupport {
     private Map<String, Link> _links = new HashMap<>();
 
 
-    public ResourceSupport(String idEvento, String tipoAzione, String idSquadra, String idMatch) {
+    public BiliardoResource(String idEvento, String tipoAzione, String idSquadra, String idMatch) {
         this.idEvento = idEvento;
         this.tipoAzione = tipoAzione;
         this.idSquadra = idSquadra;
