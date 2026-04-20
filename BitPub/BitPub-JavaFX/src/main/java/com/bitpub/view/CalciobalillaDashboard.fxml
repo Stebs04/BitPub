@@ -23,6 +23,29 @@
 
     <Label fx:id="statoLabel" text="In attesa di connessione..." style="-fx-font-size: 15px; -fx-text-fill: #9ca3af; -fx-font-style: italic;" />
 
+    <HBox alignment="CENTER" spacing="20.0">
+        <Label fx:id="labelVittorieRossi" text="Vittorie Squadra Rossa: --"
+               style="-fx-font-size: 15px; -fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-background-color: #1f2937; -fx-padding: 12 20; -fx-background-radius: 8; -fx-border-color: #7f1d1d; -fx-border-width: 1; -fx-border-radius: 8;">
+            <effect>
+                <DropShadow color="#ef444440" offsetY="3" radius="6" />
+            </effect>
+        </Label>
+
+        <Label fx:id="labelFalliTotali" text="Falli Totali (Rullate): --"
+               style="-fx-font-size: 15px; -fx-text-fill: #f59e0b; -fx-font-weight: bold; -fx-background-color: #1f2937; -fx-padding: 12 20; -fx-background-radius: 8; -fx-border-color: #78350f; -fx-border-width: 1; -fx-border-radius: 8;">
+            <effect>
+                <DropShadow color="#f59e0b40" offsetY="3" radius="6" />
+            </effect>
+        </Label>
+
+        <Label fx:id="labelVittorieBlu" text="Vittorie Squadra Blu: --"
+               style="-fx-font-size: 15px; -fx-text-fill: #3b82f6; -fx-font-weight: bold; -fx-background-color: #1f2937; -fx-padding: 12 20; -fx-background-radius: 8; -fx-border-color: #1e3a8a; -fx-border-width: 1; -fx-border-radius: 8;">
+            <effect>
+                <DropShadow color="#3b82f640" offsetY="3" radius="6" />
+            </effect>
+        </Label>
+    </HBox>
+
     <VBox style="-fx-background-color: #1f2937; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-color: #374151; -fx-border-width: 1;">
         <effect>
             <DropShadow blurType="GAUSSIAN" color="#00000099" height="30.0" radius="14.5" width="30.0" offsetY="5.0" />

@@ -3,19 +3,19 @@ package com.bitpub;
 import com.bitpub.models.PartitaCalciobalilla;
 import com.bitpub.utils.MqttCalciobalillaTopics;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.time.LocalDateTime;
 import java.util.Random;
 
 /**
- * Simulatore software di un tavolo da calciobalilla smart.
- * <p>
- * Questa classe implementa {@link Runnable} per gestire in un thread separato la connessione
- * MQTT verso un broker locale (Edge) e l'invio periodico di telemetria e stati di gioco.
- * </p>
+ * Simulatore software di un tavolo da calciobalilla IoT.
+ * Gestisce l'intero ciclo di vita di una partita, simulando eventi fisici
+ * (gol, rullate) e trasmettendo i dati in tempo reale via protocollo MQTT.
  *
  * @author Stefano Bellan 20054330
  */
@@ -27,98 +27,143 @@ public class SimCalciobalilla implements Runnable {
     private final Gson gson;
     private final Random random;
 
+    /** Regola ufficiale per la conclusione del match */
+    private final int MAX_GOL = 10;
+
+    /** Flag di controllo per la terminazione sicura del thread */
+    private volatile boolean inEsecuzione = true;
+
     /**
-     * Inizializza una nuova istanza del simulatore.
+     * Inizializza il simulatore configurando i parametri di connessione e i parser.
      *
-     * @param idLocale      Identificativo del locale di installazione.
-     * @param idDispositivo Identificativo univoco del tavolo.
-     * @param edgeBrokerIp  Indirizzo IP o hostname del broker MQTT locale.
+     * @param idLocale      Identificativo del bar/punto vendita.
+     * @param idDispositivo Identificativo univoco del tavolo fisico.
+     * @param edgeBrokerIp  Indirizzo IP dell'Edge Gateway locale.
      */
     public SimCalciobalilla(String idLocale, String idDispositivo, String edgeBrokerIp) {
         this.idLocale = idLocale;
         this.idDispositivo = idDispositivo;
-        // Protocollo TCP standard sulla porta 1883 (default MQTT senza SSL)
         this.edgeBrokerUrl = "tcp://" + edgeBrokerIp + ":1883";
-        this.gson = new Gson();
+
+        // GSON: Configurato per includere solo i campi annotati con @Expose per sicurezza
+        this.gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
         this.random = new Random();
     }
 
     /**
-     * Loop principale del simulatore.
-     * Gestisce la connessione al broker, la serializzazione JSON e l'invio dei dati
-     * con intervalli di tempo randomici.
+     * Arresta in modo pulito il loop di simulazione.
+     */
+    public void fermaSimulatore() {
+        this.inEsecuzione = false;
+    }
+
+    /**
+     * Entry point del thread. Gestisce la connessione MQTT e il loop infinito
+     * di simulazione dei match.
      */
     @Override
     public void run() {
         try {
-            // Client MQTT identificato dal prefisso 'Sim_' per facilitare il debug lato broker
+            // Configurazione client MQTT con ID univoco per evitare collisioni
             MqttClient client = new MqttClient(edgeBrokerUrl, "Sim_" + idDispositivo);
             MqttConnectOptions options = new MqttConnectOptions();
-
-            // Forza una sessione pulita per evitare il recupero di messaggi arretrati
             options.setCleanSession(true);
 
             client.connect(options);
-            System.out.println("Calciobalilla " + idDispositivo + " connesso all'Edge: " + edgeBrokerUrl);
+            System.out.println("[SimCalciobalilla] Connesso all'Edge: " + edgeBrokerUrl);
 
-            // Recupera il topic corretto dalla utility class dedicata
+            // Generazione dinamica del topic basata sulla gerarchia Locale/Dispositivo
             String topic = MqttCalciobalillaTopics.getTopicPubblicazione(idLocale, idDispositivo);
 
-            // Stato interno della partita corrente
-            PartitaCalciobalilla partita = new PartitaCalciobalilla();
+            while (inEsecuzione) {
+                System.out.println("\n[SimCalciobalilla] --- INIZIO NUOVA PARTITA ---");
+                PartitaCalciobalilla partita = iniziaNuovaPartita();
 
-            while (true) {
-                // Genera una variazione casuale dello stato di gioco
-                simulaEvento(partita);
+                // Ciclo di gioco: prosegue fino al raggiungimento del punteggio massimo
+                while (partita.getGoalRossi() < MAX_GOL && partita.getGoalBlu() < MAX_GOL && inEsecuzione) {
 
-                // Serializzazione dell'oggetto POJO in formato JSON
-                String payloadJson = gson.toJson(partita);
+                    // Simula il tempo di gioco tra un'azione e l'altra
+                    Thread.sleep(2000 + random.nextInt(3000));
 
-                // Configurazione messaggio: QoS 0 (At most once) per ridurre l'overhead
-                MqttMessage message = new MqttMessage(payloadJson.getBytes());
-                message.setQos(0);
+                    // Calcolo probabilistico dell'evento (Gol o Fallo)
+                    simulaEvento(partita);
 
-                client.publish(topic, message);
-                System.out.println("Pubblicato su " + topic + ": " + payloadJson);
+                    // Pubblicazione telemetria in tempo reale (Stato corrente)
+                    inviaMessaggio(client, topic, partita);
+                }
 
-                // Delay variabile tra 3 e 8 secondi per simulare un comportamento umano/fisico
-                Thread.sleep(3000 + random.nextInt(5000));
+                if (inEsecuzione) {
+                    // Chiusura ufficiale del match e marcatura temporale
+                    partita.setOrarioFine(LocalDateTime.now());
+
+                    String vincitore = partita.getGoalRossi() == MAX_GOL ? "ROSSI" : "BLU";
+                    System.out.println("[SimCalciobalilla] PARTITA TERMINATA! Vittoria " + vincitore);
+
+                    // Invio dell'ultimo pacchetto dati marcato come 'concluso'
+                    inviaMessaggio(client, topic, partita);
+
+                    // Periodo di cooldown prima del prossimo match
+                    System.out.println("[SimCalciobalilla] Pausa tra i match...");
+                    Thread.sleep(10000);
+                }
             }
+
+            client.disconnect();
+
         } catch (MqttException | InterruptedException e) {
-            // Logging semplificato dell'errore (in produzione utilizzare un logger come Log4j)
-            System.err.println("Errore nel simulatore Calciobalilla: " + e.getMessage());
+            System.err.println("[SimCalciobalilla] Errore critico nel motore di simulazione: " + e.getMessage());
         }
     }
 
     /**
-     * Applica logica stocastica per aggiornare i contatori della partita.
-     * <p>
-     * Probabilità definite:
-     * <ul>
-     *     <li>40% -> Goal Squadra Rossa</li>
-     *     <li>40% -> Goal Squadra Blu</li>
-     *     <li>15% -> Rullata (infrazione)</li>
-     *     <li>5%  -> Aggiornamento durata media azione</li>
-     * </ul>
-     * </p>
+     * Crea un'istanza vergine di {@link PartitaCalciobalilla}.
      *
-     * @param partita L'oggetto stato da modificare.
+     * @return Oggetto partita con punteggi azzerati e orario di inizio corrente.
+     */
+    private PartitaCalciobalilla iniziaNuovaPartita() {
+        PartitaCalciobalilla p = new PartitaCalciobalilla(0, 0, 0, 0, 0);
+        p.setOrarioInizio(LocalDateTime.now());
+        return p;
+    }
+
+    /**
+     * Motore stocastico della partita.
+     * Applica pesi probabilistici per determinare l'andamento del gioco.
      */
     private void simulaEvento(PartitaCalciobalilla partita) {
         int probabilita = random.nextInt(100);
 
-        if (probabilita < 40) {
+        if (probabilita < 40) { // 40% probabilità: Gol Squadra Rossa
             partita.setGoalRossi(partita.getGoalRossi() + 1);
             partita.setTotaleGol(partita.getTotaleGol() + 1);
-        } else if (probabilita < 80) {
+            System.out.println("   -> GOAL ROSSI! (" + partita.getGoalRossi() + " - " + partita.getGoalBlu() + ")");
+        } else if (probabilita < 80) { // 40% probabilità: Gol Squadra Blu
             partita.setGoalBlu(partita.getGoalBlu() + 1);
             partita.setTotaleGol(partita.getTotaleGol() + 1);
-        } else if (probabilita < 95) {
+            System.out.println("   -> GOAL BLU! (" + partita.getGoalRossi() + " - " + partita.getGoalBlu() + ")");
+        } else { // 20% probabilità: Rullata (Fallo tecnico)
             partita.setTotaleRullate(partita.getTotaleRullate() + 1);
-        } else {
-            // Simuliamo una variazione della velocità di gioco (10-40 secondi)
-            int nuovaDurata = 10 + random.nextInt(31);
-            partita.setDurataMediaPallinaSecondi(nuovaDurata);
+            System.out.println("   -> FALLO! (Rullata registrata)");
         }
+
+        // Simula la velocità media della pallina per quel turno
+        partita.setDurataMediaPallinaSecondi(10 + random.nextInt(20));
+    }
+
+    /**
+     * Trasforma l'oggetto in JSON e lo pubblica tramite il client MQTT fornito.
+     *
+     * @param client  Client MQTT connesso.
+     * @param topic   Canale su cui pubblicare.
+     * @param partita Oggetto da serializzare.
+     * @throws MqttException In caso di fallimento della comunicazione.
+     */
+    private void inviaMessaggio(MqttClient client, String topic, PartitaCalciobalilla partita) throws MqttException {
+        String payloadJson = gson.toJson(partita);
+        MqttMessage message = new MqttMessage(payloadJson.getBytes());
+
+        // QoS 0 (At most once): ideale per telemetria frequente ad alta velocità
+        message.setQos(0);
+        client.publish(topic, message);
     }
 }
