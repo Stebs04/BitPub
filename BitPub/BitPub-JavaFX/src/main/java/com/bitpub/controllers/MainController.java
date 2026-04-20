@@ -60,7 +60,7 @@ public class MainController {
     @FXML
     public void mostraCalciobalilla() {
         impostaBottoneAttivo(btnCalciobalilla);
-        caricaVista("view/CalciobalillaView.fxml", "Calciobalilla", "⚽");
+        caricaVista("CalciobalillaView.fxml", "Calciobalilla", "⚽");
     }
 
     /**
@@ -70,7 +70,7 @@ public class MainController {
     @FXML
     public void mostraFreccette() {
         impostaBottoneAttivo(btnFreccette);
-        caricaVista("view/FreccetteView.fxml", "Freccette", "🎯");
+        caricaVista("FreccetteView.fxml", "Freccette", "🎯");
     }
 
     /**
@@ -80,7 +80,7 @@ public class MainController {
     @FXML
     public void mostraBiliardo() {
         impostaBottoneAttivo(btnBiliardo);
-        caricaVista("view/BiliardoView.fxml", "Biliardo", "🎱");
+        caricaVista("BiliardoView.fxml", "Biliardo", "🎱");
     }
 
     /**
