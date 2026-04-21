@@ -7,7 +7,7 @@
 <?import javafx.geometry.Insets?>
 
 <VBox spacing="15" alignment="CENTER" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="it.unibo.bitpub.javafx.controller.BiliardoUIController">
+      fx:controller="com.bitpub.controllers.BiliardoUIController">
 
     <padding>
         <Insets top="20" right="20" bottom="20" left="20"/>
