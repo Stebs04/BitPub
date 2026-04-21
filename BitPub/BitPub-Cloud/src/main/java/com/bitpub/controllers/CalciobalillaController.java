@@ -3,96 +3,90 @@ package com.bitpub.controllers;
 import com.bitpub.models.CalciobalillaStats;
 import com.bitpub.models.PartitaCalciobalilla;
 import com.bitpub.repository.PartitaCalciobalillaRepository;
-import com.bitpub.utils.HateoasResource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+// Import statici fondamentali per la generazione dinamica dei link
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 /**
  * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
- * Espone gli endpoint per il recupero delle singole partite (HATEOAS) e per il
- * calcolo delle statistiche aggregate globali.
+ * Aggiornato alla Fase 22 con supporto HATEOAS reale tramite Spring Hateoas e CollectionModel.
  *
- * @author Stefano Bellan 20054330
+ * @author Stefano Bellan 20054330 (Logica di Dominio)
+ * @author Timothy (Integrazione HATEOAS Reale - Fase 22)
  */
 @RestController
-@RequestMapping(value = "/api/calciobalilla", produces = "application/resources.v1+json")
+@RequestMapping(value = "/api/calciobalilla")
 public class CalciobalillaController {
 
     @Autowired
     private PartitaCalciobalillaRepository repository;
 
     /**
-     * Recupera l'elenco completo delle partite registrate nel sistema.
-     * Ogni risorsa restituita è arricchita con i link ipertestuali necessari.
-     *
-     * @return ResponseEntity contenente una lista di {@link HateoasResource} di partite.
+     * Recupera l'elenco completo delle partite.
+     * Restituisce un CollectionModel per permettere link a livello di collezione.
      */
     @GetMapping
-    public ResponseEntity<List<HateoasResource<PartitaCalciobalilla>>> getAllEvents() {
-        // Recupera le entità dal database e le trasforma in risorse HATEOAS tramite Stream API
-        List<HateoasResource<PartitaCalciobalilla>> risorse = repository.findAll().stream()
+    public ResponseEntity<CollectionModel<EntityModel<PartitaCalciobalilla>>> getAllPartite() {
+        List<EntityModel<PartitaCalciobalilla>> partite = repository.findAll().stream()
                 .map(this::aggiungiLinkHateoas)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(risorse);
+        // 1. Creiamo il CollectionModel avvolgendo la lista
+        CollectionModel<EntityModel<PartitaCalciobalilla>> collectionModel = CollectionModel.of(partite);
+
+        // 2. Aggiungiamo un link "self" alla collezione stessa
+        collectionModel.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withSelfRel());
+
+        return ResponseEntity.ok(collectionModel);
     }
 
     /**
-     * Recupera i dettagli di una specifica partita tramite il suo identificativo univoco.
-     *
-     * @param id L'ID della partita da cercare.
-     * @return ResponseEntity con la risorsa trovata o status 404 Not Found.
+     * Recupera una singola partita per ID con link ipertestuali dinamici.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<HateoasResource<PartitaCalciobalilla>> getById(@PathVariable Long id) {
-        // Utilizzo del pattern funzionale di Optional per gestire la presenza o assenza del dato
+    public ResponseEntity<EntityModel<PartitaCalciobalilla>> getPartitaById(@PathVariable Long id) {
         return repository.findById(id)
-                .map(p -> ResponseEntity.ok(aggiungiLinkHateoas(p)))
+                .map(partita -> ResponseEntity.ok(aggiungiLinkHateoas(partita)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     /**
-     * Fornisce le statistiche globali aggregate di tutto il sistema Calciobalilla.
-     * Raggruppa i dati su falli (rullate) e vittorie per squadra.
-     *
-     * @return ResponseEntity contenente l'oggetto {@link CalciobalillaStats}.
+     * Endpoint per le statistiche aggregate.
      */
     @GetMapping("/stats")
-    public ResponseEntity<CalciobalillaStats> getStats() {
-        // Gestione del potenziale null restituito da SUM() su un database vuoto
-        int rullate = repository.countTotalRullate() != null ? repository.countTotalRullate() : 0;
-
-        // Recupero dei conteggi distribuiti per squadra tramite query custom
+    public ResponseEntity<CalciobalillaStats> getGlobalStats() {
+        Long rullate = repository.countTotalRullate() != null ? repository.countTotalRullate() : 0;
         int vRossi = repository.countVittorieRossi();
         int vBlu = repository.countVittorieBlu();
 
-        // Incapsulamento nel DTO specifico per la risposta JSON
         return ResponseEntity.ok(new CalciobalillaStats(rullate, vRossi, vBlu));
     }
 
     /**
-     * Arricchisce l'entità PartitaCalciobalilla con i metadati ipertestuali (HATEOAS).
-     * Questo metodo centralizza la logica di generazione dei link per mantenere la coerenza.
-     *
-     * @param partita L'entità core da mappare.
-     * @return La risorsa arricchita con i link "self", "dettagli_squadra" e "prossimo_match".
+     * Arricchisce l'entità PartitaCalciobalilla con i metadati ipertestuali (Fase 22).
      */
-    private HateoasResource<PartitaCalciobalilla> aggiungiLinkHateoas(PartitaCalciobalilla partita) {
-        HateoasResource<PartitaCalciobalilla> risorsa = new HateoasResource<>(partita);
+    private EntityModel<PartitaCalciobalilla> aggiungiLinkHateoas(PartitaCalciobalilla partita) {
+        EntityModel<PartitaCalciobalilla> risorsa = EntityModel.of(partita);
 
-        // Link obbligatorio HATEOAS: punta alla risorsa corrente
-        risorsa.addLink("self", "/api/calciobalilla/" + partita.getId());
+        // Link "self": punta alla risorsa corrente
+        risorsa.add(linkTo(methodOn(CalciobalillaController.class).getPartitaById(partita.getId())).withSelfRel());
 
-        /**
-         * Iniezione link dinamici per l'integrazione tra moduli.
-         * I link permettono al client di navigare verso i dettagli squadra e il calendario.
-         */
-        risorsa.addLink("dettagli_squadra", "/api/squadre/info/" + partita.getId());
-        risorsa.addLink("prossimo_match", "/api/partite/prossime/" + partita.getId());
+        // Link "storico": punta all'elenco completo
+        risorsa.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withRel("storico"));
+
+        // Link al Torneo: assicura il salto tra moduli in modo dinamico
+        if (partita.getTorneoId() != null) {
+            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneoId())).withRel("dettagli_torneo"));
+        }
 
         return risorsa;
     }
