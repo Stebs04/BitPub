@@ -6,15 +6,16 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 /**
- * Thread dedicato all'estrazione dei log dal buffer locale
- * e all'invio verso il server Cloud MQTT.
- * Implementa il paradigma Store and Forward per la resilienza offline.
+ * Thread Consumatore: estrae i log dalla BlockingQueue e li invia al Cloud.
  */
 public class InoltroCloudTask implements Runnable {
 
     private final MessageBuffer buffer;
     private final MqttClient cloudClient;
-    private boolean inEsecuzione;
+
+    // 'volatile' assicura che se un altro thread chiama fermaInoltro(),
+    // questo thread veda subito la modifica senza problemi di cache della CPU.
+    private volatile boolean inEsecuzione;
 
     public InoltroCloudTask(MessageBuffer buffer, MqttClient cloudClient) {
         this.buffer = buffer;
@@ -28,38 +29,40 @@ public class InoltroCloudTask implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("[InoltroCloud] Thread di inoltro verso il Cloud avviato.");
+        System.out.println("[InoltroCloud] Thread Consumer avviato. In attesa di eventi...");
 
         while (inEsecuzione) {
             try {
-                if (buffer.getDimensione() > 0) {
+                // 1. ESTRAZIONE BLOCCANTE (La magia della BlockingQueue)
+                // Se non ci sono messaggi, il thread si ferma qui. Niente più if(dimensione > 0)!
+                String payload = buffer.take();
 
-                    if (cloudClient.isConnected()) {
+                // 2. INVIO AL CLOUD
+                if (cloudClient.isConnected()) {
+                    MqttMessage message = new MqttMessage(payload.getBytes());
+                    message.setQos(1); // Garantisce che il messaggio arrivi (Store and Forward di MQTT)
 
-                        // pop() è thread-safe (synchronized) in MessageBuffer
-                        String payload = buffer.pop();
+                    String topicDestinazione = "bitpub/locali/sync";
+                    cloudClient.publish(topicDestinazione, message);
 
-                        if (payload != null) {
-                            MqttMessage message = new MqttMessage(payload.getBytes());
-                            message.setQos(1);
-
-                            String topicDestinazione = "bitpub/locali/sync";
-                            cloudClient.publish(topicDestinazione, message);
-                            System.out.println("[InoltroCloud] Messaggio inviato al Cloud! Rimanenti: " + buffer.getDimensione());
-                        }
-                    } else {
-                        System.out.println("[InoltroCloud] Connessione assente. Accumulo in corso... Coda: " + buffer.getDimensione());
-                        Thread.sleep(5000);
-                    }
+                    System.out.println("[InoltroCloud] Inoltrato al Cloud. Rimanenti: " + buffer.getDimensione());
                 } else {
-                    Thread.sleep(1000);
+                    // 3. GESTIONE OFFLINE (Store and Forward manuale)
+                    System.out.println("[InoltroCloud] Connessione Cloud assente. Rimetto in coda.");
+                    // Siccome l'abbiamo prelevato con take(), se non c'è rete lo rimettiamo dentro
+                    buffer.push(payload);
+
+                    // Aspettiamo un po' prima di riprovare per non intasare il sistema
+                    Thread.sleep(5000);
                 }
 
-            } catch (MqttException e) {
-                System.err.println("[InoltroCloud] Errore di pubblicazione (QoS 1): " + e.getMessage());
             } catch (InterruptedException e) {
-                System.err.println("[InoltroCloud] Thread interrotto.");
-                e.printStackTrace();
+                System.out.println("[InoltroCloud] Consumer interrotto. Chiusura in corso...");
+                // Buona pratica: ripristinare lo stato di interruzione del thread
+                Thread.currentThread().interrupt();
+                break; // Usciamo dal ciclo while
+            } catch (MqttException e) {
+                System.err.println("[InoltroCloud] Errore di pubblicazione MQTT: " + e.getMessage());
             }
         }
     }

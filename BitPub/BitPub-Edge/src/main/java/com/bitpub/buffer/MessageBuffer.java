@@ -1,52 +1,36 @@
 package com.bitpub.buffer;
 
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Buffer in memoria (Heap) per lo stoccaggio temporaneo dei messaggi MQTT.
- * Utilizza metodi sincronizzati per gestire in sicurezza la concorrenza tra i thread.
+ * Buffer basato su LinkedBlockingQueue.
+ * Zero 'synchronized': la sicurezza concorrente è gestita nativamente da Java.
  */
 public class MessageBuffer {
 
-    // La nostra struttura dati che funge da coda (First-In, First-Out)
-    private final Queue<String> codaMessaggi;
+    // Utilizziamo BlockingQueue al posto di Queue
+    private final BlockingQueue<String> codaMessaggi;
 
-    // Costruttore: inizializziamo la coda vuota quando l'Edge si accende
     public MessageBuffer() {
-        this.codaMessaggi = new LinkedList<>();
+        // LinkedBlockingQueue non ha limiti di capienza (a meno che non venga specificato)
+        this.codaMessaggi = new LinkedBlockingQueue<>();
     }
 
-    /**
-     * PUSH: Aggiunge un nuovo messaggio alla coda.
-     * La parola 'synchronized' impedisce a due simulatori di scrivere nello stesso istante.
-     * * @param messaggio Il payload JSON ricevuto dal broker MQTT locale.
-     */
-    public synchronized void push(String messaggio) {
-        codaMessaggi.add(messaggio);
-        System.out.println("[EDGE BUFFER] Nuovo log immagazzinato. Messaggi in coda: " + codaMessaggi.size());
+    // Usato da Stefano (Producer)
+    public void push(String messaggio) {
+        codaMessaggi.offer(messaggio); // Inserimento thread-safe
+        System.out.println("[EDGE BUFFER] Log aggiunto. In coda: " + codaMessaggi.size());
     }
 
-    /**
-     * POP: Preleva e rimuove il messaggio più vecchio dalla coda.
-     * Usato dal sistema quando è pronto a inviare i dati al Cloud.
-     * La parola 'synchronized' evita che il Cloud legga dati parziali o acceda mentre qualcuno sta scrivendo.
-     * * @return Il messaggio JSON, oppure null se la coda è vuota.
-     */
-    public synchronized String pop() {
-        // Se non ci sono messaggi, ritorniamo null
-        if (codaMessaggi.isEmpty()) {
-            return null;
-        }
-
-        // .poll() legge il primo elemento della coda e lo RUMUOVE dal buffer
-        return codaMessaggi.poll();
+    // Usato da te, Timothy (Consumer)
+    // Usiamo take() che lancia InterruptedException se il thread viene fermato mentre aspetta
+    public String take() throws InterruptedException {
+        // take() mette in pausa il thread se la coda è vuota, finché non arriva un dato!
+        return codaMessaggi.take();
     }
 
-    /**
-     * Metodo di supporto per controllare quanti messaggi sono attualmente salvati.
-     */
-    public synchronized int getDimensione() {
+    public int getDimensione() {
         return codaMessaggi.size();
     }
 }
