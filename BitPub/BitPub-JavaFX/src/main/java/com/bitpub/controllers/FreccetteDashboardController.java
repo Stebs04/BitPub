@@ -15,6 +15,7 @@ import java.util.List;
  * Controller per la Dashboard Freccette - Progetto BitPub.
  * Implementa le logiche di networking asincrono, gestione link HATEOAS
  * e visualizzazione statistiche aggregate.
+ * Aggiornato per la Fase 23: Sincronizzazione sistematica JavaFX Thread.
  */
 public class FreccetteDashboardController {
 
@@ -41,16 +42,17 @@ public class FreccetteDashboardController {
 
     /**
      * FASI 15 & 16: Networking e HATEOAS.
-     * Recupera l'elenco delle partite e configura i link dinamici.
+     * FASE 23: Platform.runLater per OGNI interazione UI.
      */
     public void caricaDatiDalCloud() {
-        statoLabel.setText("Caricamento in corso...");
+        // Timothy: Garantiamo che anche l'impostazione dello stato iniziale sia sul thread FX
+        Platform.runLater(() -> statoLabel.setText("Caricamento in corso..."));
 
         restClient.faiChiamataGet("/partite/freccette", RispostaHateoas.class)
                 .thenAccept(risposta -> {
-                    // Stefano: Estrazione dati e link HATEOAS
+                    // Stefano: Estrazione dati e link HATEOAS (nel thread HTTP)
                     List<PartitaFreccette> partiteRicevute = (List<PartitaFreccette>) risposta.getData();
-                    
+
                     String linkUpdate = "";
                     if (risposta.getLinks() != null && risposta.getLinks().containsKey("update")) {
                         RispostaHateoas.LinkDettaglio link = (RispostaHateoas.LinkDettaglio) risposta.getLinks().get("update");
@@ -83,12 +85,14 @@ public class FreccetteDashboardController {
 
     /**
      * FASE 17: Aggregazione Dati (Timothy).
-     * Popola la UI con le statistiche calcolate dal DB PostgreSQL.
+     * FASE 23: Messa in sicurezza totale del thread UI.
      */
     public void caricaStatisticheFreccette() {
-        // Testo di caricamento per feedback utente
-        labelTotale180.setText("...");
-        labelMediaPunti.setText("...");
+        // Timothy: Messa in sicurezza anche per i testi temporanei
+        Platform.runLater(() -> {
+            labelTotale180.setText("...");
+            labelMediaPunti.setText("...");
+        });
 
         restClient.faiChiamataGet("/statistiche/freccette", StatisticheFreccette.class)
                 .thenAccept(statistiche -> {
