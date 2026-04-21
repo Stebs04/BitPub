@@ -12,7 +12,7 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
  *
  * <p>Caratteristiche principali: Sessioni durevoli, TLS mutuo e auto-reconnect.</p>
  *
- * @author Timothy (Architettura Sessioni)
+ * @author Timothy (Architettura Sessioni - Fase 21)
  * @author Stefano Bellan 20054330 (Modulo Sicurezza TLS)
  */
 public class CloudMqttManager {
@@ -31,23 +31,32 @@ public class CloudMqttManager {
         // Definizione ClientID statico: critico per il ripristino della sessione lato broker
         String clientIdFisso = "Edge-" + nomeLocale;
 
-        // Utilizzo MemoryPersistence per i metadati del client; la persistenza dei messaggi
-        // a lungo termine è delegata alla Durable Session del broker.
+        // Utilizzo MemoryPersistence per i metadati del client
         MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
         MqttConnectOptions connOpts = new MqttConnectOptions();
 
         /*
-         * CONFIGURAZIONE SESSIONE (Ref: Timothy)
-         * setCleanSession(false) abilita la "Durable Session": il broker mantiene
-         * le sottoscrizioni e i messaggi QoS 1/2 anche se il client è offline.
+         * CONFIGURAZIONE SESSIONE AVANZATA (Timothy - Fase 21)
          */
+
+        // setCleanSession(false) abilita la "Durable Session": il broker mantiene
+        // le sottoscrizioni e i messaggi QoS 1/2 anche se il client è offline.
         connOpts.setCleanSession(false);
+
+        // Riconnessione automatica gestita dal client Paho
         connOpts.setAutomaticReconnect(true);
+
+        // --- NUOVI PARAMETRI FASE 21 ---
+        // Invia un pacchetto di controllo ogni 60 secondi per confermare che il server sia vivo
+        connOpts.setKeepAliveInterval(60);
+
+        // Tempo massimo di attesa per stabilire la connessione iniziale
+        connOpts.setConnectionTimeout(30);
+        // -------------------------------
 
         /*
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
-         * Percorso relativo per il certificato CA, mappato sulla struttura del workspace.
          */
         String caFilePath = "../BitPub-Security/certs/ca.crt";
 
@@ -56,13 +65,11 @@ public class CloudMqttManager {
             connOpts.setSocketFactory(TlsUtility.getSocketFactory(caFilePath));
             System.out.println("[EDGE-INFO] TLS Setup: Certificato caricato da " + caFilePath);
         } catch (Exception e) {
-            // LOGICA DI FALLBACK: Un errore qui impedisce la comunicazione sicura.
             System.err.println("[EDGE-FATAL] Impossibile configurare il layer SSL/TLS. Abort.");
             e.printStackTrace();
-            // TODO: Introdurre un sistema di Health Check per segnalare il nodo come "Degradato"
         }
 
-        System.out.println("[EDGE] Client Cloud pronto. ID: " + clientIdFisso + " (Durable Session abilitata)");
+        System.out.println("[EDGE] Client Cloud pronto. ID: " + clientIdFisso + " (Durable Session e Auto-Reconnect attivi)");
 
         return cloudClient;
     }
