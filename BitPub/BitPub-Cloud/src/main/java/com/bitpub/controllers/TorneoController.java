@@ -27,12 +27,10 @@ public class TorneoController {
     private TorneoRepository torneoRepository;
 
     /**
-     * GET: Recupera un torneo e inietta i percorsi HATEOAS (Fase 13).
+     * GET: Recupera un torneo per ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<HateoasResource<Torneo>> getTorneo(
-            @PathVariable Long id,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<Torneo> getTorneoById(@PathVariable Long id) {
 
         log.info("Ricevuta richiesta GET su /api/tornei/{} - Ricerca torneo in corso", id);
 
