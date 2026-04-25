@@ -104,8 +104,7 @@ public class TlsUtility {
         String keyPath = baseCertsPath + "/client.key";
 
         options.setSocketFactory(getSocketFactory(caPath, crtPath, keyPath));
-        // Disabilitiamo l'autenticazione testuale perché usiamo i certificati
-        options.setUserName(null);
-        options.setPassword(null);
+        // Non impostiamo username/password: l'autenticazione avviene tramite certificato mTLS.
+        // NOTA: NON chiamare setPassword(null) — Paho esegue null.clone() internamente e crasha con NPE.
     }
 }

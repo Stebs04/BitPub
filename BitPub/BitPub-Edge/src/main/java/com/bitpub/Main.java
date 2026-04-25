@@ -29,7 +29,7 @@ public class Main {
         // Configurazione delle coordinate di rete per il gateway locale e remoto
         String idLocale = "Locale-Milano-01";
         String localBrokerUrl = "tcp://localhost:1883";
-        String cloudBrokerUrl = "ssl://cloud.bitpub.com:8883";
+        String cloudBrokerUrl = "ssl://localhost:8883";  // In produzione: ssl://cloud.bitpub.com:8883
 
         try {
             /**
