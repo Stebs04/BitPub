@@ -64,7 +64,9 @@ public class CalciobalillaController {
      */
     @GetMapping("/stats")
     public ResponseEntity<CalciobalillaStats> getGlobalStats() {
-        int rullate = repository.countTotalRullate() != null ? repository.countTotalRullate() : 0;
+        int rullate = repository.findAll().stream()
+                .mapToInt(PartitaCalciobalilla::getTotaleRullate)
+                .sum();
         int vRossi = repository.countVittorieRossi();
         int vBlu = repository.countVittorieBlu();
 
