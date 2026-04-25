@@ -64,7 +64,9 @@ public class CalciobalillaController {
      */
     @GetMapping("/stats")
     public ResponseEntity<CalciobalillaStats> getGlobalStats() {
-        Long rullate = repository.countTotalRullate() != null ? repository.countTotalRullate() : 0;
+        int rullate = repository.findAll().stream()
+                .mapToInt(PartitaCalciobalilla::getTotaleRullate)
+                .sum();
         int vRossi = repository.countVittorieRossi();
         int vBlu = repository.countVittorieBlu();
 
@@ -84,8 +86,8 @@ public class CalciobalillaController {
         risorsa.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withRel("storico"));
 
         // Link al Torneo: assicura il salto tra moduli in modo dinamico
-        if (partita.getTorneoId() != null) {
-            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneoId())).withRel("dettagli_torneo"));
+        if (partita.getTorneo() != null) {
+            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneo().getId())).withRel("dettagli_torneo"));
         }
 
         return risorsa;
