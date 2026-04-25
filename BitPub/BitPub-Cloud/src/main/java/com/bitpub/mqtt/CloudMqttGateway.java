@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import com.bitpub.services.PersistenceService;
-import com.bitpub.cloud.service.ElaborazioneEventiService;
+import com.bitpub.services.ElaborazioneEventiService;
 
 /**
  * Gateway di ricezione Cloud-side.

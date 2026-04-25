@@ -81,12 +81,7 @@ public class PartitaCalciobalilla extends Partita {
         return goalRossi;
     }
 
-    public Torneo getTorneo() {
-        return torneo;
-    }
-
-    // Setter per il campo torneo
-    public void setTorneo(Torneo torneo) {
-        this.torneo = torneo;
+    public int getGoalBlu() {
+        return goalBlu;
     }
 }
