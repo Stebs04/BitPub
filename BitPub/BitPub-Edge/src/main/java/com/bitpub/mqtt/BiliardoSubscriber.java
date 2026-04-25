@@ -24,7 +24,7 @@ public class BiliardoSubscriber {
                     String payload = new String(message.getPayload());
                     System.out.println("[EDGE] Ricevuta imbucata dal topic " + topic + ": " + payload);
 
-                    // Inserisce il messaggio nel buffer condiviso (thread-safe tramite synchronized)
+                    // Inserisce il messaggio nel buffer condiviso (thread-safe tramite LinkedBlockingQueue)
                     buffer.push(payload);
                 }
             });
