@@ -30,7 +30,7 @@ public class TorneoController {
      * GET: Recupera un torneo per ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Torneo> getTorneoById(@PathVariable Long id) {
+    public ResponseEntity<?> getTorneoById(@PathVariable Long id) {
 
         log.info("Ricevuta richiesta GET su /api/tornei/{} - Ricerca torneo in corso", id);
 
