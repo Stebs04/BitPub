@@ -26,7 +26,7 @@ public class CloudMqttManager {
      * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
      * @throws MqttException Se l'URL del broker non è valido o l'istanziazione fallisce.
      */
-    public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws MqttException {
+    public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws Exception {
 
         // Definizione ClientID statico: critico per il ripristino della sessione lato broker
         String clientIdFisso = "Edge-" + nomeLocale;
@@ -55,21 +55,16 @@ public class CloudMqttManager {
 
         /*
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
-         * In questa fase implementiamo il Mutual TLS (mTLS) caricando l'intera catena:
-         * 1. ca.crt (per fidarci del broker)
-         * 2. client.crt (la nostra identità pubblica)
-         * 3. client.key (la nostra identità privata)
+         * Mutual TLS (mTLS): carichiamo l'intera catena di certificati.
+         * Fix Bug #3: l'eccezione viene ora propagata invece di essere
+         * catturata silenziosamente, rendendo visibile ogni problema sui certificati.
          */
         String certsBasePath = "../BitPub-Security/certs";
 
-        try {
-            // Applichiamo la configurazione TLS completa definita nella TlsUtility
-            TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
-            System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
-        } catch (Exception e) {
-            System.err.println("[EDGE-FATAL] Impossibile configurare il layer SSL/TLS. Abort.");
-            e.printStackTrace();
-        }
+        // applyTlsToOptions ora dichiara throws Exception: se i certificati
+        // mancano o sono corrotti, il metodo lancia e stoppiamo subito l'avvio.
+        TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
+        System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
 
         cloudClient.connect(connOpts);
 

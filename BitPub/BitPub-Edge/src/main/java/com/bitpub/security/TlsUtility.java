@@ -91,20 +91,21 @@ public class TlsUtility {
 
     /**
      * Applica la configurazione TLS alle opzioni di connessione MQTT.
+     *
+     * <p><b>Fix Bug #3:</b> Il metodo ora rilancia l'eccezione invece di catturarla
+     * silenziosamente. Prima il codice stampava l'errore ma continuava, causando
+     * un tentativo di connect() senza TLS che falliva in modo opaco.</p>
+     *
+     * @throws Exception se un certificato è mancante, corrotto o il formato è errato
      */
-    public static void applyTlsToOptions(MqttConnectOptions options, String baseCertsPath) {
-        try {
-            String caPath = baseCertsPath + "/ca.crt";
-            String crtPath = baseCertsPath + "/client.crt";
-            String keyPath = baseCertsPath + "/client.key";
+    public static void applyTlsToOptions(MqttConnectOptions options, String baseCertsPath) throws Exception {
+        String caPath  = baseCertsPath + "/ca.crt";
+        String crtPath = baseCertsPath + "/client.crt";
+        String keyPath = baseCertsPath + "/client.key";
 
-            options.setSocketFactory(getSocketFactory(caPath, crtPath, keyPath));
-            // Disabilitiamo l'autenticazione testuale perché usiamo i certificati
-            options.setUserName(null);
-            options.setPassword(null);
-        } catch (Exception e) {
-            System.err.println("Errore durante la configurazione TLS: " + e.getMessage());
-            e.printStackTrace();
-        }
+        options.setSocketFactory(getSocketFactory(caPath, crtPath, keyPath));
+        // Disabilitiamo l'autenticazione testuale perché usiamo i certificati
+        options.setUserName(null);
+        options.setPassword(null);
     }
-}
+}

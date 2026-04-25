@@ -1,6 +1,5 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.services.PersistenceService;
 import com.bitpub.utils.MqttCalciobalillaTopics;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
@@ -8,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
-import com.bitpub.services.PersistenceService;
 import com.bitpub.services.ElaborazioneEventiService;
+import com.bitpub.cloud.security.CloudTlsUtility;
 
 /**
  * Gateway di ricezione Cloud-side.
@@ -23,9 +22,10 @@ import com.bitpub.services.ElaborazioneEventiService;
 @Service
 public class CloudMqttGateway implements MqttCallback {
 
-    // Configurazione endpoint (Nota: spostare preferibilmente in application.properties/yml)
-    private static final String BROKER_URL = "tcp://localhost:1883";
+    // Configurazione endpoint: usa SSL sulla porta sicura 8883 (allineata a mosquitto.conf)
+    private static final String BROKER_URL = "ssl://localhost:8883";
     private static final String CLIENT_ID = "BitPub-Cloud-Gateway";
+    private static final String CERTS_BASE_PATH = "../BitPub-Security/certs";
 
     private MqttClient client;
 
@@ -55,6 +55,13 @@ public class CloudMqttGateway implements MqttCallback {
              */
             options.setCleanSession(false);
             options.setAutomaticReconnect(true);
+
+            /*
+             * CONFIGURAZIONE TLS MUTUO (mTLS):
+             * Il Gateway Cloud deve autenticarsi al broker con il suo certificato,
+             * esattamente come fa l'Edge Node. Senza questo ssl://localhost:8883 fallisce.
+             */
+            CloudTlsUtility.applyTlsToOptions(options, CERTS_BASE_PATH);
 
             client.setCallback(this);
             client.connect(options);
