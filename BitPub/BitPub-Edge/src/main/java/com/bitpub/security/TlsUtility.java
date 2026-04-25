@@ -1,74 +1,110 @@
 package com.bitpub.security;
 
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyFactory;
 import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
 
 /**
- * Utility di basso livello per il provisioning del layer di sicurezza M2M (Machine-to-Machine).
- * Questa classe astrae la configurazione del contesto crittografico TLS, permettendo
- * l'autenticazione del broker Cloud tramite una Certificate Authority (CA) privata.
- *
- * @author Stefano Bellan 20054330
+ * Utility per la configurazione della sicurezza TLS nel progetto BitPub.
+ * Questa classe si occupa di caricare i certificati per stabilire una
+ * connessione mTLS (Mutual TLS) sicura con il broker Mosquitto.
  */
 public class TlsUtility {
 
     /**
-     * Genera una {@link SSLSocketFactory} custom basata su un certificato CA specifico.
-     * Implementa il pattern "Trust-on-First-Use" limitato alla CA fornita, isolando
-     * l'applicazione dai certificati di sistema per una maggiore sicurezza (Cert Pinning/Hardening).
-     *
-     * @param caCrtFilePath Percorso del file "ca.crt" (formato X.509 PEM).
-     * @return Una factory configurata per connessioni TLSv1.2.
-     * @throws Exception Se il certificato è malformato, il file non è accessibile o
-     *                   l'algoritmo crittografico non è supportato dal JRE.
+     * Crea una SSLSocketFactory configurata con i certificati di BitPub.
+     * * @param caCrtPath Percorso del certificato della Root CA (ca.crt)
+     * @param clientCrtPath Percorso del certificato del client (client.crt)
+     * @param clientKeyPath Percorso della chiave privata del client (client.key)
+     * @return SSLSocketFactory pronta per l'uso con MqttConnectOptions
      */
-    public static SSLSocketFactory getSocketFactory(String caCrtFilePath) throws Exception {
+    public static SSLSocketFactory getSocketFactory(String caCrtPath, String clientCrtPath, String clientKeyPath) throws Exception {
 
-        // 1. Istanza del parser per certificati standard X.509
+        // 1. Carichiamo il certificato della Root CA per fidarci del Broker
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        X509Certificate caCert;
 
-        // 2. Caricamento del certificato tramite BufferedInputStream per ottimizzare l'I/O
-        // L'uso del try-with-resources garantisce la chiusura dello stream anche in caso di errore.
-        try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(caCrtFilePath))) {
-            caCert = (X509Certificate) cf.generateCertificate(bis);
+        X509Certificate caCert;
+        try (InputStream is = new BufferedInputStream(new FileInputStream(caCrtPath))) {
+            caCert = (X509Certificate) cf.generateCertificate(is);
         }
 
-        /*
-         * 3. Creazione di un TrustStore "In-Memory".
-         * Non utilizziamo un file JKS fisico su disco per evitare la gestione di password
-         * e permessi file aggiuntivi, aumentando la sicurezza runtime.
-         */
+        // Creiamo il TrustStore che contiene la nostra CA
         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
         trustStore.load(null, null);
+        trustStore.setCertificateEntry("ca-root", caCert);
 
-        // 4. Mapping del certificato CA nel TrustStore con alias univoco
-        trustStore.setCertificateEntry("bitpub-ca", caCert);
-
-        /*
-         * 5. Inizializzazione del TrustManagerFactory.
-         * Questo componente è responsabile di decidere se un certificato presentato
-         * dal server (Broker) sia attendibile o meno.
-         */
         TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         tmf.init(trustStore);
 
-        /*
-         * 6. Setup del contesto SSL forzando TLSv1.2.
-         * Nota: Si consiglia TLSv1.2 come requisito minimo per conformità agli standard di sicurezza moderni.
-         */
-        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+        // 2. Carichiamo il certificato pubblico del Client
+        X509Certificate clientCert;
+        try (InputStream is = new BufferedInputStream(new FileInputStream(clientCrtPath))) {
+            clientCert = (X509Certificate) cf.generateCertificate(is);
+        }
 
-        // Inizializzazione contesto: (KeyManager: null, TrustManager: tmf, SecureRandom: null)
-        // Non usiamo certificati client (mTLS) in questa fase, solo validazione server.
-        sslContext.init(null, tmf.getTrustManagers(), null);
+        // 3. Carichiamo la chiave privata del Client
+        // Nota: Java richiede che la chiave sia in formato PKCS#8 per essere letta facilmente.
+        // Se la chiave è stata generata come RSA (PKCS#1), rimuoviamo gli header e la decodifichiamo.
+        byte[] keyBytes = Files.readAllBytes(Paths.get(clientKeyPath));
+        String keyString = new String(keyBytes)
+                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+                .replace("-----END RSA PRIVATE KEY-----", "")
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replaceAll("\\s", "");
 
-        return sslContext.getSocketFactory();
+        byte[] decodedKey = Base64.getDecoder().decode(keyString);
+        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(decodedKey);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = kf.generatePrivate(spec);
+
+        // Creiamo il KeyStore per l'identità del Client (Certificato + Chiave)
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(null, null);
+        keyStore.setCertificateEntry("client-cert", clientCert);
+        // La password "password" è temporanea e interna al KeyStore in memoria
+        keyStore.setKeyEntry("client-key", privateKey, "password".toCharArray(), new java.security.cert.Certificate[]{clientCert});
+
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(keyStore, "password".toCharArray());
+
+        // 4. Inizializziamo il contesto SSL con TrustManager (per il server) e KeyManager (per noi)
+        SSLContext context = SSLContext.getInstance("TLSv1.2");
+        context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+        return context.getSocketFactory();
     }
-}
+
+    /**
+     * Applica la configurazione TLS alle opzioni di connessione MQTT.
+     *
+     * <p><b>Fix Bug #3:</b> Il metodo ora rilancia l'eccezione invece di catturarla
+     * silenziosamente. Prima il codice stampava l'errore ma continuava, causando
+     * un tentativo di connect() senza TLS che falliva in modo opaco.</p>
+     *
+     * @throws Exception se un certificato è mancante, corrotto o il formato è errato
+     */
+    public static void applyTlsToOptions(MqttConnectOptions options, String baseCertsPath) throws Exception {
+        String caPath  = baseCertsPath + "/ca.crt";
+        String crtPath = baseCertsPath + "/client.crt";
+        String keyPath = baseCertsPath + "/client.key";
+
+        options.setSocketFactory(getSocketFactory(caPath, crtPath, keyPath));
+        // Non impostiamo username/password: l'autenticazione avviene tramite certificato mTLS.
+        // NOTA: NON chiamare setPassword(null) — Paho esegue null.clone() internamente e crasha con NPE.
+    }
+}

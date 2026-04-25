@@ -21,12 +21,12 @@ public class CloudMqttManager {
      * Factory method per la creazione e configurazione del client MQTT Cloud.
      * Implementa la logica di "Store and Forward" necessaria per gestire l'intermittenza della rete.
      *
-     * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://cloud.bitpub.com:8883").
+     * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://localhost:8883").
      * @param nomeLocale     Identificativo testuale del locale per la generazione del ClientID.
      * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
      * @throws MqttException Se l'URL del broker non è valido o l'istanziazione fallisce.
      */
-    public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws MqttException {
+    public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws Exception {
 
         // Definizione ClientID statico: critico per il ripristino della sessione lato broker
         String clientIdFisso = "Edge-" + nomeLocale;
@@ -47,27 +47,26 @@ public class CloudMqttManager {
         // Riconnessione automatica gestita dal client Paho
         connOpts.setAutomaticReconnect(true);
 
-        // --- NUOVI PARAMETRI FASE 21 ---
         // Invia un pacchetto di controllo ogni 60 secondi per confermare che il server sia vivo
         connOpts.setKeepAliveInterval(60);
 
         // Tempo massimo di attesa per stabilire la connessione iniziale
         connOpts.setConnectionTimeout(30);
-        // -------------------------------
 
         /*
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
+         * Mutual TLS (mTLS): carichiamo l'intera catena di certificati.
+         * Fix Bug #3: l'eccezione viene ora propagata invece di essere
+         * catturata silenziosamente, rendendo visibile ogni problema sui certificati.
          */
-        String caFilePath = "../BitPub-Security/certs/ca.crt";
+        String certsBasePath = "../BitPub-Security/certs";
 
-        try {
-            // Iniezione della SocketFactory custom per il trust degli endpoint Cloud
-            connOpts.setSocketFactory(TlsUtility.getSocketFactory(caFilePath));
-            System.out.println("[EDGE-INFO] TLS Setup: Certificato caricato da " + caFilePath);
-        } catch (Exception e) {
-            System.err.println("[EDGE-FATAL] Impossibile configurare il layer SSL/TLS. Abort.");
-            e.printStackTrace();
-        }
+        // applyTlsToOptions ora dichiara throws Exception: se i certificati
+        // mancano o sono corrotti, il metodo lancia e stoppiamo subito l'avvio.
+        TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
+        System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
+
+        cloudClient.connect(connOpts);
 
         System.out.println("[EDGE] Client Cloud pronto. ID: " + clientIdFisso + " (Durable Session e Auto-Reconnect attivi)");
 
