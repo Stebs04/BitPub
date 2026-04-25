@@ -86,8 +86,8 @@ public class CalciobalillaController {
         risorsa.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withRel("storico"));
 
         // Link al Torneo: assicura il salto tra moduli in modo dinamico
-        if (partita.getTorneoId() != null) {
-            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneoId())).withRel("dettagli_torneo"));
+        if (partita.getTorneo() != null) {
+            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneo().getId())).withRel("dettagli_torneo"));
         }
 
         return risorsa;
