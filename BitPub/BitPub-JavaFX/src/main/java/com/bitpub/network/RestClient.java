@@ -49,11 +49,15 @@ public class RestClient {
     public <T> CompletableFuture<T> faiChiamataGet(String endpoint, Class<T> tipoRisposta) {
 
         // 1. STEFANO & TIMOTHY: Costruzione della Request con iniezione del versioning nell'Header
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + endpoint))
                 .GET()
-                .header("Accept", ACCEPT_HEADER) // Timothy: Garantisce la compatibilità v1
-                .build();
+                .header("Accept", ACCEPT_HEADER); // Timothy: Garantisce la compatibilità v1
+                
+        // Iniezione del token JWT se presente
+        addAuthorizationHeader(requestBuilder);
+
+        HttpRequest request = requestBuilder.build();
 
         // 2. LUCA: Orchestrazione asincrona del flusso dati
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -78,16 +82,57 @@ public class RestClient {
         String jsonDaSpedire = gson.toJson(datiDaInviare);
 
         // Configurazione della richiesta di tipo POST con Content-Type appropriato
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + endpoint))
                 .header("Accept", ACCEPT_HEADER)
                 .header("Content-Type", "application/json") // Specifica il formato del payload inviato
-                .POST(HttpRequest.BodyPublishers.ofString(jsonDaSpedire))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(jsonDaSpedire));
+                
+        // Iniezione del token JWT se presente
+        addAuthorizationHeader(requestBuilder);
+
+        HttpRequest request = requestBuilder.build();
 
         // Esecuzione e mapping asincrono della risposta
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
                 .thenApply(jsonText -> gson.fromJson(jsonText, tipoRisposta));
+    }
+
+    public <T> CompletableFuture<T> faiChiamataPut(String endpoint, Object datiDaInviare, Class<T> tipoRisposta) {
+        String jsonDaSpedire = gson.toJson(datiDaInviare);
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + endpoint))
+                .header("Accept", ACCEPT_HEADER)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonDaSpedire));
+                
+        addAuthorizationHeader(requestBuilder);
+        HttpRequest request = requestBuilder.build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(jsonText -> gson.fromJson(jsonText, tipoRisposta));
+    }
+
+    public <T> CompletableFuture<T> faiChiamataDelete(String endpoint, Class<T> tipoRisposta) {
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + endpoint))
+                .header("Accept", ACCEPT_HEADER)
+                .DELETE();
+                
+        addAuthorizationHeader(requestBuilder);
+        HttpRequest request = requestBuilder.build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenApply(jsonText -> gson.fromJson(jsonText, tipoRisposta));
+    }
+
+    private void addAuthorizationHeader(HttpRequest.Builder requestBuilder) {
+        String token = SessionManager.getInstance().getJwtToken();
+        if (token != null && !token.isEmpty()) {
+            requestBuilder.header("Authorization", "Bearer " + token);
+        }
     }
 }

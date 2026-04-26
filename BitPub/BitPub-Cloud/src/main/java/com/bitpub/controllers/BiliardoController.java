@@ -7,11 +7,26 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+/**
+ * Controller REST per la gestione delle risorse del Biliardo.
+ * <p>
+ * Espone gli endpoint per recuperare i dettagli degli eventi generati
+ * durante le partite a biliardo.
+ * </p>
+ *
+ * @author Luca Franzon
+ */
 @RestController
 public class BiliardoController {
 
     private final Gson gson = new Gson();
 
+    /**
+     * Recupera un evento specifico legato al biliardo.
+     *
+     * @param id L'identificativo dell'evento
+     * @return Stringa JSON rappresentante l'evento
+     */
     @GetMapping("/api/v1/biliardo/eventi/{id}")
     public @ResponseBody String getEventoBiliardo(@PathVariable("id") String id) {
         // Supponiamo di recuperare i dati dal DB PostgreSQL [cite: 41, 51]

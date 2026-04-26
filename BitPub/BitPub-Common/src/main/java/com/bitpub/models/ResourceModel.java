@@ -1,3 +1,5 @@
+package com.bitpub.models;
+
 import java.util.Map;
 
 /**

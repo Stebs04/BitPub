@@ -16,6 +16,8 @@ import java.util.List;
  * Implementa le logiche di networking asincrono, gestione link HATEOAS
  * e visualizzazione statistiche aggregate.
  * Aggiornato per la Fase 23: Sincronizzazione sistematica JavaFX Thread.
+ *
+ * @author Timothy Giolito
  */
 public class FreccetteDashboardController {
 
