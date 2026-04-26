@@ -191,10 +191,6 @@ public class TorneoController {
      */
     @GetMapping("/{id}/prossima-partita")
     public ResponseEntity<String> getProssimaPartita(@PathVariable Long id) {
-        /*
-         * NOTA: In una fase successiva, questo metodo interrogherà il MatchRepository 
-         * per trovare il primo evento con data >= LocalDate.now().
-         */
         return ResponseEntity.ok("Il server ha fornito questo url HATEOAS. Prossima partita per il torneo: " + id);
     }
 
