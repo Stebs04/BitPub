@@ -19,10 +19,10 @@ import java.net.http.HttpResponse;
 
 /**
  * Controller per la gestione dell'autenticazione utente.
- * Gestisce l'interfaccia di login, l'invio asincrono delle credenziali al backend,
- * e l'inizializzazione della sessione utente (JWT) in caso di successo.
+ * Gestisce l'interfaccia di login e il reindirizzamento dinamico basato sui ruoli.
  *
- * @author Stefano Bellan 20054330
+ * @author Stefano Bellan
+ * @version 1.1
  */
 public class LoginController {
 
@@ -34,10 +34,6 @@ public class LoginController {
     private final HttpClient httpClient;
     private final Gson gson;
 
-    /**
-     * Costruttore predefinito.
-     * Inizializza il client HTTP nativo e il parser JSON.
-     */
     public LoginController() {
         this.httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_2)
@@ -45,12 +41,6 @@ public class LoginController {
         this.gson = new Gson();
     }
 
-    /**
-     * Gestisce l'evento scatenato dal click sul pulsante "Accedi".
-     * Esegue la validazione dei campi e inoltra in modo asincrono la richiesta di login.
-     *
-     * @param event L'evento di interazione dell'utente.
-     */
     @FXML
     public void handleLogin(ActionEvent event) {
         String username = usernameField.getText();
@@ -61,7 +51,6 @@ public class LoginController {
             return;
         }
 
-        // Costruzione del payload tipizzato
         AuthRequest authRequest = new AuthRequest();
         authRequest.setUsername(username.trim());
         authRequest.setPassword(password);
@@ -74,43 +63,33 @@ public class LoginController {
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 
-        // Esecuzione asincrona: non blocchiamo mai il thread UI di JavaFX durante il traffico di rete
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    // Platform.runLater assicura che gli aggiornamenti visivi avvengano sul JavaFX Application Thread
                     Platform.runLater(() -> {
                         if (response.statusCode() == 200) {
-                            // Deserializzazione del JWT e dei metadati associati
                             AuthResponse authResponse = gson.fromJson(response.body(), AuthResponse.class);
                             
-                            // Inizializzazione protetta della sessione utente in memoria
+                            // Salvataggio della sessione nel SessionManager globale
                             SessionManager.getInstance().setSession(
                                     authResponse.getUsername(),
                                     authResponse.getToken(),
                                     authResponse.getRuolo(),
-                                    null // Locale non è strettamente necessario al primo livello di login
+                                    null
                             );
                             
-                            // Naviga verso l'interfaccia principale post-login
-                            Main.navigaVerso("/MainView.fxml", "BitPub - Dashboard");
+                            // DELEGA AL MAIN: Smistamento basato sul ruolo (Admin, Gestore o Utente)
+                            Main.redirectDopoLogin();
                         } else {
-                            erroreLabel.setText("Credenziali errate o utente non trovato.");
+                            erroreLabel.setText("Credenziali errate.");
                         }
                     });
                 })
                 .exceptionally(ex -> {
-                    // Gestione fail-safe per problemi di raggiungibilità del backend cloud
-                    // Platform.runLater protegge l'accesso alla Label dal Worker Thread
-                    Platform.runLater(() -> erroreLabel.setText("Errore di connessione al server: " + ex.getMessage()));
+                    Platform.runLater(() -> erroreLabel.setText("Connessione fallita."));
                     return null;
                 });
     }
 
-    /**
-     * Reindirizza l'utente alla schermata di registrazione.
-     *
-     * @param event L'evento generato dal click sul link.
-     */
     @FXML
     public void vaiARegistrazione(ActionEvent event) {
         Main.navigaVerso("/RegistrazioneView.fxml", "BitPub - Registrazione");
