@@ -14,28 +14,28 @@ import java.net.http.HttpRequest;
 import java.util.List;
 
 /**
- * Controller per la Dashboard Dati del Calciobalilla.
- * Implementa la logica di navigazione ipertestuale definita nella Fase 16,
- * gestendo il parsing dinamico dei link HATEOAS e garantendo la Thread Safety della UI.
- * Gestione multithreading e parse HTTP sicuro apportato tramite AsyncHttpService e HttpResponseParser.
+ * Controller della Dashboard Dati del Calciobalilla.
+ * Interagisce con le API REST asincrone per recuperare lo storico e lo stato
+ * servendosi dell'architettura HATEOAS, garantendo aggiornamenti Thread Safe per la UI.
  *
  * @author Stefano Bellan 20054330
- * // Modified by Stefano Bellan 20054330 – Async HTTP layer transition to avoid blocking UI callbacks
  */
 public class CalciobalillaDashboardController {
 
-    // --- COMPONENTI UI (Iniezione FXML) ---
     @FXML private ListView<String> listaPartite;
     @FXML private Button btnDettagliSquadra;
     @FXML private Button btnProssimoMatch;
     @FXML private Label statoLabel;
 
-    /** Client per le chiamate REST asincrone */
+    // Nodi UI aggiunti per garantire la connessione col file FXML aggiornato
+    @FXML private Label labelVittorieRossi;
+    @FXML private Label labelFalliTotali;
+    @FXML private Label labelVittorieBlu;
+
     private final AsyncHttpService asyncHttpService = new AsyncHttpService();
 
     /**
-     * Inizializzatore automatico JavaFX.
-     * Avvia il caricamento dei dati non appena la vista viene caricata in memoria.
+     * Avvia il fetch dei dati iniziali al momento del caricamento della vista.
      */
     @FXML
     public void initialize() {
@@ -43,13 +43,11 @@ public class CalciobalillaDashboardController {
     }
 
     /**
-     * Esegue il recupero asincrono delle partite dal Cloud.
-     * Applica le direttive di Luca e Timothy per la gestione sicura del multithreading
-     * e l'aggiornamento dinamico dei controlli basato sui link HATEOAS.
+     * Invia una richiesta HTTP Asincrona al Cloud per ricevere le statistiche.
+     * Tutte le modifiche grafiche successive sono protette da Platform.runLater().
      */
     @FXML
     public void caricaDatiCalciobalilla() {
-        // Setup iniziale dello stato UI (Feedback visivo di caricamento)
         statoLabel.setText("Download dati in corso...");
         btnDettagliSquadra.setDisable(true);
         btnProssimoMatch.setDisable(true);
@@ -60,37 +58,28 @@ public class CalciobalillaDashboardController {
                 .GET()
                 .build();
 
-        // Chiamata asincrona via AsyncHttpService
-        // - request: richiesta generata sopra
-        // - parser: analizza l'array json dal corpo HTTP sul ForkJoinPool
-        // - onSuccess: riceve l'oggetto dal servizio sul Thread FX
-        // - onError: riceve le Exception sul Thread FX
         asyncHttpService.sendAsync(
                 request,
                 response -> HttpResponseParser.parseJsonList(response, RispostaHateoas[].class),
                 risposteLista -> {
-                    // UI update – must run on JavaFX Application Thread
-                    listaPartite.getItems().clear();
+                    // Protezione vitale: Passaggio al Thread JavaFX Principale
+                    Platform.runLater(() -> {
+                        listaPartite.getItems().clear();
 
-                    if (risposteLista != null && !risposteLista.isEmpty()) {
-                        // Analisi della prima risorsa ipertestuale ricevuta
-                        RispostaHateoas primaPartita = risposteLista.get(0);
-                        listaPartite.getItems().add("Risorsa HATEOAS caricata correttamente");
+                        if (risposteLista != null && !risposteLista.isEmpty()) {
+                            RispostaHateoas primaPartita = risposteLista.get(0);
+                            listaPartite.getItems().add("Risorsa HATEOAS caricata con successo dal Server.");
 
-                        // LOGICA DI STEFANO (Fase 16): Parsing dinamico del grafo dei link
-                        if (primaPartita.getLinks() != null) {
-
-                            // 1. Mapping dinamico per "Dettagli Squadra"
-                            if (primaPartita.getLinks().containsKey("dettagli_squadra")) {
+                            // Estrazione HATEOAS dinamica
+                            if (primaPartita.getLinks() != null) {
+                                if (primaPartita.getLinks().containsKey("dettagli_squadra")) {
                                     String urlDettagli = ((RispostaHateoas.LinkDettaglio)
                                             primaPartita.getLinks().get("dettagli_squadra")).getHref();
 
                                     btnDettagliSquadra.setDisable(false);
-                                    // Binding dinamico dell'azione basato sull'URL fornito dal server
                                     btnDettagliSquadra.setOnAction(evento -> eseguiAzioneDinamica(urlDettagli));
                                 }
 
-                                // 2. Mapping dinamico per "Prossimo Match"
                                 if (primaPartita.getLinks().containsKey("prossimo_match")) {
                                     String urlProssimo = ((RispostaHateoas.LinkDettaglio)
                                             primaPartita.getLinks().get("prossimo_match")).getHref();
@@ -99,28 +88,31 @@ public class CalciobalillaDashboardController {
                                     btnProssimoMatch.setOnAction(evento -> eseguiAzioneDinamica(urlProssimo));
                                 }
                             }
-                            statoLabel.setText("Dati caricati e bottoni connessi via HATEOAS!");
+                            statoLabel.setText("Dati caricati e navigazione pronta!");
+                            statoLabel.setStyle("-fx-text-fill: #10b981; -fx-font-style: normal; -fx-font-weight: bold;");
                         } else {
-                            statoLabel.setText("Nessuna partita trovata nel database.");
+                            statoLabel.setText("Nessuna partita presente al momento nel DB.");
                         }
+                    });
                 },
                 errore -> {
-                    // UI update – must run on JavaFX Application Thread
-                    statoLabel.setText("Errore di Rete: " + errore.getMessage());
-                    statoLabel.setStyle("-fx-text-fill: #e74c3c;"); // Colore errore professionale
+                    // Protezione vitale: Gestione sicura dell'errore nella UI
+                    Platform.runLater(() -> {
+                        statoLabel.setText("Errore di Rete: Impossibile contattare il Server.");
+                        statoLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+                        System.err.println(errore.getMessage());
+                    });
                 }
         );
     }
 
     /**
-     * Orchestratore delle azioni ipertestuali.
-     * Centralizza la navigazione verso URL dinamici estratti dai metadati HATEOAS.
+     * Esegue il reindirizzamento o l'azione determinata dal link REST HATEOAS.
      *
-     * @param urlHateoas L'endpoint assoluto o relativo fornito dal server.
+     * @param urlHateoas Endpoint estratto dinamicamente fornito dal backend.
      */
     private void eseguiAzioneDinamica(String urlHateoas) {
-        System.out.println("Navigazione dinamica attivata verso: " + urlHateoas);
-        statoLabel.setText("Richiesta REST inviata a: " + urlHateoas);
-        // Qui andrebbe la logica per caricare una nuova vista o aggiornare la corrente
+        System.out.println("Navigazione dinamica in corso: " + urlHateoas);
+        statoLabel.setText("Chiamata REST -> " + urlHateoas);
     }
 }
