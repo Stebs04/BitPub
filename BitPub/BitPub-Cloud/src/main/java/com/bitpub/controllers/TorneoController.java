@@ -26,16 +26,14 @@ import com.bitpub.repository.UtenteRepository;
  * dinamici nelle risposte, migliorando l'interazione con l'API.
  * </p>
  * * @author Timothy Giolito 20054431
- * @athor Stefano Bellan 20054330 (Assembler per esposizione link HATEOAS)
+ * @author Stefano Bellan 20054330 (Assembler per esposizione link HATEOAS)
  */
 @RestController
 @RequestMapping("/api/tornei")
 public class TorneoController {
 
-    // Inizializziamo il Logger specifico per questa classe!
     private static final Logger log = LoggerFactory.getLogger(TorneoController.class);
 
-    // Colleghiamo il Controller al Database!
     @Autowired
     private TorneoRepository torneoRepository;
 
@@ -49,26 +47,20 @@ public class TorneoController {
      * Recupera i dettagli di un singolo torneo identificato dal suo ID univoco.
      * <p>
      * Se il torneo viene trovato, la risposta include i dati dell'oggetto e una serie
-     * di link HATEOAS per facilitare le operazioni successive (aggiornamento, eliminazione, iscrizione).
+     * di link HATEOAS per facilitare le operazioni successive.
      * </p>
      *
      * @param id L'identificativo univoco del torneo da cercare.
-     * @return Una {@link ResponseEntity} contenente la risorsa {@link HateoasResource} se trovato,
-     * oppure uno stato 404 (Not Found) se il torneo non esiste.
-     * @author Timothy Giolito 20054431 e Modificato da: Stefano Bellan 20054330
+     * @return Una ResponseEntity contenente la risorsa HATEOAS se trovato, oppure stato 404 (Not Found).
      */
     @GetMapping("/{id}")
     public ResponseEntity<EntityModel<Torneo>> getTorneoById(@PathVariable("id") Long id) {
 
         log.info("Ricevuta richiesta GET su /api/tornei/{} - Ricerca torneo in corso", id);
-
-        // Cerchiamo il torneo nel DB
         Optional<Torneo> torneoTrovato = torneoRepository.findById(id);
 
         if (torneoTrovato.isPresent()) {
             Torneo torneo = torneoTrovato.get();
-            
-            //Modifica fatta da Stefano: Delego la creazione dei link dinamici all'Assembler
             EntityModel<Torneo> resource = assembler.toModel(torneo);
             
             log.info("Torneo {} trovato con successo. Restituzione risorsa HATEOAS.", id);
@@ -80,28 +72,18 @@ public class TorneoController {
     }
 
     /**
-     * Endpoint per il recupero della lista completa dei tornei.
-     * <p>
-     * Questo metodo interroga il repository per ottenere tutte le istanze di {@link Torneo},
-     * le trasforma in {@link EntityModel} tramite l'assembler dedicato e le incapsula 
-     * in un {@link CollectionModel} per rispettare lo standard HATEOAS.
-     * @author Stefano Bellan 20054330
-     * </p>
+     * Endpoint per il recupero della lista completa dei tornei attivi e passati.
      *
-     * @return {@link ResponseEntity} contenente la collezione di tornei arricchita con i link ipertestuali.
+     * @return ResponseEntity contenente la collezione di tornei arricchita con i link ipertestuali (HATEOAS).
      */
     @GetMapping
     public ResponseEntity<CollectionModel<EntityModel<Torneo>>> getAllTornei() {
-        // Recupero di tutte le entità di dominio dal database
         List<Torneo> tornei = torneoRepository.findAll();
 
-        // Trasformazione della lista di entità in una lista di modelli HATEOAS
-        // L'assembler applica automaticamente la logica condizionale (es. link "nextMatch")
         List<EntityModel<Torneo>> torneiModel = tornei.stream()
                 .map(assembler::toModel)
                 .toList();
 
-        // Creazione del wrapper per la collezione con link self al punto di ingresso dell'API
         CollectionModel<EntityModel<Torneo>> collectionModel = CollectionModel.of(torneiModel,
                 linkTo(methodOn(TorneoController.class).getAllTornei()).withSelfRel()
         );
@@ -112,9 +94,9 @@ public class TorneoController {
     /**
      * Crea un nuovo torneo e lo salva in modo persistente nel database.
      *
-     * @param nuovoTorneo L'oggetto {@link Torneo} contenente i dati inviati nel corpo della richiesta (JSON).
-     * @param authHeader (Opzionale) Header di autorizzazione per la sicurezza della richiesta.
-     * @return Una {@link ResponseEntity} con un messaggio di conferma del salvataggio o un errore 500 in caso di problemi tecnici.
+     * @param nuovoTorneo L'oggetto Torneo deserializzato dal JSON della richiesta.
+     * @param authHeader  (Opzionale) Header di autorizzazione JWT.
+     * @return ResponseEntity con messaggio di conferma (200 OK) o errore (500 Server Error).
      */
     @PostMapping
     public ResponseEntity<String> creaTorneo(
@@ -124,20 +106,22 @@ public class TorneoController {
         log.info("Ricevuta richiesta POST su /api/tornei - Creazione nuovo torneo");
 
         try {
-            // Salviamo fisicamente il dato nel Database PostgreSQL
             torneoRepository.save(nuovoTorneo);
             log.info("Torneo salvato con successo nel database PostgreSQL!");
             return ResponseEntity.ok("Torneo salvato con successo nel database!");
 
         } catch (Exception e) {
-            // Logghiamo l'errore se il database rifiuta il salvataggio
             log.error("ERRORE CRITICO durante il salvataggio del torneo: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().body("Errore interno durante il salvataggio.");
         }
     }
 
     /**
-     * PUT: Aggiorna un torneo esistente.
+     * Sovrascrive/aggiorna integralmente i dettagli di un torneo esistente.
+     * * @param id               L'identificativo del torneo da aggiornare.
+     * @param torneoAggiornato L'entità torneo con i nuovi dati da applicare.
+     * @param authHeader       Header di sicurezza per il controllo accessi.
+     * @return ResponseEntity confermante l'avvenuta modifica o 404 se inesistente.
      */
     @PutMapping("/{id}")
     public ResponseEntity<String> aggiornaTorneo(
@@ -146,12 +130,10 @@ public class TorneoController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("Ricevuta richiesta PUT su /api/tornei/{} - Aggiornamento torneo in corso", id);
-
-        // Controlliamo se il torneo esiste prima di aggiornarlo
         Optional<Torneo> torneoEsistente = torneoRepository.findById(id);
 
         if (torneoEsistente.isPresent()) {
-            // Se esiste, forziamo l'ID per essere sicuri di sovrascrivere quello giusto
+            // Impedisce ID hijacking garantendo che l'entità mantenga l'ID della risorsa URL
             torneoAggiornato.setId(id);
             torneoRepository.save(torneoAggiornato);
 
@@ -164,7 +146,10 @@ public class TorneoController {
     }
 
     /**
-     * DELETE: Elimina un torneo dal database.
+     * Rimuove in modo permanente un torneo dal sistema.
+     * * @param id         L'identificativo del torneo da eliminare.
+     * @param authHeader Header per verifica permessi autorizzativi.
+     * @return ResponseEntity di avvenuta eliminazione.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> eliminaTorneo(
@@ -184,16 +169,10 @@ public class TorneoController {
     }
 
     /**
-     * Recupera le informazioni sulla prossima partita programmata per un torneo specifico.
-     * <p>
-     * Questo endpoint viene esposto dinamicamente dall'assembler solo se il torneo 
-     * soddisfa i requisiti temporali (non concluso). Fornisce un punto di accesso 
-     * diretto senza che il client debba filtrare manualmente la lista dei match.
-     * </p>
+     * Endpoint HATEOAS per recuperare dinamicamente le info sulla prossima partita di un torneo in corso.
      *
      * @param id Identificativo univoco del torneo.
-     * @return {@link ResponseEntity} contenente i dettagli della prossima partita (attualmente in formato testuale).
-     * @author Stefano Bellan 20054330
+     * @return ResponseEntity contenente i dettagli testuali della prossima partita.
      */
     @GetMapping("/{id}/prossima-partita")
     public ResponseEntity<String> getProssimaPartita(@PathVariable("id") Long id) {
@@ -201,11 +180,12 @@ public class TorneoController {
     }
 
     /**
-     * Permette a un utente base di iscriversi al torneo, verificando la disponibilità di posti.
+     * Gestisce la logica business di iscrizione di un utente a uno specifico torneo.
+     * Valida i limiti di capacità massimi definiti in fase di creazione.
      *
-     * @param id L'identificativo del torneo.
-     * @param utenteId L'ID dell'utente che vuole iscriversi.
-     * @return Risposta HTTP che indica il successo o il fallimento dell'iscrizione.
+     * @param id       L'identificativo del torneo.
+     * @param utenteId L'ID dell'utente che avanza la richiesta di iscrizione.
+     * @return ResponseEntity indicante esito positivo o fallimento (Limiti superati, già iscritto).
      */
     @PostMapping("/{id}/iscrivi")
     public ResponseEntity<String> iscriviUtente(
@@ -224,7 +204,7 @@ public class TorneoController {
         Torneo torneo = torneoOpt.get();
         Utente utente = utenteOpt.get();
 
-        // Verifica disponibilità posti
+        // Controllo capienza torneo per evitare Overbooking
         if (torneo.getMaxPartecipanti() != null) {
             int iscrittiAttuali = (torneo.getIscritti() != null) ? torneo.getIscritti().size() : 0;
             if (iscrittiAttuali >= torneo.getMaxPartecipanti()) {
@@ -233,7 +213,6 @@ public class TorneoController {
             }
         }
 
-        // Iscrizione dell'utente
         if (torneo.getIscritti() == null) {
             torneo.setIscritti(new java.util.ArrayList<>());
         }
@@ -247,5 +226,4 @@ public class TorneoController {
             return ResponseEntity.status(400).body("L'utente è già iscritto al torneo.");
         }
     }
-
 }
