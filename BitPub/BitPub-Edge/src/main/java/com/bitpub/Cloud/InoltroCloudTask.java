@@ -123,7 +123,7 @@ public class InoltroCloudTask implements Runnable {
                         }
                     }
 
-                    // Broker non raggiungibile: attendo il ripristino della connettività
+                    // Broker non raggiungibile: attendo il ripristino della connettivita'
                     Thread.sleep(5000);
                 }
             } catch (InterruptedException e) {
