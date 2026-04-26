@@ -34,7 +34,7 @@ public class SecurityConfig {
                 // Per ora lasciamo aperte le rotte /api/ per permettere a Stefano e Timothy
                 // di testare i loro @RestController.
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").permitAll()
+                        .requestMatchers("/api/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 );
 

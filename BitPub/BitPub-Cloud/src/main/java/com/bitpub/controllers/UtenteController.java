@@ -44,7 +44,7 @@ public class UtenteController {
      */
     @GetMapping("/{nickname}")
     public ResponseEntity<EntityModel<Utente>> getUtenteByNickname(
-            @PathVariable String nickname,
+            @PathVariable("nickname") String nickname,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         return utenteRepository.findByNickname(nickname)
@@ -61,7 +61,7 @@ public class UtenteController {
      */
     @GetMapping("/email/{email}")
     public ResponseEntity<EntityModel<Utente>> getUtenteByEmail(
-            @PathVariable String email,
+            @PathVariable("email") String email,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         return utenteRepository.findByEmail(email)
@@ -78,7 +78,7 @@ public class UtenteController {
      */
     @GetMapping("/ruolo/{ruolo}")
     public ResponseEntity<CollectionModel<EntityModel<Utente>>> getUtentiByRuolo(
-            @PathVariable String ruolo,
+            @PathVariable("ruolo") String ruolo,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         List<Utente> utenti = utenteRepository.findByRuolo(ruolo);
@@ -99,7 +99,7 @@ public class UtenteController {
      */
     @GetMapping("/cerca")
     public ResponseEntity<CollectionModel<EntityModel<Utente>>> cercaUtenti(
-            @RequestParam String keyword,
+            @RequestParam("keyword") String keyword,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         List<Utente> risultati = utenteRepository.cercaPerNomeOCognome(keyword);
@@ -116,7 +116,7 @@ public class UtenteController {
      * <p>Target del link relazionale 'modifica'.</p>
      */
     @PutMapping("/{nickname}")
-    public ResponseEntity<String> modificaUtente(@PathVariable String nickname) {
+    public ResponseEntity<String> modificaUtente(@PathVariable("nickname") String nickname) {
         return ResponseEntity.ok("Endpoint modifica per " + nickname);
     }
 
@@ -125,7 +125,7 @@ public class UtenteController {
      * <p>Target del link relazionale 'partite'.</p>
      */
     @GetMapping("/{nickname}/partite")
-    public ResponseEntity<String> getPartiteUtente(@PathVariable String nickname) {
+    public ResponseEntity<String> getPartiteUtente(@PathVariable("nickname") String nickname) {
         return ResponseEntity.ok("Storico partite per " + nickname);
     }
 
@@ -134,7 +134,7 @@ public class UtenteController {
      * <p>Target del link relazionale 'dashboard_statistiche'.</p>
      */
     @GetMapping("/statistiche/giocatore/{nickname}")
-    public ResponseEntity<String> getStatisticheUtente(@PathVariable String nickname) {
+    public ResponseEntity<String> getStatisticheUtente(@PathVariable("nickname") String nickname) {
         return ResponseEntity.ok("Dashboard statistiche per " + nickname);
     }
 }
