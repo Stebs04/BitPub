@@ -15,6 +15,9 @@ import java.util.Optional;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
+import com.bitpub.models.Utente;
+import com.bitpub.repository.UtenteRepository;
+
 /**
  * Controller REST dedicato alla gestione completa del ciclo di vita dei Tornei.
  * <p>
@@ -38,6 +41,9 @@ public class TorneoController {
 
     @Autowired
     private TorneoModelAssembler assembler;
+
+    @Autowired
+    private UtenteRepository utenteRepository;
 
     /**
      * Recupera i dettagli di un singolo torneo identificato dal suo ID univoco.
@@ -192,6 +198,54 @@ public class TorneoController {
     @GetMapping("/{id}/prossima-partita")
     public ResponseEntity<String> getProssimaPartita(@PathVariable("id") Long id) {
         return ResponseEntity.ok("Il server ha fornito questo url HATEOAS. Prossima partita per il torneo: " + id);
+    }
+
+    /**
+     * Permette a un utente base di iscriversi al torneo, verificando la disponibilità di posti.
+     *
+     * @param id L'identificativo del torneo.
+     * @param utenteId L'ID dell'utente che vuole iscriversi.
+     * @return Risposta HTTP che indica il successo o il fallimento dell'iscrizione.
+     */
+    @PostMapping("/{id}/iscrivi")
+    public ResponseEntity<String> iscriviUtente(
+            @PathVariable("id") Long id,
+            @RequestParam("utenteId") Long utenteId) {
+
+        log.info("Richiesta di iscrizione utente {} al torneo {}", utenteId, id);
+
+        Optional<Torneo> torneoOpt = torneoRepository.findById(id);
+        Optional<Utente> utenteOpt = utenteRepository.findById(utenteId);
+
+        if (torneoOpt.isEmpty() || utenteOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("Torneo o Utente non trovato.");
+        }
+
+        Torneo torneo = torneoOpt.get();
+        Utente utente = utenteOpt.get();
+
+        // Verifica disponibilità posti
+        if (torneo.getMaxPartecipanti() != null) {
+            int iscrittiAttuali = (torneo.getIscritti() != null) ? torneo.getIscritti().size() : 0;
+            if (iscrittiAttuali >= torneo.getMaxPartecipanti()) {
+                log.warn("Il torneo {} ha raggiunto il limite massimo di iscritti.", id);
+                return ResponseEntity.status(400).body("Errore: Iscrizioni chiuse. Raggiunto il limite massimo di partecipanti.");
+            }
+        }
+
+        // Iscrizione dell'utente
+        if (torneo.getIscritti() == null) {
+            torneo.setIscritti(new java.util.ArrayList<>());
+        }
+        
+        if (!torneo.getIscritti().contains(utente)) {
+            torneo.getIscritti().add(utente);
+            torneoRepository.save(torneo);
+            log.info("Utente {} iscritto con successo al torneo {}", utenteId, id);
+            return ResponseEntity.ok("Iscrizione completata con successo!");
+        } else {
+            return ResponseEntity.status(400).body("L'utente è già iscritto al torneo.");
+        }
     }
 
 }

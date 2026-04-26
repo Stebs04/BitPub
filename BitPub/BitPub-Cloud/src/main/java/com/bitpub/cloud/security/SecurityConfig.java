@@ -1,11 +1,13 @@
 package com.bitpub.cloud.security;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Configurazione di sicurezza per il Cloud BitPub.
@@ -14,6 +16,9 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,12 +36,16 @@ public class SecurityConfig {
                 )
 
                 // 3. Regole di autorizzazione per le rotte (Endpoints).
-                // Per ora lasciamo aperte le rotte /api/ per permettere a Stefano e Timothy
-                // di testare i loro @RestController.
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**", "/error").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/error").permitAll() // Auth pubblica
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") // Solo admin
+                        .requestMatchers("/api/v1/gestore/**").hasAnyRole("GESTORE", "ADMIN") // Gestore e admin
+                        // Per le altre API originali le proteggiamo richiedendo autenticazione
                         .anyRequest().authenticated()
-                );
+                )
+                
+                // 4. Aggiunta del filtro JWT custom prima del filtro di autenticazione standard
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -11,6 +11,8 @@ import javafx.scene.control.ListView;
  * Controller per la gestione della UI relativa alle statistiche del Biliardo.
  * Coordina il recupero dei dati dal server tramite il client REST unificato
  * e gestisce il rendering asincrono dei componenti grafici.
+ * 
+ * @author Luca Franzon
  */
 public class BiliardoUIController {
 

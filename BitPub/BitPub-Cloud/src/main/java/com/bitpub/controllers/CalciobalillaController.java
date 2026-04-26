@@ -17,13 +17,14 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
- * REST Controller per la gestione delle risorse relative alle partite di
- * calciobalilla.
- * Aggiornato alla Fase 22 con supporto HATEOAS reale tramite Spring Hateoas e
- * CollectionModel.
+ * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
+ * <p>
+ * Implementa il livello HATEOAS esponendo i metodi per recuperare tutte le partite,
+ * ottenere i dettagli di una singola partita e aggregare le statistiche generali.
+ * I risultati sono incapsulati in {@code CollectionModel} e {@code EntityModel}.
+ * </p>
  *
- * @author Stefano Bellan 20054330 (Logica di Dominio)
- * @author Timothy 20054431 (Integrazione HATEOAS Reale - Fase 22)
+ * @author Stefano Bellan (Implementazione Core e Logica di Dominio)
  */
 @RestController
 @RequestMapping(value = "/api/calciobalilla")
@@ -33,8 +34,13 @@ public class CalciobalillaController {
     private PartitaCalciobalillaRepository repository;
 
     /**
-     * Recupera l'elenco completo delle partite.
-     * Restituisce un CollectionModel per permettere link a livello di collezione.
+     * Recupera l'elenco completo delle partite di calciobalilla.
+     * <p>
+     * Ogni entità restituita è arricchita con link HATEOAS per la navigazione
+     * verso la singola partita, lo storico, e le informazioni del torneo associato (se presente).
+     * </p>
+     *
+     * @return un {@link ResponseEntity} contenente un {@link CollectionModel} di partite
      */
     @GetMapping
     public ResponseEntity<CollectionModel<EntityModel<PartitaCalciobalilla>>> getAllPartite() {
