@@ -24,18 +24,22 @@ import java.util.List;
 /**
  * Controller per la Dashboard Amministratore.
  * Gestisce l'anagrafica dei locali (CRUD) interfacciandosi con il backend 
- * tramite API REST conformi allo standard HATEOAS.
+ * tramite API REST conformi allo standard HATEOAS e Semantic Versioning.
  *
  * @author Stefano Bellan
- * @version 1.1
+ * @version 1.0
+ * @since 1.0
  */
 public class AdminDashboardController {
 
-    // --- Costanti di Sistema ---
+    /** URL base per le risorse dei locali */
     private static final String API_BASE_URL = "http://localhost:8080/api/locali";
-    private static final String MEDIA_TYPE_JSON = "application/json";
+    
+    /** * MediaType specifico richiesto dall'ApiVersionFilter del Cloud.
+     * L'uso di application/json causerebbe un errore 406 Not Acceptable.
+     */
+    private static final String MEDIA_TYPE_V1 = "application/resources.v1+json";
 
-    // --- Componenti FXML ---
     @FXML private TableView<Locale> localiTable;
     @FXML private TableColumn<Locale, Long> colId;
     @FXML private TableColumn<Locale, String> colNome;
@@ -58,7 +62,7 @@ public class AdminDashboardController {
         configuraTabella();
         caricaDati();
 
-        // Listener di selezione: abilita i bottoni di modifica/eliminazione solo se una riga è selezionata.
+        // Listener per la gestione dinamica dell'abilitazione dei controlli basata sulla selezione
         localiTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             boolean rigaSelezionata = newSelection != null;
             btnModifica.setDisable(!rigaSelezionata);
@@ -78,8 +82,8 @@ public class AdminDashboardController {
     }
 
     /**
-     * Esegue il recupero asincrono dei locali dal server.
-     * Gestisce il feedback visivo tramite ProgressIndicator.
+     * Esegue il recupero asincrono dei locali dal server Cloud.
+     * Inietta l'header di versione v1 per superare il filtro ApiVersionFilter.
      */
     @FXML
     public void caricaDati() {
@@ -87,8 +91,8 @@ public class AdminDashboardController {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL))
-                .header("Accept", MEDIA_TYPE_JSON)
-                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken()) // Sicurezza: Iniezione Token
+                .header("Accept", MEDIA_TYPE_V1)
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
                 .GET()
                 .build();
 
@@ -96,16 +100,17 @@ public class AdminDashboardController {
                 .thenApply(HttpResponse::body)
                 .thenAccept(this::processaRispostaServer)
                 .exceptionally(e -> {
+                    // Sincronizzazione con il JavaFX Application Thread per la manipolazione sicura dei nodi grafici
                     Platform.runLater(() -> {
                         progressIndicator.setVisible(false);
-                        mostraNotifica("Errore Connessione", "Impossibile contattare il server: " + e.getMessage(), Alert.AlertType.ERROR);
+                        mostraNotifica("Errore Connessione", "Impossibile contattare il server.", Alert.AlertType.ERROR);
                     });
                     return null;
                 });
     }
 
     /**
-     * Parsifica la risposta JSON (formato HATEOAS) e aggiorna la lista osservabile.
+     * Parsifica la risposta JSON HATEOAS e aggiorna la lista osservabile.
      * @param body Il corpo della risposta JSON ricevuto dal server.
      */
     private void processaRispostaServer(String body) {
@@ -113,7 +118,6 @@ public class AdminDashboardController {
             JsonObject rootObj = JsonParser.parseString(body).getAsJsonObject();
             List<Locale> localiEstratti = new ArrayList<>();
 
-            // Navigazione del grafo HATEOAS (_embedded.localeList)
             if (rootObj.has("_embedded")) {
                 JsonArray localiArray = rootObj.getAsJsonObject("_embedded").getAsJsonArray("localeList");
                 for (JsonElement element : localiArray) {
@@ -121,8 +125,8 @@ public class AdminDashboardController {
                 }
             }
 
-            // Sincronizzazione con il thread UI per l'aggiornamento grafico
             Platform.runLater(() -> {
+                // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
                 listaLocaliObservable.setAll(localiEstratti);
                 progressIndicator.setVisible(false);
             });
@@ -130,35 +134,50 @@ public class AdminDashboardController {
         } catch (Exception e) {
             Platform.runLater(() -> {
                 progressIndicator.setVisible(false);
-                mostraNotifica("Errore Dati", "Il server ha restituito un formato non valido.", Alert.AlertType.WARNING);
+                mostraNotifica("Errore Dati", "Formato risposta non valido.", Alert.AlertType.WARNING);
             });
         }
     }
 
+    /**
+     * Gestisce l'apertura della procedura per la creazione di un nuovo locale.
+     * Metodo collegato all'onAction del file FXML.
+     */
     @FXML
-    private void handleNuovoLocale() {
+    public void handleNuovoLocale() {
         // Logica per apertura dialog inserimento
         System.out.println("Apertura procedura nuovo locale...");
     }
 
+    /**
+     * Gestisce la modifica del locale attualmente selezionato in tabella.
+     */
     @FXML
-    private void handleModifica() {
+    public void handleModifica() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
         if (selezionato != null) {
             System.out.println("Modifica locale ID: " + selezionato.getId());
         }
     }
 
+    /**
+     * Gestisce l'eliminazione logica o fisica del locale selezionato.
+     */
     @FXML
-    private void handleElimina() {
+    public void handleElimina() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
         if (selezionato != null) {
-            // Qui andrebbe implementata la chiamata DELETE asincrona
             listaLocaliObservable.remove(selezionato);
-            mostraNotifica("Successo", "Locale eliminato correttamente.", Alert.AlertType.INFORMATION);
+            mostraNotifica("Successo", "Locale rimosso dalla vista.", Alert.AlertType.INFORMATION);
         }
     }
 
+    /**
+     * Visualizza un alert informativo o di errore.
+     * @param titolo    Titolo della finestra.
+     * @param messaggio Messaggio di dettaglio.
+     * @param tipo      Tipo di alert (Error, Info, Warning).
+     */
     private void mostraNotifica(String titolo, String messaggio, Alert.AlertType tipo) {
         Alert alert = new Alert(tipo);
         alert.setTitle(titolo);
