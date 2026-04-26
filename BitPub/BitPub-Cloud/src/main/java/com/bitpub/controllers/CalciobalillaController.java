@@ -21,7 +21,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * Aggiornato alla Fase 22 con supporto HATEOAS reale tramite Spring Hateoas e CollectionModel.
  *
  * @author Stefano Bellan 20054330 (Logica di Dominio)
- * @author Timothy (Integrazione HATEOAS Reale - Fase 22)
+ * @author Timothy 20054431 (Integrazione HATEOAS Reale - Fase 22)
  */
 @RestController
 @RequestMapping(value = "/api/calciobalilla")

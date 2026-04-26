@@ -12,8 +12,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Optional;
 
 /**
- * Controller REST per la gestione dei Tornei.
- * Architettura rigorosamente State-Less con supporto HATEOAS.
+ * Controller REST dedicato alla gestione completa del ciclo di vita dei Tornei.
+ * <p>
+ * Questa classe espone gli endpoint per le operazioni CRUD (Create, Read, Update, Delete)
+ * seguendo un'architettura State-Less. Utilizza il supporto HATEOAS per fornire link
+ * dinamici nelle risposte, migliorando l'interazione con l'API.
+ * </p>
+ * * @author Timothy Giolito 20054431
  */
 @RestController
 @RequestMapping("/api/tornei")
@@ -27,7 +32,15 @@ public class TorneoController {
     private TorneoRepository torneoRepository;
 
     /**
-     * GET: Recupera un torneo per ID.
+     * Recupera i dettagli di un singolo torneo identificato dal suo ID univoco.
+     * <p>
+     * Se il torneo viene trovato, la risposta include i dati dell'oggetto e una serie
+     * di link HATEOAS per facilitare le operazioni successive (aggiornamento, eliminazione, iscrizione).
+     * </p>
+     *
+     * @param id L'identificativo univoco del torneo da cercare.
+     * @return Una {@link ResponseEntity} contenente la risorsa {@link HateoasResource} se trovato,
+     * oppure uno stato 404 (Not Found) se il torneo non esiste.
      */
     @GetMapping("/{id}")
     public ResponseEntity<?> getTorneoById(@PathVariable Long id) {
@@ -58,7 +71,11 @@ public class TorneoController {
     }
 
     /**
-     * POST: Crea e salva un nuovo torneo nel database.
+     * Crea un nuovo torneo e lo salva in modo persistente nel database.
+     *
+     * @param nuovoTorneo L'oggetto {@link Torneo} contenente i dati inviati nel corpo della richiesta (JSON).
+     * @param authHeader (Opzionale) Header di autorizzazione per la sicurezza della richiesta.
+     * @return Una {@link ResponseEntity} con un messaggio di conferma del salvataggio o un errore 500 in caso di problemi tecnici.
      */
     @PostMapping
     public ResponseEntity<String> creaTorneo(
@@ -81,7 +98,15 @@ public class TorneoController {
     }
 
     /**
-     * PUT: Aggiorna un torneo esistente.
+     * Aggiorna le informazioni di un torneo già esistente nel database.
+     * <p>
+     * Il metodo verifica l'esistenza del torneo tramite ID prima di procedere con la sovrascrittura dei dati.
+     * </p>
+     *
+     * @param id L'ID del torneo da modificare.
+     * @param torneoAggiornato L'oggetto {@link Torneo} con i nuovi dati da salvare.
+     * @param authHeader (Opzionale) Header di autorizzazione.
+     * @return {@link ResponseEntity} con esito positivo (200 OK) o errore (404 Not Found) se l'ID non esiste.
      */
     @PutMapping("/{id}")
     public ResponseEntity<String> aggiornaTorneo(
@@ -108,7 +133,11 @@ public class TorneoController {
     }
 
     /**
-     * DELETE: Elimina un torneo dal database.
+     * Rimuove un torneo dal database in modo definitivo.
+     *
+     * @param id L'identificativo del torneo da eliminare.
+     * @param authHeader (Opzionale) Header di autorizzazione.
+     * @return {@link ResponseEntity} con conferma dell'eliminazione o errore se il torneo non è stato trovato.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> eliminaTorneo(
