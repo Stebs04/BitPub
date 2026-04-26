@@ -1,5 +1,5 @@
-<!--Ogni volta che avviene un salvataggio, viene scritto un log con varie informazioni-->
 <?xml version="1.0" encoding="UTF-8"?>
+<!--Ogni volta che avviene un salvataggio, viene scritto un log con varie informazioni-->
 <configuration>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
