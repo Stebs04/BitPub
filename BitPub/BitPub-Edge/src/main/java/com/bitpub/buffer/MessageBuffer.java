@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Questa classe funge da intermediario tra i Subscriber locali (Producers) e i Task di inoltro
  * verso il Cloud (Consumers). Implementa una politica di gestione delle code di tipo
- * "Oldest Drop": se il buffer raggiunge la capacità massima, il messaggio più vecchio
+ * "Oldest Drop": se il buffer raggiunge la capacita' massima, il messaggio piu' vecchio
  * viene rimosso per far spazio ai nuovi dati.
  * </p>
  * @author Timothy Giolito 20054431
@@ -21,27 +21,26 @@ public class MessageBuffer {
 
     private static final Logger logger = LoggerFactory.getLogger(MessageBuffer.class);
     
-    // Costante di capacità inserita per gestire il buffer e percentuali
+    // Costante di capacita' inserita per gestire il buffer e percentuali
     private final int MAX_CAPACTITY = 50;
 
     /**
      * Coda bloccante sottostante per la gestione concorrente dei messaggi.
-     * La dimensione è fissata a 50 per evitare un consumo eccessivo di memoria RAM.
+     * La dimensione e' fissata a 50 per evitare un consumo eccessivo di memoria RAM.
      */
     private final BlockingQueue<String> codaMessaggi;
 
     /**
      * Costruttore predefinito.
-     * Inizializza la coda con una capacità massima di 50 elementi.
+     * Inizializza la coda con una capacita' massima di 50 elementi.
      */
     public MessageBuffer() {
         this.codaMessaggi = new LinkedBlockingQueue<>(MAX_CAPACTITY);
     }
 
     /**
-     * Restituisce la capacità massima del buffer.
-     * 
-     * @return La capacità in eventi.
+     * Restituisce la capacita' massima del buffer.
+     * * @return La capacita' in eventi.
      */
     public int getCapacita() {
         return MAX_CAPACTITY;
@@ -58,8 +57,8 @@ public class MessageBuffer {
     /**
      * Inserisce un nuovo messaggio nel buffer.
      * <p>
-     * Se il buffer è pieno, il metodo rimuove automaticamente l'elemento in testa
-     * (il più vecchio) per garantire che i dati più recenti vengano sempre memorizzati.
+     * Se il buffer e' pieno, il metodo rimuove automaticamente l'elemento in testa
+     * (il piu' vecchio) per garantire che i dati piu' recenti vengano sempre memorizzati.
      * </p>
      *
      * @param messaggio La stringa (solitamente JSON) contenente i dati da bufferizzare.
@@ -68,7 +67,7 @@ public class MessageBuffer {
        boolean successo = codaMessaggi.offer(messaggio); // prova a inserire 
        
        if(!successo){
-           // Scarta l'evento più vecchio per far spazio alla queue circolare
+           // Scarta l'evento piu' vecchio per far spazio alla queue circolare
            String scartato = codaMessaggi.poll();
            if(scartato != null) {
                logger.error("Buffer pieno - evento scartato: {}", scartato);
@@ -90,7 +89,7 @@ public class MessageBuffer {
     /**
      * Restituisce il primo messaggio della coda senza rimuoverlo.
      *
-     * @return Il messaggio in testa alla coda, oppure {@code null} se il buffer è vuoto.
+     * @return Il messaggio in testa alla coda, oppure {@code null} se il buffer e' vuoto.
      */
     public String peek(){
         return codaMessaggi.peek();
@@ -104,7 +103,7 @@ public class MessageBuffer {
     public String poll(){
         String rs = codaMessaggi.poll();
         if (rs != null) {
-            // Loggo ad estrazione avvenuta che la coda è ridotta
+            // Loggo ad estrazione avvenuta che la coda e' ridotta
             logger.debug("Stato buffer - size: {}, capacita: {}, pendenti: {}", codaMessaggi.size(), getCapacita(), getPendenti());
         }
         return rs;
