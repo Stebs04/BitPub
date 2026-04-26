@@ -13,7 +13,7 @@ public class BiliardoController {
     private final Gson gson = new Gson();
 
     @GetMapping("/api/v1/biliardo/eventi/{id}")
-    public @ResponseBody String getEventoBiliardo(@PathVariable String id) {
+    public @ResponseBody String getEventoBiliardo(@PathVariable("id") String id) {
         // Supponiamo di recuperare i dati dal DB PostgreSQL [cite: 41, 51]
         // Luca, ricorda che se accedi a dati condivisi devi usare 'synchronized' [cite: 52, 75]
         BiliardoResource evento = new BiliardoResource(id, "PALLA_IMBUCATA", "Team_Luca", "Match_001");

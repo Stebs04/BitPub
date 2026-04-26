@@ -17,8 +17,10 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
- * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
- * Aggiornato alla Fase 22 con supporto HATEOAS reale tramite Spring Hateoas e CollectionModel.
+ * REST Controller per la gestione delle risorse relative alle partite di
+ * calciobalilla.
+ * Aggiornato alla Fase 22 con supporto HATEOAS reale tramite Spring Hateoas e
+ * CollectionModel.
  *
  * @author Stefano Bellan 20054330 (Logica di Dominio)
  * @author Timothy 20054431 (Integrazione HATEOAS Reale - Fase 22)
@@ -53,7 +55,7 @@ public class CalciobalillaController {
      * Recupera una singola partita per ID con link ipertestuali dinamici.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<EntityModel<PartitaCalciobalilla>> getPartitaById(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<PartitaCalciobalilla>> getPartitaById(@PathVariable("id") Long id) {
         return repository.findById(id)
                 .map(partita -> ResponseEntity.ok(aggiungiLinkHateoas(partita)))
                 .orElse(ResponseEntity.notFound().build());
@@ -74,7 +76,8 @@ public class CalciobalillaController {
     }
 
     /**
-     * Arricchisce l'entità PartitaCalciobalilla con i metadati ipertestuali (Fase 22).
+     * Arricchisce l'entità PartitaCalciobalilla con i metadati ipertestuali (Fase
+     * 22).
      */
     private EntityModel<PartitaCalciobalilla> aggiungiLinkHateoas(PartitaCalciobalilla partita) {
         EntityModel<PartitaCalciobalilla> risorsa = EntityModel.of(partita);
@@ -87,7 +90,8 @@ public class CalciobalillaController {
 
         // Link al Torneo: assicura il salto tra moduli in modo dinamico
         if (partita.getTorneo() != null) {
-            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneo().getId())).withRel("dettagli_torneo"));
+            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneo().getId()))
+                    .withRel("dettagli_torneo"));
         }
 
         return risorsa;
