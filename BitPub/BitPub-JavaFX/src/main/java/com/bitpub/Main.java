@@ -2,6 +2,7 @@ package com.bitpub;
 
 import com.bitpub.network.SessionManager;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,11 +12,9 @@ import java.net.URL;
 
 /**
  * Entry Point principale per l'ecosistema BitPub.
- * Gestisce il routing dell'applicazione, orchestrando il passaggio tra
- * autenticazione e le diverse aree funzionali basate sui ruoli utente.
+ * Orchesta il routing dell'applicazione tra autenticazione e aree funzionali.
  *
  * @author Stefano Bellan
- * @version 2.0
  */
 public class Main extends Application {
 
@@ -24,74 +23,76 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         primaryStage = stage;
-        // Impediamo il ridimensionamento nella fase di login per preservare il layout
         primaryStage.setResizable(false); 
         mostraLogin();
     }
 
     /**
-     * Carica e visualizza la schermata di Login/Registrazione.
+     * Carica la schermata di Login.
      */
     public static void mostraLogin() {
         try {
-            cambiaScena("/RegistrazioneView.fxml", "BitPub - Benvenuto", 800, 600);
+            // Carica la vista di login definita nelle risorse
+            cambiaScena("/LoginView.fxml", "BitPub - Login", 800, 600);
         } catch (IOException e) {
-            System.err.println("Errore critico nel caricamento del Login: " + e.getMessage());
+            System.err.println("Errore caricamento Login: " + e.getMessage());
         }
     }
 
     /**
-     * Analizza il ruolo dell'utente nel SessionManager e carica la dashboard corretta.
-     * Questo metodo deve essere chiamato dai controller dopo un login di successo.
+     * Fornisce un punto di accesso globale per la navigazione imperativa.
+     * Permette ai controller (come Login e Registrazione) di richiedere un cambio scena completo.
+     *
+     * @param fxml   Il percorso assoluto o relativo al classpath del file FXML.
+     * @param titolo Il titolo da iniettare nella barra superiore del SO.
+     */
+    public static void navigaVerso(String fxml, String titolo) {
+        Platform.runLater(() -> {
+            try {
+                cambiaScena(fxml, titolo, 800, 600);
+            } catch (IOException e) {
+                System.err.println("Errore di navigazione verso " + fxml + ": " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Gestisce il re-indirizzamento basato sul ruolo utente dopo l'autenticazione.
+     * Risolve l'errore di puntamento a file inesistenti.
      */
     public static void redirectDopoLogin() {
         String ruolo = SessionManager.getInstance().getCurrentRole();
-        
-        // Abilitiamo il ridimensionamento per le dashboard amministrative
         primaryStage.setResizable(true);
 
-        try {
-            if ("ADMIN".equalsIgnoreCase(ruolo)) {
-                // L'admin vede il layout con la sidebar di navigazione
-                cambiaScena("/MainLayout.fxml", "BitPub - Dashboard Amministratore", 1024, 768);
-            } else if ("GESTORE".equalsIgnoreCase(ruolo)) {
-                // Il gestore viene indirizzato alla sua vista specifica
-                cambiaScena("/GestoreDashboardView.fxml", "BitPub - Portale Gestore", 1024, 768);
-            } else {
-                // Utente standard o fallback
-                cambiaScena("/DashboardView.fxml", "BitPub - Dashboard Utente", 1024, 768);
+        Platform.runLater(() -> {
+            try {
+                if ("ADMIN".equalsIgnoreCase(ruolo)) {
+                    // L'admin ha il suo layout specifico o quello generale
+                    cambiaScena("/AdminDashboardView.fxml", "BitPub - Admin", 1024, 768);
+                } else if ("GESTORE".equalsIgnoreCase(ruolo)) {
+                    cambiaScena("/GestoreDashboardView.fxml", "BitPub - Gestore", 1024, 768);
+                } else {
+                    // Carica il layout principale con sidebar per l'utente standard
+                    // ASSICURATI che il file si chiami MainLayout.fxml o DashboardView.fxml
+                    cambiaScena("/DashboardView.fxml", "BitPub - Dashboard", 1024, 768);
+                }
+            } catch (IOException e) {
+                System.err.println("Errore nel redirect: " + e.getMessage());
             }
-        } catch (IOException e) {
-            System.err.println("Errore nel redirect post-login: " + e.getMessage());
-        }
+        });
     }
 
-    /**
-     * Metodo helper privato per la gestione del cambio scena (Root Swapping).
-     * Ottimizza il caricamento delle risorse e centra la finestra.
-     *
-     * @param fxml Percorso della risorsa FXML.
-     * @param titolo Titolo della finestra.
-     * @param width Larghezza.
-     * @param height Altezza.
-     * @throws IOException Se il file FXML non è raggiungibile.
-     */
     private static void cambiaScena(String fxml, String titolo, double width, double height) throws IOException {
         URL resource = Main.class.getResource(fxml);
-        if (resource == null) {
-            throw new IOException("Risorsa non trovata: " + fxml);
-        }
+        if (resource == null) throw new IOException("File non trovato: " + fxml);
 
         Parent root = FXMLLoader.load(resource);
         Scene scene = new Scene(root, width, height);
-
         primaryStage.setTitle(titolo);
         primaryStage.setScene(scene);
         primaryStage.centerOnScreen();
         primaryStage.show();
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public static void main(String[] args) { launch(args); }
 }

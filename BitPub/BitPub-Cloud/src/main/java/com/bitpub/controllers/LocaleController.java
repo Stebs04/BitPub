@@ -23,8 +23,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * Utilizza un {@link LocaleModelAssembler} per la trasformazione delle risorse
  * e gestisce i vincoli di unicità (Nome, IP Edge) durante la persistenza.
  * </p>
- * 
- * @author Stefano Bellan 20054330, Timothy Giolito
+ * * @author Stefano Bellan 20054330, Timothy Giolito
  */
 @RestController
 @RequestMapping(value = "/api/locali", produces = "application/resources.v1+json")
@@ -38,8 +37,7 @@ public class LocaleController {
 
     /**
      * Recupera l'elenco completo dei locali registrati.
-     * 
-     * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
+     * * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
      */
     @GetMapping
     public ResponseEntity<CollectionModel<EntityModel<Locale>>> getAllLocali() {
@@ -56,8 +54,7 @@ public class LocaleController {
 
     /**
      * Ricerca un locale tramite il suo identificativo univoco.
-     * 
-     * @param id ID del locale.
+     * * @param id ID del locale.
      * @return 200 OK con il modello del locale, o 404 Not Found.
      */
     @GetMapping("/{id}")
@@ -69,8 +66,7 @@ public class LocaleController {
 
     /**
      * Ricerca un locale per nome (Unique Constraint).
-     * 
-     * @param nome Nome del locale da cercare.
+     * * @param nome Nome del locale da cercare.
      * @return Modello della risorsa trovata.
      */
     @GetMapping("/nome/{nome}")
@@ -86,17 +82,14 @@ public class LocaleController {
      * Verifica preventivamente l'unicità del nome e dell'indirizzo IP dell'Edge Node
      * per prevenire conflitti di rete o di dominio.
      * </p>
-     * 
-     * @param nuovo Dati del nuovo locale.
+     * * @param nuovo Dati del nuovo locale.
      * @return 201 Created se l'operazione riesce, 409 Conflict se i vincoli sono violati.
      */
     @PostMapping
     public ResponseEntity<?> creaLocale(@RequestBody Locale nuovo) {
-        // Validazione business: verifica unicità nome
         if (localeRepository.existsByName(nuovo.getName())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Nome locale già esistente.");
         }
-        // Validazione business: verifica unicità IP Edge
         if (localeRepository.existsByIpAddressEdge(nuovo.getIpAddressEdge())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("IP Edge già assegnato a un altro locale.");
         }
@@ -107,8 +100,7 @@ public class LocaleController {
 
     /**
      * Aggiorna i dati di un locale esistente.
-     * 
-     * @param id ID del locale da modificare.
+     * * @param id ID del locale da modificare.
      * @param datiAggiornati Nuovi attributi da applicare.
      * @return Modello aggiornato o 404 se non presente.
      */
@@ -124,8 +116,7 @@ public class LocaleController {
 
     /**
      * Rimuove un locale dal sistema.
-     * 
-     * @param id ID della risorsa da eliminare.
+     * * @param id ID della risorsa da eliminare.
      * @return 204 No Content in caso di successo, 404 se l'ID è inesistente.
      */
     @DeleteMapping("/{id}")
