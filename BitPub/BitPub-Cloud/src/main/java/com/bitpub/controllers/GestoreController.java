@@ -1,104 +1,175 @@
-/**
- * Controller per le funzionalità riservate al GESTORE.
- * Gestisce il monitoraggio real-time, le statistiche aggregate e i tornei.
- * * @author Stefano Bellan
- */
 package com.bitpub.controllers;
 
 import com.bitpub.models.*;
-import com.bitpub.repository.*;
-import com.bitpub.assembler.TorneoModelAssembler;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import com.bitpub.models.Torneo.TipoGioco;
+import com.bitpub.models.Torneo.ModalitaTorneo;
+import com.bitpub.network.RestClient;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.chart.*;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
+/**
+ * Controller per la Dashboard del Gestore del locale.
+ * Implementa il monitoraggio real-time tramite polling asincrono, 
+ * la visualizzazione di analytics su grafici e la gestione dei tornei.
+ *
+ * @author Stefano Bellan
+ * @version 1.0
+ */
+public class GestoreDashboardController {
 
-@RestController
-@RequestMapping("/api/v1/gestore")
-@PreAuthorize("hasRole('GESTORE')")
-public class GestoreController {
+    // --- Costanti di Configurazione ---
+    private static final String ENDPOINT_MONITORAGGIO = "/gestore/monitoraggio";
+    private static final String ENDPOINT_TORNEI = "/gestore/tornei";
+    private static final int POLLING_INTERVAL_SECONDS = 5;
 
-    @Autowired private TorneoRepository torneoRepository;
-    @Autowired private MqttLogRepository mqttLogRepository;
-    @Autowired private PartitaCalciobalillaRepository calciobalillaRepo;
-    @Autowired private PartitaFreccetteRepository freccetteRepo;
-    @Autowired private PartitaBiliardoRepository biliardoRepo;
-    @Autowired private TorneoModelAssembler torneoAssembler;
+    // --- Componenti UI: Monitoraggio ---
+    @FXML private TableView<Macchina> macchineTable;
+    @FXML private TableColumn<Macchina, String> colMacchinaNome, colMacchinaTipo, colMacchinaStato;
+    
+    @FXML private TableView<Partita> partiteTable;
+    @FXML private TableColumn<Partita, String> colPartitaTipo, colPartitaStato, colPartitaData;
+
+    // --- Componenti UI: Statistiche ---
+    @FXML private BarChart<String, Number> barChartPartite;
+    @FXML private CategoryAxis xAxis;
+    @FXML private NumberAxis yAxis;
+
+    // --- Componenti UI: Tornei ---
+    @FXML private TextField txtNomeTorneo;
+    @FXML private ChoiceBox<TipoGioco> choiceTipoGioco;
+    @FXML private ChoiceBox<ModalitaTorneo> choiceModalita;
+    @FXML private DatePicker dateInizio;
+    @FXML private Spinner<Integer> spinnerPartecipanti;
+    @FXML private ProgressIndicator loadingIndicator;
+
+    private final RestClient restClient = new RestClient();
+    private ScheduledExecutorService scheduler;
 
     /**
-     * Endpoint per il monitoraggio real-time dei dispositivi nel locale.
-     * Determina se una macchina è 'attiva' basandosi sui log MQTT degli ultimi 60 secondi.
+     * Inizializza la dashboard configurando i componenti grafici e avviando
+     * il ciclo di monitoraggio in background.
      */
-    @GetMapping("/locali/{localeId}/macchine")
-    public ResponseEntity<?> getMacchineAttive(@PathVariable Long localeId) {
-        // Definiamo una finestra temporale per considerare la macchina "online"
-        LocalDateTime threshold = LocalDateTime.now().minusSeconds(60);
-        
-        // Recuperiamo i seriali che hanno inviato log recentemente
-        List<String> serialiAttivi = mqttLogRepository.findDistinctSerialiByLocaleAndTimestampAfter(localeId, threshold);
-        
-        return ResponseEntity.ok(serialiAttivi);
+    @FXML
+    public void initialize() {
+        configuraTabelle();
+        configuraFormTorneo();
+        avviaMonitoraggioRealTime();
     }
 
     /**
-     * Recupera tutte le partite attualmente in corso nel locale, unendo i vari tipi di gioco.
+     * Configura il mapping dei dati per le tabelle di monitoraggio.
      */
-    @GetMapping("/locali/{localeId}/partite/attive")
-    public ResponseEntity<?> getPartiteInCorso(@PathVariable Long localeId) {
-        List<Object> tutteLePartiteInCorso = new ArrayList<>();
-        
-        tutteLePartiteInCorso.addAll(calciobalillaRepo.findByLocaleIdAndStato(localeId, "IN_CORSO"));
-        tutteLePartiteInCorso.addAll(freccetteRepo.findByLocaleIdAndStato(localeId, "IN_CORSO"));
-        tutteLePartiteInCorso.addAll(biliardoRepo.findByLocaleIdAndStato(localeId, "IN_CORSO"));
-        
-        return ResponseEntity.ok(tutteLePartiteInCorso);
+    private void configuraTabelle() {
+        colMacchinaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        colMacchinaTipo.setCellValueFactory(new PropertyValueFactory<>("tipo"));
+        colMacchinaStato.setCellValueFactory(new PropertyValueFactory<>("stato"));
+
+        colPartitaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
+        colPartitaStato.setCellValueFactory(new PropertyValueFactory<>("stato"));
+        colPartitaData.setCellValueFactory(new PropertyValueFactory<>("dataInizio"));
     }
 
     /**
-     * Elabora statistiche aggregate per il gestore del locale.
+     * Predispone i selettori del form per la creazione dei tornei con i valori enumerati.
      */
-    @GetMapping("/locali/{localeId}/statistiche")
-    public ResponseEntity<?> getStatistiche(@PathVariable Long localeId) {
-        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+    private void configuraFormTorneo() {
+        choiceTipoGioco.setItems(FXCollections.observableArrayList(TipoGioco.values()));
+        choiceModalita.setItems(FXCollections.observableArrayList(ModalitaTorneo.values()));
         
-        // 1. Conteggio partite oggi per ogni tipo
-        long cbToday = calciobalillaRepo.countToday(localeId, startOfToday);
-        long frToday = freccetteRepo.countToday(localeId, startOfToday);
-        long biToday = biliardoRepo.countToday(localeId, startOfToday);
-
-        // 2. Medie durate (gestendo i valori null se non ci sono partite)
-        Double avgCb = Optional.ofNullable(calciobalillaRepo.calculateAverageDuration(localeId)).orElse(0.0);
-        Double avgFr = Optional.ofNullable(freccetteRepo.calculateAverageDuration(localeId)).orElse(0.0);
-        Double avgBi = Optional.ofNullable(biliardoRepo.calculateAverageDuration(localeId)).orElse(0.0);
-
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalePartiteOggi", cbToday + frToday + biToday);
-        
-        Map<String, Long> distribuzione = new HashMap<>();
-        distribuzione.put("CALCIOBALILLA", cbToday);
-        distribuzione.put("FRECCETTE", frToday);
-        distribuzione.put("BILIARDO", biToday);
-        stats.put("distribuzione", distribuzione);
-        
-        stats.put("mediaDurataMinuti", (avgCb + avgFr + avgBi) / 3.0); // Media semplice delle medie
-
-        return ResponseEntity.ok(stats);
+        spinnerPartecipanti.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(2, 64, 8));
+        dateInizio.setValue(LocalDate.now().plusDays(1));
     }
 
     /**
-     * Registra un nuovo torneo nel sistema.
+     * Avvia un executor periodico che interroga il server ogni 5 secondi.
+     * Utilizza un thread separato per non bloccare la UI durante l'attesa di rete.
      */
-    @PostMapping("/tornei")
-    public ResponseEntity<?> creaTorneo(@RequestBody Torneo nuovoTorneo) {
-        Torneo salvato = torneoRepository.save(nuovoTorneo);
-        // Restituiamo l'oggetto con i link HATEOAS tramite l'assembler
-        return ResponseEntity.ok(torneoAssembler.toModel(salvato));
+    private void avviaMonitoraggioRealTime() {
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleAtFixedRate(() -> {
+            // Chiamata di rete asincrona
+            restClient.faiChiamataGet(ENDPOINT_MONITORAGGIO, DashboardGestoreData.class)
+                .thenAccept(data -> {
+                    // Sincronizzazione con il JavaFX Thread per aggiornare la vista
+                    Platform.runLater(() -> {
+                        macchineTable.getItems().setAll(data.getMacchine());
+                        partiteTable.getItems().setAll(data.getPartiteRecenti());
+                        aggiornaGrafico(data.getStatistiche());
+                    });
+                });
+        }, 0, POLLING_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Gestisce la logica di creazione di un nuovo torneo.
+     * Disabilita l'indicatore di caricamento al termine dell'operazione.
+     */
+    @FXML
+    public void handleCreaTorneo() {
+        Torneo nuovoTorneo = new Torneo();
+        nuovoTorneo.setNome(txtNomeTorneo.getText());
+        nuovoTorneo.setTipo(choiceTipoGioco.getValue());
+        nuovoTorneo.setDataInizio(dateInizio.getValue());
+        nuovoTorneo.setMaxPartecipanti(spinnerPartecipanti.getValue());
+        nuovoTorneo.setModalita(choiceModalita.getValue());
+
+        loadingIndicator.setVisible(true);
+
+        restClient.faiChiamataPost(ENDPOINT_TORNEI, nuovoTorneo, String.class)
+            .handle((res, ex) -> {
+                Platform.runLater(() -> {
+                    loadingIndicator.setVisible(false);
+                    if (ex == null) {
+                        mostraMessaggio(Alert.AlertType.INFORMATION, "Successo", "Torneo creato con successo!");
+                        resetForm();
+                    } else {
+                        mostraMessaggio(Alert.AlertType.ERROR, "Errore", "Errore durante la creazione del torneo.");
+                    }
+                });
+                return null;
+            });
+    }
+
+    private void aggiornaGrafico(List<StatisticaMensile> stats) {
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName("Partite Mensili");
+        for (StatisticaMensile s : stats) {
+            series.getData().add(new XYChart.Data<>(s.getMese(), s.getValore()));
+        }
+        barChartPartite.getData().setAll(series);
+    }
+
+    private void resetForm() {
+        txtNomeTorneo.clear();
+        dateInizio.setValue(LocalDate.now().plusDays(1));
+    }
+
+    private void mostraMessaggio(Alert.AlertType tipo, String titolo, String contenuto) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titolo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenuto);
+        alert.showAndWait();
+    }
+
+    /**
+     * Metodo di cleanup fondamentale: interrompe lo scheduler quando la vista viene distrutta.
+     * Impedisce memory leak e chiamate di rete residue.
+     */
+    public void stopPolling() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+        }
     }
 }

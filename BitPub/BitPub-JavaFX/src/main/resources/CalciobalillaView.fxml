@@ -47,17 +47,15 @@
 
     <center>
         <StackPane>
-            <Pane fx:id="campoDaGioco" maxWidth="1400" maxHeight="700"
+            <Pane maxWidth="1400" maxHeight="700"
                   style="-fx-background-color: linear-gradient(to bottom right, #059669, #064e3b); -fx-border-color: #94a3b8; -fx-border-width: 12; -fx-border-radius: 15; -fx-background-radius: 15;">
 
                 <effect><InnerShadow radius="40" color="#000000d9"/></effect>
 
                 <Rectangle x="0" y="250" width="20" height="200" fill="#1e293b"/>
                 <Rectangle x="1380" y="250" width="20" height="200" fill="#1e293b"/>
-
                 <Line startX="700" startY="20" endX="700" endY="680" stroke="#f8fafc" strokeWidth="6" opacity="0.7"/>
                 <Circle centerX="700" centerY="350" radius="100" stroke="#f8fafc" strokeWidth="6" fill="transparent" opacity="0.7"/>
-
                 <Rectangle x="20" y="200" width="150" height="300" stroke="#f8fafc" strokeWidth="6" fill="transparent" opacity="0.7"/>
                 <Rectangle x="1230" y="200" width="150" height="300" stroke="#f8fafc" strokeWidth="6" fill="transparent" opacity="0.7"/>
 
