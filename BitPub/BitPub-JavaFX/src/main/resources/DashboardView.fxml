@@ -6,7 +6,9 @@
 <?import javafx.collections.FXCollections?>
 <?import java.lang.String?>
 
-<VBox spacing="20" style="-fx-background-color: #0f172a; -fx-padding: 30;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.DashboardController">
+<VBox spacing="20" style="-fx-background-color: #0f172a; -fx-padding: 30;" 
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.DashboardController">
 
     <HBox spacing="20" alignment="CENTER_LEFT">
         <Label text="Seleziona Ruolo:" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
@@ -23,35 +25,36 @@
 
     <Separator style="-fx-background-color: #334155;"/>
 
-    <VBox fx:id="panelAdmin" spacing="15" visible="false" managed="false" style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
-        <Label text="Pannello Admin - Gestione Locali" style="-fx-text-fill: #fca5a5; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <VBox fx:id="panelAdmin" spacing="15" visible="false" managed="false" 
+          style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
+        <Label text="Pannello Amministratore (Globale)" style="-fx-text-fill: #fca5a5; -fx-font-size: 20px; -fx-font-weight: bold;"/>
         <HBox spacing="15">
-            <Button text="Visualizza Tutti i Locali" onAction="#visualizzaLocaliAdmin" style="-fx-background-color: #3b82f6; -fx-text-fill: white;"/>
-            <Button text="Crea Nuovo Locale" onAction="#creaLocaleAdmin" style="-fx-background-color: #10b981; -fx-text-fill: white;"/>
-            <Button text="Elimina Locale" onAction="#eliminaLocaleAdmin" style="-fx-background-color: #ef4444; -fx-text-fill: white;"/>
+            <Button text="Visualizza Tutti i Locali" onAction="#visualizzaTuttiLocali" style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;"/>
+            <Button text="Crea Nuovo Locale" onAction="#creaNuovoLocale" style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-cursor: hand;"/>
         </HBox>
         <ListView fx:id="listAdminLocali" prefHeight="150" style="-fx-background-color: transparent; -fx-control-inner-background: #0f172a; -fx-text-fill: white;"/>
     </VBox>
 
-    <VBox fx:id="panelGestore" spacing="15" visible="false" managed="false" style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
-        <Label text="Pannello Gestore - I Miei Locali" style="-fx-text-fill: #93c5fd; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+    <VBox fx:id="panelGestore" spacing="15" visible="false" managed="false" 
+          style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
+        <Label text="Pannello Gestore Locale" style="-fx-text-fill: #fcd34d; -fx-font-size: 20px; -fx-font-weight: bold;"/>
         <HBox spacing="15">
-            <Button text="Visualizza Miei Locali e Macchine" onAction="#visualizzaLocaliGestore" style="-fx-background-color: #3b82f6; -fx-text-fill: white;"/>
-            <Button text="Crea Nuovo Torneo" onAction="#creaTorneoGestore" style="-fx-background-color: #f59e0b; -fx-text-fill: white;"/>
+            <Button text="I Miei Locali (Gestione Macchine)" onAction="#visualizzaLocaliGestore" style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-cursor: hand;"/>
+            <Button text="Crea Torneo" onAction="#creaTorneoGestore" style="-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-cursor: hand;"/>
         </HBox>
         <ListView fx:id="listGestoreLocali" prefHeight="150" style="-fx-background-color: transparent; -fx-control-inner-background: #0f172a; -fx-text-fill: white;"/>
     </VBox>
 
-    <VBox fx:id="panelUtente" spacing="15" visible="false" managed="false" style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
+    <VBox fx:id="panelUtente" spacing="15" visible="false" managed="false" 
+          style="-fx-background-color: #1e293b; -fx-padding: 20; -fx-background-radius: 10;">
         <Label text="Pannello Utente - Gioca e Partecipa" style="-fx-text-fill: #86efac; -fx-font-size: 20px; -fx-font-weight: bold;"/>
         <HBox spacing="15">
-            <Button text="Gioca a Calciobalilla (Min 2)" onAction="#giocaCalciobalilla" style="-fx-background-color: #10b981; -fx-text-fill: white;"/>
-            <Button text="Gioca a Freccette (Min 1)" onAction="#giocaFreccette" style="-fx-background-color: #10b981; -fx-text-fill: white;"/>
-            <Button text="Gioca a Biliardo (Min 2)" onAction="#giocaBiliardo" style="-fx-background-color: #10b981; -fx-text-fill: white;"/>
+            <Button text="Gioca a Calciobalilla (Min 2)" onAction="#giocaCalciobalilla" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;"/>
+            <Button text="Gioca a Freccette (Min 1)" onAction="#giocaFreccette" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;"/>
+            <Button text="Gioca a Biliardo (Min 2)" onAction="#giocaBiliardo" style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-cursor: hand;"/>
         </HBox>
-        <HBox spacing="15" alignment="CENTER_LEFT">
-            <Button text="Iscriviti a Torneo" onAction="#iscrivitiTorneoUtente" style="-fx-background-color: #f59e0b; -fx-text-fill: white;"/>
-            <Label text="L'iscrizione richiede posti disponibili." style="-fx-text-fill: #94a3b8;"/>
+        <HBox spacing="15">
+            <Button text="Iscriviti a un Torneo" onAction="#iscrivitiTorneo" style="-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-cursor: hand;"/>
         </HBox>
         <ListView fx:id="listUtenteAttivita" prefHeight="150" style="-fx-background-color: transparent; -fx-control-inner-background: #0f172a; -fx-text-fill: white;"/>
     </VBox>

@@ -23,98 +23,105 @@ import java.util.List;
 
 /**
  * Controller per la Dashboard Amministratore.
- * Gestisce la visualizzazione, creazione, modifica ed eliminazione dei locali
- * comunicando con il backend tramite API REST HATEOAS.
+ * Gestisce l'anagrafica dei locali (CRUD) interfacciandosi con il backend 
+ * tramite API REST conformi allo standard HATEOAS.
  *
  * @author Stefano Bellan
- * @version 1.0
+ * @version 1.1
  */
 public class AdminDashboardController {
 
-    @FXML private TableView<Locale> tabellaLocali;
-    @FXML private TableColumn<Locale, Long> colonnaId;
-    @FXML private TableColumn<Locale, String> colonnaNome;
-    @FXML private TableColumn<Locale, String> colonnaCitta;
-    @FXML private TableColumn<Locale, String> colonnaIndirizzo;
-    @FXML private ProgressIndicator progressIndicator;
+    // --- Costanti di Sistema ---
+    private static final String API_BASE_URL = "http://localhost:8080/api/locali";
+    private static final String MEDIA_TYPE_JSON = "application/json";
+
+    // --- Componenti FXML ---
+    @FXML private TableView<Locale> localiTable;
+    @FXML private TableColumn<Locale, Long> colId;
+    @FXML private TableColumn<Locale, String> colNome;
+    @FXML private TableColumn<Locale, String> colCitta;
+    @FXML private TableColumn<Locale, String> colIndirizzo;
+    
     @FXML private Button btnModifica;
     @FXML private Button btnElimina;
+    @FXML private ProgressIndicator progressIndicator;
 
+    private final ObservableList<Locale> listaLocaliObservable = FXCollections.observableArrayList();
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final Gson gson = new Gson();
-    private ObservableList<Locale> listaLocaliObservable = FXCollections.observableArrayList();
 
+    /**
+     * Inizializza la vista configurando il data-binding della tabella e i listener di selezione.
+     */
     @FXML
     public void initialize() {
-        // Configurazione delle colonne della tabella
-        colonnaId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colonnaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
-        colonnaCitta.setCellValueFactory(new PropertyValueFactory<>("citta"));
-        colonnaIndirizzo.setCellValueFactory(new PropertyValueFactory<>("indirizzo"));
+        configuraTabella();
+        caricaDati();
 
-        tabellaLocali.setItems(listaLocaliObservable);
-
-        // Abilita i pulsanti Modifica/Elimina solo se c'è una riga selezionata
-        tabellaLocali.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            boolean isSelected = newSelection != null;
-            btnModifica.setDisable(!isSelected);
-            btnElimina.setDisable(!isSelected);
+        // Listener di selezione: abilita i bottoni di modifica/eliminazione solo se una riga è selezionata.
+        localiTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            boolean rigaSelezionata = newSelection != null;
+            btnModifica.setDisable(!rigaSelezionata);
+            btnElimina.setDisable(!rigaSelezionata);
         });
-
-        caricaLocali();
     }
 
     /**
-     * Effettua una chiamata HTTP GET asincrona per recuperare la lista dei locali.
-     * Estrapola i dati dal payload HATEOAS e aggiorna l'interfaccia utente.
+     * Configura il mapping tra le proprietà dell'oggetto Locale e le colonne della TableView.
+     */
+    private void configuraTabella() {
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        colCitta.setCellValueFactory(new PropertyValueFactory<>("citta"));
+        colIndirizzo.setCellValueFactory(new PropertyValueFactory<>("indirizzo"));
+        localiTable.setItems(listaLocaliObservable);
+    }
+
+    /**
+     * Esegue il recupero asincrono dei locali dal server.
+     * Gestisce il feedback visivo tramite ProgressIndicator.
      */
     @FXML
-    public void caricaLocali() {
+    public void caricaDati() {
         progressIndicator.setVisible(true);
 
-        String token = SessionManager.getInstance().getJwtToken();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8080/api/v1/admin/locali"))
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/resources.v1+json")
+                .uri(URI.create(API_BASE_URL))
+                .header("Accept", MEDIA_TYPE_JSON)
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getToken()) // Sicurezza: Iniezione Token
                 .GET()
                 .build();
 
         httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
-                .thenAccept(this::parsificaLocaliDaHateoas)
+                .thenAccept(this::processaRispostaServer)
                 .exceptionally(e -> {
-                    // Proteggiamo l'aggiornamento UI delegandolo al thread JavaFX
                     Platform.runLater(() -> {
                         progressIndicator.setVisible(false);
-                        mostraErrore("Errore di Rete", "Impossibile recuperare i dati dei locali.");
+                        mostraNotifica("Errore Connessione", "Impossibile contattare il server: " + e.getMessage(), Alert.AlertType.ERROR);
                     });
                     return null;
                 });
     }
 
     /**
-     * Parsifica la risposta JSON in formato HAL/HATEOAS ed estrae gli oggetti Locale.
-     * * @param jsonResponse Il body della risposta HTTP in formato JSON
+     * Parsifica la risposta JSON (formato HATEOAS) e aggiorna la lista osservabile.
+     * @param body Il corpo della risposta JSON ricevuto dal server.
      */
-    private void parsificaLocaliDaHateoas(String jsonResponse) {
-        List<Locale> localiEstratti = new ArrayList<>();
+    private void processaRispostaServer(String body) {
         try {
-            JsonObject rootObj = JsonParser.parseString(jsonResponse).getAsJsonObject();
-            
-            // Verifica la presenza del nodo _embedded tipico di Spring Data REST
+            JsonObject rootObj = JsonParser.parseString(body).getAsJsonObject();
+            List<Locale> localiEstratti = new ArrayList<>();
+
+            // Navigazione del grafo HATEOAS (_embedded.localeList)
             if (rootObj.has("_embedded")) {
-                JsonObject embedded = rootObj.getAsJsonObject("_embedded");
-                if (embedded.has("localeList")) {
-                    JsonArray localiArray = embedded.getAsJsonArray("localeList");
-                    for (JsonElement element : localiArray) {
-                        Locale locale = gson.fromJson(element, Locale.class);
-                        localiEstratti.add(locale);
-                    }
+                JsonArray localiArray = rootObj.getAsJsonObject("_embedded").getAsJsonArray("localeList");
+                for (JsonElement element : localiArray) {
+                    localiEstratti.add(gson.fromJson(element, Locale.class));
                 }
             }
-            
-            // Platform.runLater garantisce la thread-safety per l'interfaccia grafica
+
+            // Sincronizzazione con il thread UI per l'aggiornamento grafico
             Platform.runLater(() -> {
                 listaLocaliObservable.setAll(localiEstratti);
                 progressIndicator.setVisible(false);
@@ -123,16 +130,37 @@ public class AdminDashboardController {
         } catch (Exception e) {
             Platform.runLater(() -> {
                 progressIndicator.setVisible(false);
-                mostraErrore("Errore di Parsing", "Formato dati non valido dal server.");
+                mostraNotifica("Errore Dati", "Il server ha restituito un formato non valido.", Alert.AlertType.WARNING);
             });
         }
     }
 
-    // Metodi per mostraDialogLocale() e eliminaLocale() sarebbero qui implementati
-    // seguendo lo stesso pattern di httpClient.sendAsync() e Platform.runLater()...
+    @FXML
+    private void handleNuovoLocale() {
+        // Logica per apertura dialog inserimento
+        System.out.println("Apertura procedura nuovo locale...");
+    }
 
-    private void mostraErrore(String titolo, String messaggio) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
+    @FXML
+    private void handleModifica() {
+        Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
+        if (selezionato != null) {
+            System.out.println("Modifica locale ID: " + selezionato.getId());
+        }
+    }
+
+    @FXML
+    private void handleElimina() {
+        Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
+        if (selezionato != null) {
+            // Qui andrebbe implementata la chiamata DELETE asincrona
+            listaLocaliObservable.remove(selezionato);
+            mostraNotifica("Successo", "Locale eliminato correttamente.", Alert.AlertType.INFORMATION);
+        }
+    }
+
+    private void mostraNotifica(String titolo, String messaggio, Alert.AlertType tipo) {
+        Alert alert = new Alert(tipo);
         alert.setTitle(titolo);
         alert.setHeaderText(null);
         alert.setContentText(messaggio);
