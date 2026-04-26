@@ -1,5 +1,6 @@
 package com.bitpub.controllers;
 
+import com.bitpub.Main; // <-- Importante per poter usare la classe Main
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -65,7 +66,9 @@ public class RegistrazioneController {
                             alert.setHeaderText(null);
                             alert.setContentText("Registrazione completata!");
                             alert.showAndWait();
-                            // Qui integreremmo la navigazione al login
+                            
+                            // Navigazione automatica al login dopo il successo!
+                            Main.navigaVerso("/LoginView.fxml", "BitPub - Login");
                         } else {
                             erroreLabel.setText("Errore: " + response.body());
                         }
@@ -79,6 +82,7 @@ public class RegistrazioneController {
 
     @FXML
     public void tornaAlLogin(ActionEvent event) {
-        // Da implementare la navigazione
+        // Naviga verso la vista di Login quando clicchi sul link
+        Main.navigaVerso("/LoginView.fxml", "BitPub - Login");
     }
 }
