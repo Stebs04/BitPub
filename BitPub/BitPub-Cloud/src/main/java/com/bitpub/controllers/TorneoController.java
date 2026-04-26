@@ -52,7 +52,7 @@ public class TorneoController {
      * @author Timothy Giolito 20054431 e Modificato da: Stefano Bellan 20054330
      */
     @GetMapping("/{id}")
-    public ResponseEntity<EntityModel<Torneo>> getTorneoById(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<Torneo>> getTorneoById(@PathVariable("id") Long id) {
 
         log.info("Ricevuta richiesta GET su /api/tornei/{} - Ricerca torneo in corso", id);
 
@@ -135,7 +135,7 @@ public class TorneoController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<String> aggiornaTorneo(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody Torneo torneoAggiornato,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
@@ -162,7 +162,7 @@ public class TorneoController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> eliminaTorneo(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("Ricevuta richiesta DELETE su /api/tornei/{} - Eliminazione torneo in corso", id);
@@ -190,7 +190,7 @@ public class TorneoController {
      * @author Stefano Bellan 20054330
      */
     @GetMapping("/{id}/prossima-partita")
-    public ResponseEntity<String> getProssimaPartita(@PathVariable Long id) {
+    public ResponseEntity<String> getProssimaPartita(@PathVariable("id") Long id) {
         return ResponseEntity.ok("Il server ha fornito questo url HATEOAS. Prossima partita per il torneo: " + id);
     }
 

@@ -61,7 +61,7 @@ public class LocaleController {
      * @return 200 OK con il modello del locale, o 404 Not Found.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<EntityModel<Locale>> getById(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<Locale>> getById(@PathVariable("id") Long id) {
         return localeRepository.findById(id)
                 .map(l -> ResponseEntity.ok(assembler.toModel(l)))
                 .orElse(ResponseEntity.notFound().build());
@@ -74,7 +74,7 @@ public class LocaleController {
      * @return Modello della risorsa trovata.
      */
     @GetMapping("/nome/{nome}")
-    public ResponseEntity<EntityModel<Locale>> getByNome(@PathVariable String nome) {
+    public ResponseEntity<EntityModel<Locale>> getByNome(@PathVariable("nome") String nome) {
         return localeRepository.findByName(nome)
                 .map(l -> ResponseEntity.ok(assembler.toModel(l)))
                 .orElse(ResponseEntity.notFound().build());
@@ -113,7 +113,7 @@ public class LocaleController {
      * @return Modello aggiornato o 404 se non presente.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> aggiornaLocale(@PathVariable Long id, @RequestBody Locale datiAggiornati) {
+    public ResponseEntity<?> aggiornaLocale(@PathVariable("id") Long id, @RequestBody Locale datiAggiornati) {
         return localeRepository.findById(id).map(esistente -> {
             esistente.setName(datiAggiornati.getName());
             esistente.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
@@ -129,7 +129,7 @@ public class LocaleController {
      * @return 204 No Content in caso di successo, 404 se l'ID è inesistente.
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> eliminaLocale(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminaLocale(@PathVariable("id") Long id) {
         if (localeRepository.existsById(id)) {
             localeRepository.deleteById(id);
             return ResponseEntity.noContent().build();
@@ -144,7 +144,7 @@ public class LocaleController {
      * </p>
      */
     @GetMapping("/{id}/dispositivi")
-    public ResponseEntity<String> getDispositiviLocale(@PathVariable Long id) {
+    public ResponseEntity<String> getDispositiviLocale(@PathVariable("id") Long id) {
         return ResponseEntity.ok("Dispositivi per il locale: " + id);
     }
 }
