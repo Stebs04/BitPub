@@ -18,7 +18,7 @@ import java.util.Optional;
  * seguendo un'architettura State-Less. Utilizza il supporto HATEOAS per fornire link
  * dinamici nelle risposte, migliorando l'interazione con l'API.
  * </p>
- * * @author Timothy Giolito 20054431
+ * @author Timothy Giolito 20054431
  */
 @RestController
 @RequestMapping("/api/tornei")

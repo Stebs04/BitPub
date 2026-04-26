@@ -10,7 +10,13 @@ import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import java.util.Random;
 
 /**
- * Thread Simulatore per un bersaglio di Freccette.
+ * Simulatore software di un bersaglio per il gioco delle freccette.
+ * <p>
+ * Questa classe implementa l'interfaccia {@link Runnable} per permettere l'esecuzione
+ * parallela di più simulatori. Simula una partita standard "501", calcolando i punteggi
+ * e inviando gli aggiornamenti in tempo reale tramite il protocollo MQTT.
+ * </p>
+ * @author Timothy Giolito 20054431
  */
 public class SimFreccette implements Runnable {
 
@@ -20,7 +26,13 @@ public class SimFreccette implements Runnable {
     private int punteggio;
     private Random random;
 
-    // Costruttore: prepariamo il nostro giocatore virtuale
+    /**
+     * Crea una nuova istanza del simulatore per un bersaglio specifico.
+     *
+     * @param idLocale Identificativo del locale in cui si trova il dispositivo.
+     * @param idDispositivo Nome univoco del bersaglio (es. "Bersaglio_01").
+     * @param brokerIp Indirizzo IP del server MQTT (Broker) a cui inviare i dati.
+     */
     public SimFreccette(String idLocale, String idDispositivo, String brokerIp) {
         this.idLocale = idLocale;
         this.idDispositivo = idDispositivo;
@@ -29,6 +41,17 @@ public class SimFreccette implements Runnable {
         this.random = new Random();
     }
 
+    /**
+     * Logica principale della simulazione:
+     * <p>
+     * Il metodo esegue le seguenti operazioni:
+     * 1. Si connette al broker MQTT.
+     * 2. Entra in un ciclo in cui simula il lancio di 3 freccette ogni 5 secondi.
+     * 3. Calcola il nuovo punteggio gestendo i casi di vittoria (0) o "Bust" (punteggio negativo).
+     * 4. Pubblica i dati sui topic corretti.
+     * 5. Si disconnette al termine della partita.
+     * </p>
+     */
     @Override
     public void run() {
         // L'indirizzo "tcp://" indica una connessione non criptata (Senza TLS)
@@ -91,6 +114,16 @@ public class SimFreccette implements Runnable {
 
     // --- METODI DI SUPPORTO PER LA PUBBLICAZIONE MQTT ---
 
+    /**
+     * Invia il punteggio corrente al broker MQTT.
+     * <p>
+     * Utilizza la utility {@link MqttFreccetteTopics} per determinare il topic corretto
+     * in base al locale e al dispositivo.
+     * </p>
+     *
+     * @param client Il client MQTT attivo da utilizzare per la pubblicazione.
+     * @throws MqttException In caso di problemi di comunicazione con il broker.
+     */
     private void pubblicaScore(MqttClient client) throws MqttException {
         // Recuperiamo il topic usando la TUA classe Utility!
         String topic = MqttFreccetteTopics.getScoreTopic(idLocale, idDispositivo);
@@ -101,6 +134,13 @@ public class SimFreccette implements Runnable {
         inviaMessaggioMqtt(client, topic, payload);
     }
 
+    /**
+     * Invia la notifica di un evento di gioco (es. Vittoria o Sballo).
+     *
+     * @param client Il client MQTT attivo.
+     * @param tipoEvento Stringa che descrive l'evento (es. "WIN", "BUST").
+     * @throws MqttException In caso di errore MQTT.
+     */
     private void pubblicaEvento(MqttClient client, String tipoEvento) throws MqttException {
         String topic = MqttFreccetteTopics.getEventiTopic(idLocale, idDispositivo);
         String payload = "{ \"evento\": \"" + tipoEvento + "\" }";
@@ -108,6 +148,14 @@ public class SimFreccette implements Runnable {
         inviaMessaggioMqtt(client, topic, payload);
     }
 
+    /**
+     * Metodo di utilità interno per l'invio fisico del messaggio MQTT.
+     *
+     * @param client Il client MQTT.
+     * @param topic Il canale su cui pubblicare.
+     * @param payload Il contenuto del messaggio (formato JSON).
+     * @throws MqttException Se l'invio fallisce.
+     */
     private void inviaMessaggioMqtt(MqttClient client, String topic, String payload) throws MqttException {
         MqttMessage message = new MqttMessage(payload.getBytes());
         message.setQos(1); // QoS 1: Assicura che il messaggio venga consegnato almeno una volta
