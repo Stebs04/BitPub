@@ -1,142 +1,182 @@
 package com.bitpub.controllers;
 
+import com.bitpub.models.*;
+import com.bitpub.network.RestClient;
+import com.bitpub.network.SessionManager;
+import com.bitpub.network.HttpResponseParser;
+import com.google.gson.Gson;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.chart.PieChart;
+import javafx.scene.chart.*;
 import javafx.scene.control.*;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
+import javafx.scene.control.cell.PropertyValueFactory;
+
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Controller per la Dashboard del Gestore.
- * Si occupa di caricare i dati real-time tramite polling e di creare i tornei.
- *
- * @author Stefano Bellan
+ * Gestisce il monitoraggio real-time, le statistiche e la creazione di tornei.
+ * * @author Stefano Bellan
  */
 public class GestoreDashboardController {
 
-    @FXML private TableView<?> macchineTable; // Aggiungi la tua classe Model al posto di <?>
-    @FXML private TableView<?> partiteTable;
-    @FXML private PieChart statisticheChart;
-    @FXML private Label lblMediaDurata;
+    @FXML private TableView<Macchina> macchineTable;
+    @FXML private TableColumn<Macchina, String> colMacchinaNome, colMacchinaTipo, colMacchinaStato;
     
-    @FXML private TextField txtNomeTorneo;
-    @FXML private ChoiceBox<String> choiceTipoGioco;
-    @FXML private DatePicker dateInizioTorneo;
-    @FXML private TextField txtMaxPartecipanti;
-    @FXML private ChoiceBox<String> choiceModalita;
-    @FXML private Label lblTorneoMsg;
+    @FXML private TableView<Partita> partiteTable;
+    @FXML private TableColumn<Partita, String> colPartitaTipo, colPartitaGiocatori, colPartitaInizio;
 
-    private ScheduledExecutorService pollingService;
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-    // ID fisso per l'esempio, andrà ricavato dal SessionManager
-    private final Long LOCALE_ID = 1L; 
+    @FXML private PieChart tipoGiocoChart;
+    @FXML private Label lblPartiteOggi, lblDurataMedia;
+    @FXML private Tab tabStatistiche;
+
+    @FXML private TextField txtNomeTorneo;
+    @FXML private ChoiceBox<TipoGioco> choiceTipoGioco;
+    @FXML private DatePicker dateInizio;
+    @FXML private Spinner<Integer> spinnerPartecipanti;
+    @FXML private ChoiceBox<String> choiceModalita;
+
+    @FXML private ProgressIndicator loadingIndicator;
+
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final RestClient restClient = new RestClient();
+    private final Gson gson = new Gson();
+    private Long localeId; // Caricato al login
 
     @FXML
     public void initialize() {
-        // Inizializza i ChoiceBox
-        choiceTipoGioco.setItems(FXCollections.observableArrayList("CALCIOBALILLA", "FRECCETTE", "BILIARDO"));
-        choiceModalita.setItems(FXCollections.observableArrayList("INDIVIDUALE", "SQUADRE"));
-
-        // Setup delle colonne della tabella (Mappa le proprietà della tua classe model)
-        // ...
+        setupTables();
+        setupForm();
         
-        avviaPolling();
+        // Supponiamo che il localeId sia salvato nel SessionManager dopo il login
+        this.localeId = SessionManager.getInstance().getCurrentLocaleId();
+
+        // Avvio polling ogni 10 secondi
+        scheduler.scheduleAtFixedRate(this::pollData, 0, 10, TimeUnit.SECONDS);
+
+        // Carica statistiche quando si cambia tab
+        tabStatistiche.setOnSelectionChanged(event -> {
+            if (tabStatistiche.isSelected()) {
+                loadStatistics();
+            }
+        });
+    }
+
+    private void setupTables() {
+        colMacchinaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        colMacchinaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
+        colMacchinaStato.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().isAttiva() ? "ONLINE" : "OFFLINE"));
+
+        colPartitaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
+        colPartitaGiocatori.setCellValueFactory(new PropertyValueFactory<>("nomiGiocatori"));
+        colPartitaInizio.setCellValueFactory(new PropertyValueFactory<>("timestampInizio"));
+    }
+
+    private void setupForm() {
+        choiceTipoGioco.setItems(FXCollections.observableArrayList(TipoGioco.values()));
+        choiceModalita.setItems(FXCollections.observableArrayList("INDIVIDUALE", "SQUADRE"));
+        spinnerPartecipanti.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(2, 64, 8));
+        dateInizio.setValue(LocalDate.now().plusDays(1));
     }
 
     /**
-     * Avvia un thread in background che aggiorna i dati ogni 10 secondi.
+     * Esegue il polling asincrono di macchine e partite.
      */
-    private void avviaPolling() {
-        pollingService = Executors.newSingleThreadScheduledExecutor();
-        pollingService.scheduleAtFixedRate(() -> {
-            caricaMacchineAttive();
-            caricaPartiteAttive();
-            caricaStatistiche();
-        }, 0, 10, TimeUnit.SECONDS); // Delay iniziale 0, ripeti ogni 10 sec
+    private void pollData() {
+        String token = SessionManager.getInstance().getJwtToken();
+        
+        // 1. Fetch Macchine
+        restClient.getAsync("/api/v1/gestore/locali/" + localeId + "/macchine", token)
+            .thenAccept(res -> {
+                List<Macchina> lista = HttpResponseParser.parseList(res.body(), Macchina.class);
+                // Aggiornamento UI nel thread corretto
+                Platform.runLater(() -> macchineTable.setItems(FXCollections.observableArrayList(lista)));
+            });
+
+        // 2. Fetch Partite Attive
+        restClient.getAsync("/api/v1/gestore/locali/" + localeId + "/partite/attive", token)
+            .thenAccept(res -> {
+                List<Partita> lista = HttpResponseParser.parseList(res.body(), Partita.class);
+                Platform.runLater(() -> partiteTable.setItems(FXCollections.observableArrayList(lista)));
+            });
     }
 
-    private void caricaMacchineAttive() {
-        // TODO: Recuperare il token dal tuo SessionManager
-        String token = "IL_TUO_JWT_TOKEN"; 
+    private void loadStatistics() {
+        loadingIndicator.setVisible(true);
+        String token = SessionManager.getInstance().getJwtToken();
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8080/api/v1/gestore/locali/" + LOCALE_ID + "/macchine"))
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/resources.v1+json")
-                .GET()
-                .build();
-
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    if (response.statusCode() == 200) {
-                        // TODO: Parsing del JSON con GSON
-                        
-                        // L'aggiornamento UI protegge il thread JavaFX
-                        Platform.runLater(() -> {
-                            // macchineTable.setItems(nuoviDati);
-                        });
-                    }
+        restClient.getAsync("/api/v1/gestore/locali/" + localeId + "/statistiche", token)
+            .thenAccept(res -> {
+                // Parsing dell'oggetto statistiche (DTO personalizzato)
+                StatisticheDTO stats = gson.fromJson(res.body(), StatisticheDTO.class);
+                
+                Platform.runLater(() -> {
+                    lblPartiteOggi.setText("Partite oggi: " + stats.getTotalPartiteOggi());
+                    lblDurataMedia.setText("Durata media: " + stats.getMediaDurata() + " min");
+                    
+                    // Aggiornamento PieChart
+                    ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList(
+                        new PieChart.Data("Calciobalilla", stats.getCalciobalillaCount()),
+                        new PieChart.Data("Freccette", stats.getFreccetteCount()),
+                        new PieChart.Data("Biliardo", stats.getBiliardoCount())
+                    );
+                    tipoGiocoChart.setData(pieData);
+                    loadingIndicator.setVisible(false);
                 });
+            });
     }
 
-    private void caricaPartiteAttive() {
-        // Simile a caricaMacchineAttive() ma per l'endpoint /partite/attive
-    }
-
-    private void caricaStatistiche() {
-        // Simile a caricaMacchineAttive() ma per /statistiche.
-        // Nel runLater aggiorna la PieChart e la lblMediaDurata
-    }
-
-    /**
-     * Chiamato quando si preme il bottone "Crea Torneo".
-     */
     @FXML
     private void handleCreaTorneo() {
-        // 1. Leggi i dati dal form
-        String nome = txtNomeTorneo.getText();
-        String tipoGioco = choiceTipoGioco.getValue();
-        // ... (controlli di validazione e recupero degli altri campi)
+        Torneo nuovoTorneo = new Torneo();
+        nuovoTorneo.setNome(txtNomeTorneo.getText());
+        nuovoTorneo.setTipoGioco(choiceTipoGioco.getValue());
+        nuovoTorneo.setDataInizio(dateInizio.getValue().toString());
+        nuovoTorneo.setMaxPartecipanti(spinnerPartecipanti.getValue());
+        nuovoTorneo.setModalita(choiceModalita.getValue());
+        nuovoTorneo.setLocaleId(localeId);
 
-        // 2. Crea la stringa JSON per il body (meglio usare GSON)
-        String jsonBody = "{ \"nome\": \"" + nome + "\", \"tipoGioco\": \"" + tipoGioco + "\" }";
+        String json = gson.toJson(nuovoTorneo);
+        String token = SessionManager.getInstance().getJwtToken();
 
-        // TODO: Recuperare token
-        String token = "IL_TUO_JWT_TOKEN";
+        loadingIndicator.setVisible(true);
+        restClient.postAsync("/api/v1/gestore/tornei", json, token)
+            .thenAccept(res -> Platform.runLater(() -> {
+                loadingIndicator.setVisible(false);
+                if (res.statusCode() == 201) {
+                    showAlert(Alert.AlertType.INFORMATION, "Successo", "Torneo creato correttamente!");
+                    resetForm();
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Errore", "Impossibile creare il torneo.");
+                }
+            }));
+    }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("http://localhost:8080/api/v1/gestore/tornei"))
-                .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/resources.v1+json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
+    private void resetForm() {
+        txtNomeTorneo.clear();
+        dateInizio.setValue(LocalDate.now().plusDays(1));
+    }
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> Platform.runLater(() -> {
-                    if (response.statusCode() == 200) {
-                        lblTorneoMsg.setText("Torneo creato con successo!");
-                    } else {
-                        lblTorneoMsg.setStyle("-fx-text-fill: red;");
-                        lblTorneoMsg.setText("Errore durante la creazione.");
-                    }
-                }));
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 
     /**
-     * Stoppa il polling in modo pulito quando si chiude la schermata
+     * Spegne lo scheduler alla chiusura della finestra per evitare memory leak.
      */
     public void stopPolling() {
-        if (pollingService != null && !pollingService.isShutdown()) {
-            pollingService.shutdown();
-        }
+        scheduler.shutdown();
     }
 }
