@@ -1,12 +1,11 @@
-/**
- * Package che espone gli endpoint REST per il sistema BitPub.
- */
 package com.bitpub.controllers;
 
+import com.bitpub.assembler.LocaleModelAssembler;
 import com.bitpub.models.Locale;
 import com.bitpub.repository.LocaleRepository;
-import com.bitpub.utils.HateoasResource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,115 +13,138 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 /**
  * REST Controller per la gestione del ciclo di vita dell'entità {@link Locale}.
- * Espone le API per operazioni CRUD integrando il supporto HATEOAS per la navigazione delle risorse.
+ * <p>
+ * Espone le API per operazioni CRUD integrando il supporto HATEOAS. 
+ * Utilizza un {@link LocaleModelAssembler} per la trasformazione delle risorse
+ * e gestisce i vincoli di unicità (Nome, IP Edge) durante la persistenza.
+ * </p>
+ * 
+ * @author Stefano Bellan 20054330
  */
-@RestController // Marca la classe come controller REST (risposte in JSON di default)
-@RequestMapping(value = "/api/locali", produces = "application/resources.v1+json") // Base path per tutti gli endpoint di questo controller
+@RestController
+@RequestMapping(value = "/api/locali", produces = "application/resources.v1+json")
 public class LocaleController {
 
-    @Autowired // Injection del repository tramite il container di Spring
+    @Autowired
     private LocaleRepository localeRepository;
 
-    // --- METODI DI LETTURA (GET) ---
+    @Autowired
+    private LocaleModelAssembler assembler;
 
     /**
-     * Recupera la lista completa di tutti i locali.
-     * @return Lista di risorse avvolte in HateoasResource per includere i link.
+     * Recupera l'elenco completo dei locali registrati.
+     * 
+     * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
      */
-    @GetMapping // Mapping per richieste GET su /api/locali
-    public ResponseEntity<List<HateoasResource<Locale>>> getAllLocali() {
+    @GetMapping
+    public ResponseEntity<CollectionModel<EntityModel<Locale>>> getAllLocali() {
+        List<EntityModel<Locale>> localiModel = localeRepository.findAll().stream()
+                .map(assembler::toModel)
+                .collect(Collectors.toList());
+
         return ResponseEntity.ok(
-                localeRepository.findAll().stream() // Stream per trasformare la lista in risorse HATEOAS
-                        .map(this::iniettaLink) // Arricchisce ogni oggetto con i metadati di navigazione
-                        .collect(Collectors.toList())
+                CollectionModel.of(localiModel,
+                        linkTo(methodOn(LocaleController.class).getAllLocali()).withSelfRel()
+                )
         );
     }
 
     /**
-     * Recupera un singolo locale tramite il suo ID univoco.
-     * @param id Identificativo del locale.
-     * @return 200 OK con la risorsa, oppure 404 Not Found se inesistente.
+     * Ricerca un locale tramite il suo identificativo univoco.
+     * 
+     * @param id ID del locale.
+     * @return 200 OK con il modello del locale, o 404 Not Found.
      */
-    @GetMapping("/{id}") // Path variable per ID dinamico
-    public ResponseEntity<HateoasResource<Locale>> getById(@PathVariable Long id) {
+    @GetMapping("/{id}")
+    public ResponseEntity<EntityModel<Locale>> getById(@PathVariable Long id) {
         return localeRepository.findById(id)
-                .map(l -> ResponseEntity.ok(iniettaLink(l))) // Mapping funzionale del risultato
-                .orElse(ResponseEntity.notFound().build()); // Gestione elegante del caso nullo
-    }
-
-    /**
-     * Recupera un locale ricercandolo per nome esatto.
-     * @param nome Stringa del nome da cercare.
-     * @return La risorsa trovata o errore 404.
-     */
-    @GetMapping("/nome/{nome}")
-    public ResponseEntity<HateoasResource<Locale>> getByNome(@PathVariable String nome) {
-        return localeRepository.findByName(nome)
-                .map(l -> ResponseEntity.ok(iniettaLink(l)))
+                .map(l -> ResponseEntity.ok(assembler.toModel(l)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // --- METODI DI SCRITTURA E MODIFICA (POST, PUT, DELETE) ---
+    /**
+     * Ricerca un locale per nome (Unique Constraint).
+     * 
+     * @param nome Nome del locale da cercare.
+     * @return Modello della risorsa trovata.
+     */
+    @GetMapping("/nome/{nome}")
+    public ResponseEntity<EntityModel<Locale>> getByNome(@PathVariable String nome) {
+        return localeRepository.findByName(nome)
+                .map(l -> ResponseEntity.ok(assembler.toModel(l)))
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     /**
-     * Crea un nuovo locale previa validazione dell'unicità di Nome ed IP.
-     * @param nuovo DTO del locale ricevuto nel corpo della request.
-     * @return 201 Created con la risorsa salvata o 409 Conflict in caso di duplicati.
+     * Registra un nuovo locale nel sistema.
+     * <p>
+     * Verifica preventivamente l'unicità del nome e dell'indirizzo IP dell'Edge Node
+     * per prevenire conflitti di rete o di dominio.
+     * </p>
+     * 
+     * @param nuovo Dati del nuovo locale.
+     * @return 201 Created se l'operazione riesce, 409 Conflict se i vincoli sono violati.
      */
-    @PostMapping // Mapping per creazione nuova risorsa
+    @PostMapping
     public ResponseEntity<?> creaLocale(@RequestBody Locale nuovo) {
-        // Business logic di validazione: prevenzione duplicati lato applicativo
+        // Validazione business: verifica unicità nome
         if (localeRepository.existsByName(nuovo.getName())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Nome locale già esistente.");
         }
+        // Validazione business: verifica unicità IP Edge
         if (localeRepository.existsByIpAddressEdge(nuovo.getIpAddressEdge())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("IP Edge già assegnato a un altro locale.");
         }
-        Locale salvato = localeRepository.save(nuovo); // Persistenza su database
-        return ResponseEntity.status(HttpStatus.CREATED).body(iniettaLink(salvato));
+        
+        Locale salvato = localeRepository.save(nuovo);
+        return ResponseEntity.status(HttpStatus.CREATED).body(assembler.toModel(salvato));
     }
 
     /**
      * Aggiorna i dati di un locale esistente.
+     * 
      * @param id ID del locale da modificare.
-     * @param datiAggiornati Nuovi valori da impostare.
-     * @return 200 OK con la risorsa aggiornata o 404 se non trovata.
+     * @param datiAggiornati Nuovi attributi da applicare.
+     * @return Modello aggiornato o 404 se non presente.
      */
-    @PutMapping("/{id}") // Mapping per aggiornamento totale/idempotente
+    @PutMapping("/{id}")
     public ResponseEntity<?> aggiornaLocale(@PathVariable Long id, @RequestBody Locale datiAggiornati) {
         return localeRepository.findById(id).map(esistente -> {
-            esistente.setName(datiAggiornati.getName()); // Update del campo Nome
-            esistente.setIpAddressEdge(datiAggiornati.getIpAddressEdge()); // Update del campo IP
-            localeRepository.save(esistente); // Save/Update gestito da JPA
-            return ResponseEntity.ok(iniettaLink(esistente));
+            esistente.setName(datiAggiornati.getName());
+            esistente.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
+            localeRepository.save(esistente);
+            return ResponseEntity.ok(assembler.toModel(esistente));
         }).orElse(ResponseEntity.notFound().build());
     }
 
     /**
-     * Elimina un locale dal sistema.
-     * @param id ID della risorsa da rimuovere.
-     * @return 204 No Content se l'operazione ha successo.
+     * Rimuove un locale dal sistema.
+     * 
+     * @param id ID della risorsa da eliminare.
+     * @return 204 No Content in caso di successo, 404 se l'ID è inesistente.
      */
-    @DeleteMapping("/{id}") // Mapping per eliminazione
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminaLocale(@PathVariable Long id) {
         if (localeRepository.existsById(id)) {
             localeRepository.deleteById(id);
-            return ResponseEntity.noContent().build(); // Standard REST: risposta vuota su successo
+            return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
     }
 
     /**
-     * Metodo helper privato per iniettare i link HATEOAS (Self e Dispositivi).
-     * @param locale L'entity da avvolgere.
-     * @return La risorsa arricchita di hypermedia.
+     * Recupera l'elenco dei dispositivi associati a un locale.
+     * <p>
+     * Nota: Questo endpoint funge da "Link Target" per la relazione HATEOAS 'dispositivi'.
+     * </p>
      */
-    private HateoasResource<Locale> iniettaLink(Locale locale) {
-        HateoasResource<Locale> r = new HateoasResource<>(locale);
-        r.addLink("self", "/api/locali/" + locale.getId()); // Link alla risorsa stessa
-        r.addLink("dispositivi", "/api/locali/" + locale.getId() + "/dispositivi"); // Link alla relazione collegata
-        return r;
+    @GetMapping("/{id}/dispositivi")
+    public ResponseEntity<String> getDispositiviLocale(@PathVariable Long id) {
+        return ResponseEntity.ok("Dispositivi per il locale: " + id);
     }
 }
