@@ -38,8 +38,6 @@ public class SessionManager {
         return jwtToken;
     }
 
-    public String getCurrentRole() { return currentRole; }
-
     /**
      * Inizializza i dati della sessione a seguito di un login con successo.
      * * @param username Nome utente.

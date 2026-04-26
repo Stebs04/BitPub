@@ -15,7 +15,6 @@ import java.net.URL;
  * autenticazione e le diverse aree funzionali basate sui ruoli utente.
  *
  * @author Stefano Bellan
- * @version 2.0
  */
 public class Main extends Application {
 
@@ -24,7 +23,6 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) {
         primaryStage = stage;
-        // Impediamo il ridimensionamento nella fase di login per preservare il layout
         primaryStage.setResizable(false); 
         mostraLogin();
     }
@@ -34,9 +32,21 @@ public class Main extends Application {
      */
     public static void mostraLogin() {
         try {
+            // Nota: Se il login è in un file separato, cambia "/RegistrazioneView.fxml"
             cambiaScena("/RegistrazioneView.fxml", "BitPub - Benvenuto", 800, 600);
         } catch (IOException e) {
             System.err.println("Errore critico nel caricamento del Login: " + e.getMessage());
+        }
+    }
+
+    /**
+     * NUOVO METODO: Permette a qualsiasi controller di cambiare la schermata facilmente.
+     */
+    public static void navigaVerso(String fxml, String titolo) {
+        try {
+            cambiaScena(fxml, titolo, 800, 600);
+        } catch (IOException e) {
+            System.err.println("Errore di navigazione verso " + fxml + ": " + e.getMessage());
         }
     }
 
