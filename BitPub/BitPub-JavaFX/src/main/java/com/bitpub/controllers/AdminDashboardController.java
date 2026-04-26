@@ -88,7 +88,7 @@ public class AdminDashboardController {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_BASE_URL))
                 .header("Accept", MEDIA_TYPE_JSON)
-                .header("Authorization", "Bearer " + SessionManager.getInstance().getToken()) // Sicurezza: Iniezione Token
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken()) // Sicurezza: Iniezione Token
                 .GET()
                 .build();
 
