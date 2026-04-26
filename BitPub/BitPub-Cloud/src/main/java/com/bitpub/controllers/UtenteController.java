@@ -22,8 +22,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * La navigazione tra il profilo, le statistiche e lo storico partite è garantita 
  * dall'integrazione del supporto HATEOAS tramite {@link UtenteModelAssembler}.
  * </p>
- * 
- * @author Stefano Bellan 20054330
+ * * @author Stefano Bellan 20054330
  */
 @RestController
 @RequestMapping(value = "/api/utenti", produces = "application/resources.v1+json")
@@ -37,10 +36,9 @@ public class UtenteController {
 
     /**
      * Recupera il profilo utente partendo dal nickname (identificatore naturale).
-     * 
-     * @param nickname   Nome utente univoco.
+     * * @param nickname   Nome utente univoco.
      * @param authHeader Token di autorizzazione (opzionale per consultazione pubblica).
-     * @return 200 OK con il modello utente, o 404 Not Found se il nickname non esiste.
+     * @return ResponseEntity con status 200 OK e il modello utente HATEOAS, o 404 Not Found.
      */
     @GetMapping("/{nickname}")
     public ResponseEntity<EntityModel<Utente>> getUtenteByNickname(
@@ -54,10 +52,9 @@ public class UtenteController {
 
     /**
      * Ricerca un utente tramite l'indirizzo email associato.
-     * 
-     * @param email      Indirizzo email dell'utente.
+     * * @param email      Indirizzo email dell'utente.
      * @param authHeader Header di sicurezza.
-     * @return Modello della risorsa {@link Utente}.
+     * @return ResponseEntity con il modello della risorsa {@link Utente} se presente.
      */
     @GetMapping("/email/{email}")
     public ResponseEntity<EntityModel<Utente>> getUtenteByEmail(
@@ -71,10 +68,9 @@ public class UtenteController {
 
     /**
      * Filtra gli utenti in base al ruolo assegnato (es. 'ADMIN', 'PLAYER').
-     * 
-     * @param ruolo      Tag del ruolo da filtrare.
+     * * @param ruolo      Tag del ruolo da filtrare.
      * @param authHeader Header di sicurezza.
-     * @return {@link CollectionModel} degli utenti corrispondenti al criterio.
+     * @return ResponseEntity contenente la {@link CollectionModel} degli utenti filtrati.
      */
     @GetMapping("/ruolo/{ruolo}")
     public ResponseEntity<CollectionModel<EntityModel<Utente>>> getUtentiByRuolo(
@@ -92,10 +88,9 @@ public class UtenteController {
 
     /**
      * Esegue una ricerca full-text o parziale su nome e cognome.
-     * 
-     * @param keyword    Stringa di ricerca.
+     * * @param keyword    Stringa di ricerca.
      * @param authHeader Header di sicurezza.
-     * @return Collezione di risultati filtrati.
+     * @return ResponseEntity contenente la collezione HATEOAS di risultati.
      */
     @GetMapping("/cerca")
     public ResponseEntity<CollectionModel<EntityModel<Utente>>> cercaUtenti(
@@ -112,8 +107,9 @@ public class UtenteController {
     }
 
     /**
-     * Endpoint per la modifica dei dati del profilo.
-     * <p>Target del link relazionale 'modifica'.</p>
+     * Aggiorna o modifica parzialmente i dati del profilo di un utente.
+     * * @param nickname Identificativo naturale dell'utente da modificare.
+     * @return ResponseEntity con messaggio di conferma.
      */
     @PutMapping("/{nickname}")
     public ResponseEntity<String> modificaUtente(@PathVariable("nickname") String nickname) {
@@ -121,8 +117,9 @@ public class UtenteController {
     }
 
     /**
-     * Recupera lo storico delle partite giocate dall'utente.
-     * <p>Target del link relazionale 'partite'.</p>
+     * Recupera lo storico delle partite giocate dall'utente richiesto.
+     * * @param nickname Identificativo dell'utente di interesse.
+     * @return ResponseEntity indicante l'esito della chiamata per lo storico.
      */
     @GetMapping("/{nickname}/partite")
     public ResponseEntity<String> getPartiteUtente(@PathVariable("nickname") String nickname) {
@@ -130,8 +127,9 @@ public class UtenteController {
     }
 
     /**
-     * Punto di accesso per le metriche di performance e ranking del giocatore.
-     * <p>Target del link relazionale 'dashboard_statistiche'.</p>
+     * Recupera le metriche di performance e il ranking del giocatore.
+     * * @param nickname Identificativo dell'utente per cui visualizzare le statistiche.
+     * @return ResponseEntity indicante l'esito della chiamata analitica.
      */
     @GetMapping("/statistiche/giocatore/{nickname}")
     public ResponseEntity<String> getStatisticheUtente(@PathVariable("nickname") String nickname) {
