@@ -67,7 +67,7 @@ public class LocalCalciobalillaSubscriber implements MqttCallback {
     }
 
     /**
-     * Invocata quando un messaggio inviato (se presente) è stato consegnato correttamente.
+     * Invocata quando un messaggio inviato (se presente) e' stato consegnato correttamente.
      * @param token Identificativo delivery
      */
     @Override
