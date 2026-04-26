@@ -28,6 +28,22 @@ public class Locale {
     @Expose
     private String ipAddressEdge;
 
+    @Column
+    @Expose
+    private String indirizzo;
+
+    @Column
+    @Expose
+    private String citta;
+
+    @Column
+    @Expose
+    private Integer capienza;
+
+    @Column(name = "gestore_id")
+    @Expose
+    private Long gestoreId;
+
     /**
      * Costruttore completo per la classe Locale.
      *
@@ -91,5 +107,37 @@ public class Locale {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getIndirizzo() {
+        return indirizzo;
+    }
+
+    public void setIndirizzo(String indirizzo) {
+        this.indirizzo = indirizzo;
+    }
+
+    public String getCitta() {
+        return citta;
+    }
+
+    public void setCitta(String citta) {
+        this.citta = citta;
+    }
+
+    public Integer getCapienza() {
+        return capienza;
+    }
+
+    public void setCapienza(Integer capienza) {
+        this.capienza = capienza;
+    }
+
+    public Long getGestoreId() {
+        return gestoreId;
+    }
+
+    public void setGestoreId(Long gestoreId) {
+        this.gestoreId = gestoreId;
     }
 }

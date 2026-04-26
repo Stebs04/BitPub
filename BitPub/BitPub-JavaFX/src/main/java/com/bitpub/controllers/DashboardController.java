@@ -1,15 +1,17 @@
 package com.bitpub.controllers;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.VBox;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Controller per la Dashboard Generale con gestione logica dei ruoli.
  * Permette di visualizzare le diverse funzionalità in base al ruolo selezionato
- * (Admin, Gestore del Locale, Utente Base).
+ * (Admin, Gestore del Locale, Utente Base) instradando l'utente verso il modulo corretto.
  *
  * @author Stefano Bellan (Architettura Generale e Dashboard)
  * @author Luca Franzon (Integrazione Biliardo)
@@ -17,7 +19,15 @@ import java.time.LocalDateTime;
  */
 public class DashboardController {
 
+    // --- Costanti ---
+    private static final String RUOLO_ADMIN = "Admin";
+    private static final String RUOLO_GESTORE = "Gestore";
+    private static final String RUOLO_UTENTE = "Utente Base";
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    // --- Componenti FXML ---
     @FXML private ComboBox<String> cmbRuoli;
+    
     @FXML private VBox panelAdmin;
     @FXML private VBox panelGestore;
     @FXML private VBox panelUtente;
@@ -27,7 +37,8 @@ public class DashboardController {
     @FXML private ListView<String> listUtenteAttivita;
 
     /**
-     * Inizializzazione della Dashboard.
+     * Inizializzazione automatica della Dashboard all'apertura.
+     * Seleziona il primo ruolo di default e formatta la vista corrispondente.
      */
     @FXML
     public void initialize() {
@@ -36,72 +47,89 @@ public class DashboardController {
     }
 
     /**
-     * Gestisce la visibilità dei pannelli in base al ruolo selezionato.
+     * Gestisce la visibilità dei pannelli in base al ruolo selezionato nella ComboBox.
+     * Modifica attivamente il layout nascondendo e disabilitando i nodi non pertinenti.
      */
     @FXML
     public void cambioRuolo() {
         String ruolo = cmbRuoli.getValue();
-        panelAdmin.setVisible("Admin".equals(ruolo));
-        panelAdmin.setManaged("Admin".equals(ruolo));
         
-        panelGestore.setVisible("Gestore".equals(ruolo));
-        panelGestore.setManaged("Gestore".equals(ruolo));
-        
-        panelUtente.setVisible("Utente Base".equals(ruolo));
-        panelUtente.setManaged("Utente Base".equals(ruolo));
+        // Modifica dei nodi strutturali UI effettuata in sicurezza sul JavaFX Thread.
+        // L'utilizzo di setManaged(false) garantisce che il VBox nascosto non occupi spazio residuo.
+        Platform.runLater(() -> {
+            panelAdmin.setVisible(RUOLO_ADMIN.equals(ruolo));
+            panelAdmin.setManaged(RUOLO_ADMIN.equals(ruolo));
+            
+            panelGestore.setVisible(RUOLO_GESTORE.equals(ruolo));
+            panelGestore.setManaged(RUOLO_GESTORE.equals(ruolo));
+            
+            panelUtente.setVisible(RUOLO_UTENTE.equals(ruolo));
+            panelUtente.setManaged(RUOLO_UTENTE.equals(ruolo));
+        });
     }
 
-    // --- AZIONI ADMIN ---
+    /**
+     * Metodo Helper centralizzato per inserire log nelle liste grafiche.
+     * Formatta il testo, appone un timestamp e inietta l'aggiornamento sul thread grafico.
+     * * @param listView La lista di destinazione in cui inserire il log.
+     * @param messaggio Il contenuto del log da mostrare.
+     */
+    private void aggiungiLog(ListView<String> listView, String messaggio) {
+        String timestamp = LocalDateTime.now().format(TIME_FORMATTER);
+        // Garantisce che anche se l'helper viene chiamato da un thread asincrono (es. dopo una response HTTP),
+        // l'aggiunta dell'item non causi eccezioni grafiche.
+        Platform.runLater(() -> listView.getItems().add("[" + timestamp + "] " + messaggio));
+    }
+
+    // ==========================================
+    //            AZIONI AMMINISTRATORE
+    // ==========================================
 
     @FXML
-    public void visualizzaLocaliAdmin() {
-        listAdminLocali.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Admin) Visualizzazione di tutti i locali dal Cloud...");
+    public void visualizzaTuttiLocali() {
+        aggiungiLog(listAdminLocali, "(Admin) Richiesta elenco globale Locali in corso...");
     }
 
     @FXML
-    public void creaLocaleAdmin() {
-        listAdminLocali.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Admin) Creazione nuovo locale inviata al Cloud.");
+    public void creaNuovoLocale() {
+        aggiungiLog(listAdminLocali, "(Admin) Apertura form creazione nuovo Locale...");
     }
 
-    @FXML
-    public void eliminaLocaleAdmin() {
-        listAdminLocali.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Admin) Richiesta di eliminazione locale inviata.");
-    }
-
-    // --- AZIONI GESTORE ---
+    // ==========================================
+    //              AZIONI GESTORE
+    // ==========================================
 
     @FXML
     public void visualizzaLocaliGestore() {
-        listGestoreLocali.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Gestore) Recupero propri locali e macchine attive (Calciobalilla, Freccette, Biliardo).");
+        aggiungiLog(listGestoreLocali, "(Gestore) Recupero propri locali e macchine attive.");
     }
 
     @FXML
     public void creaTorneoGestore() {
-        listGestoreLocali.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Gestore) Creazione nuovo Torneo in corso...");
+        aggiungiLog(listGestoreLocali, "(Gestore) Creazione nuovo Torneo in corso...");
     }
 
-    // --- AZIONI UTENTE BASE ---
+    // ==========================================
+    //              AZIONI UTENTE BASE
+    // ==========================================
 
     @FXML
     public void giocaCalciobalilla() {
-        // Regola: minimo 2 o 4 giocatori
-        listUtenteAttivita.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Utente) Validazione giocatori per Calciobalilla: OK (Min 2 presenti). Inizio partita...");
+        aggiungiLog(listUtenteAttivita, "(Utente) Validazione giocatori per Calciobalilla: OK (Min 2). Inizio partita...");
     }
 
     @FXML
     public void giocaFreccette() {
-        // Regola: minimo 1 giocatore
-        listUtenteAttivita.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Utente) Validazione giocatori per Freccette: OK (Min 1 presente). Inizio partita...");
+        aggiungiLog(listUtenteAttivita, "(Utente) Validazione giocatori per Freccette: OK (Min 1). Inizio partita...");
     }
 
     @FXML
     public void giocaBiliardo() {
-        // Regola: minimo 2 giocatori
-        listUtenteAttivita.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Utente) Validazione giocatori per Biliardo: OK (Min 2 presenti). Inizio partita...");
+        aggiungiLog(listUtenteAttivita, "(Utente) Validazione giocatori per Biliardo: OK (Min 2). Inizio partita...");
     }
 
     @FXML
-    public void iscrivitiTorneoUtente() {
-        listUtenteAttivita.getItems().add("[" + LocalDateTime.now().withNano(0) + "] (Utente) Iscrizione al torneo richiesta. Verifica posti disponibili in corso...");
+    public void iscrivitiTorneo() {
+        aggiungiLog(listUtenteAttivita, "(Utente) Ricerca tornei aperti per iscrizione...");
     }
 }

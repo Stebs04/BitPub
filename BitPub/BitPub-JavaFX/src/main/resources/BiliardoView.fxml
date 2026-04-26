@@ -1,23 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
 <?import javafx.geometry.Insets?>
 
-<VBox spacing="15" alignment="CENTER" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="com.bitpub.controllers.BiliardoUIController">
+<VBox spacing="25" alignment="CENTER" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.bitpub.controllers.BiliardoUIController"
+      style="-fx-background-color: #f8fafc; -fx-font-family: 'Segoe UI', sans-serif;">
 
     <padding>
-        <Insets top="20" right="20" bottom="20" left="20"/>
+        <Insets top="30" right="40" bottom="30" left="40"/>
     </padding>
 
-    <Label text="Dashboard Biliardo" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+    <Label text="🎱 Dashboard Biliardo" style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #1e293b;"/>
 
-    <Label text="Ultimi Eventi:"/>
-    <TextArea fx:id="eventiBiliardoArea" editable="false" prefHeight="200" prefWidth="300"/>
+    <HBox alignment="CENTER" spacing="50">
+        <VBox alignment="CENTER" spacing="10" style="-fx-background-color: white; -fx-padding: 20 50; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+            <Label text="Serie Massima (Palle in Buca)" style="-fx-font-size: 16px; -fx-text-fill: #64748b; -fx-font-weight: bold;"/>
+            <Label fx:id="serieMassimaLabel" text="0" style="-fx-font-size: 50px; -fx-font-weight: 900; -fx-text-fill: #059669;"/>
+        </VBox>
+    </HBox>
 
-    <Button text="Aggiorna Dati Biliardo" onAction="#aggiornaDati"/>
+    <VBox alignment="CENTER_LEFT" spacing="10" prefWidth="600" maxWidth="700">
+        <Label text="Ultimi Eventi e Storico:" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #334155;"/>
+        
+        <ListView fx:id="storicoListView" prefHeight="250" style="-fx-background-radius: 8; -fx-border-color: #cbd5e1; -fx-border-radius: 8;"/>
+    </VBox>
+
+    <VBox alignment="CENTER" spacing="15">
+        <Label fx:id="statoLabel" text="Pronto." style="-fx-font-size: 14px; -fx-font-style: italic; -fx-text-fill: #64748b;"/>
+        
+        <Button fx:id="btnAggiorna" text="🔄 Aggiorna Dati Biliardo" onAction="#caricaDatiBiliardo"
+                style="-fx-background-color: #059669; -fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold; -fx-padding: 12 35; -fx-background-radius: 8; -fx-cursor: hand;"/>
+    </VBox>
 
 </VBox>
