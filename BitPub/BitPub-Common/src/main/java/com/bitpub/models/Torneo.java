@@ -1,48 +1,39 @@
+/**
+ * Entità che rappresenta un Torneo organizzato in un locale.
+ * * @author Luca Franzon
+ * @version 1.0
+ */
 package com.bitpub.models;
 
-import com.google.gson.annotations.Expose;
 import jakarta.persistence.*;
-import java.time.LocalDate;
-import java.util.List;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tornei")
-public class Torneo {
+public class Torneo extends ResourceModel { // Estende ResourceModel per supporto HATEOAS
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Expose
     private Long id;
 
-    @Expose
     private String nome;
-    @Expose
-    private String premio;
 
-    @Expose
-    private LocalDate dataInizio;
-    @Expose
-    private LocalDate dataFine;
+    @Enumerated(EnumType.STRING)
+    private TipoGioco tipoGioco;
 
-    // Relazione: Un torneo ha una lista di molte partite.
-    // "mappedBy" indica il nome della variabile nella classe Partita.
-    // "cascade = CascadeType.ALL" significa che se eliminiamo il torneo,
-    // eliminiamo automaticamente anche le partite collegate!
-    @OneToMany(mappedBy = "torneo", cascade = CascadeType.ALL)
-    @Expose
-    private List<Partita> partite;
+    private Long localeId;
 
-    @Expose
-    @Column(name = "max_partecipanti")
+    private LocalDateTime dataInizio;
+
     private Integer maxPartecipanti;
 
-    @ManyToMany
-    @JoinTable(
-        name = "torneo_iscritti",
-        joinColumns = @JoinColumn(name = "torneo_id"),
-        inverseJoinColumns = @JoinColumn(name = "utente_id")
-    )
-    private List<Utente> iscritti;
+    @Enumerated(EnumType.STRING)
+    private ModalitaTorneo modalita;
+
+    // Enum interni per consistenza dati
+    public enum TipoGioco { CALCIOBALILLA, FRECCETTE, BILIARDO }
+    public enum ModalitaTorneo { INDIVIDUALE, SQUADRE }
+
 
     // Costruttore vuoto
     public Torneo() {}
