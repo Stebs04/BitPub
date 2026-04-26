@@ -13,17 +13,11 @@ import javafx.util.Duration;
 import java.io.IOException;
 
 /**
- * Controller principale della dashboard BitPub.
- * Gestisce la navigazione tra i moduli (Biliardo, Calciobalilla, Freccette)
- * e il caricamento dinamico delle view nel pannello centrale.
+ * Controller principale per la navigazione dell'applicazione BitPub.
+ * Gestisce il caricamento dinamico delle schermate all'interno dell'area centrale
+ * e l'aggiornamento visivo della barra laterale di navigazione.
  *
- * View disponibili al momento:
- *   - DashboardView.fxml         → dashboard generale (placeholder)
- *   - CalciobalillaView.fxml     → modulo calciobalilla (implementato)
- *   - BiliardoView.fxml          → modulo biliardo (implementato)
- *   - FreccetteView.fxml         → placeholder (non ancora implementato)
- *
- * @author Stefano Bellan 20054330
+ * @author Stefano Bellan (Refactoring)
  */
 public class MainController {
 
@@ -35,8 +29,8 @@ public class MainController {
     @FXML private Label statusLabel;
 
     /**
-     * Inizializzazione automatica al caricamento del FXML.
-     * Mostra la dashboard generale come schermata di default.
+     * Metodo di inizializzazione chiamato automaticamente da JavaFX.
+     * Imposta la schermata di default all'avvio dell'applicazione.
      */
     @FXML
     public void initialize() {
@@ -44,28 +38,26 @@ public class MainController {
     }
 
     /**
-     * Mostra la dashboard generale.
-     * Carica DashboardView.fxml se presente, altrimenti mostra placeholder.
+     * Carica e mostra la vista generale della Dashboard.
      */
     @FXML
     public void mostraDashboard() {
         impostaBottoneAttivo(btnDashboard);
-        caricaVista("view/DashboardView.fxml", "Dashboard", "⬡");
+        caricaVista("DashboardView.fxml", "Dashboard Generale", "📊");
     }
 
     /**
-     * Mostra la vista del modulo Calciobalilla.
-     * View implementata: CalciobalillaView.fxml
+     * Carica e mostra la vista di gestione del Calciobalilla.
+     * Punta al nuovo file FXML unificato per API e simulazione.
      */
     @FXML
     public void mostraCalciobalilla() {
         impostaBottoneAttivo(btnCalciobalilla);
-        caricaVista("CalciobalillaView.fxml", "Calciobalilla", "⚽");
+        caricaVista("CalciobalillaGestione.fxml", "Gestione Calciobalilla", "⚽");
     }
 
     /**
-     * Mostra la vista del modulo Freccette.
-     * View non ancora implementata: verrà mostrato il placeholder.
+     * Carica e mostra la vista delle Freccette.
      */
     @FXML
     public void mostraFreccette() {
@@ -74,8 +66,7 @@ public class MainController {
     }
 
     /**
-     * Mostra la vista del modulo Biliardo.
-     * View implementata: BiliardoView.fxml
+     * Carica e mostra la vista del Biliardo.
      */
     @FXML
     public void mostraBiliardo() {
@@ -84,40 +75,37 @@ public class MainController {
     }
 
     /**
-     * Carica dinamicamente una vista FXML nel pannello centrale con animazione fade.
-     * Se il file FXML non esiste o non è ancora implementato, mostra un placeholder stilizzato.
+     * Carica un file FXML e lo inserisce nell'area di contenuto centrale.
+     * Applica una transizione di dissolvenza per rendere il cambio fluido.
      *
-     * @param percorso  Percorso del file FXML relativo a resources/
-     * @param titolo    Nome del modulo (per statusLabel e placeholder)
-     * @param icona     Emoji/icona da mostrare nel placeholder
+     * @param nomeFile Il nome del file FXML da caricare.
+     * @param titolo   Il titolo del modulo da mostrare nella status bar.
+     * @param icona    L'icona da usare nel caso in cui la vista non sia ancora sviluppata.
      */
-    private void caricaVista(String percorso, String titolo, String icona) {
+    private void caricaVista(String nomeFile, String titolo, String icona) {
         try {
-            var url = getClass().getResource("/" + percorso);
-
+            var url = getClass().getResource("/" + nomeFile);
             if (url == null) {
                 mostraPlaceholder(titolo, icona);
                 return;
             }
-
-            FXMLLoader loader = new FXMLLoader(url);
-            Node vista = loader.load();
-
-            sostituisciVista(vista);
-
-            if (statusLabel != null) {
-                statusLabel.setText("Modulo attivo: " + titolo);
-            }
-
+            Node vista = FXMLLoader.load(url);
+            sostituisciVistaConAnimazione(vista);
+            statusLabel.setText("Modulo: " + titolo);
         } catch (IOException e) {
+            System.err.println("Errore nel caricamento della vista: " + nomeFile);
             mostraPlaceholder(titolo, icona);
         }
     }
 
     /**
-     * Sostituisce la vista corrente nel contentArea con animazione fade-out/fade-in.
+     * Esegue una transizione visiva sostituendo il nodo attualmente visualizzato
+     * con il nuovo nodo fornito.
+     *
+     * @param nuovaVista Il nuovo nodo JavaFX da visualizzare.
      */
-    private void sostituisciVista(Node nuovaVista) {
+    private void sostituisciVistaConAnimazione(Node nuovaVista) {
+        // Verifica se c'è già una vista caricata per animarne l'uscita
         if (!contentArea.getChildren().isEmpty()) {
             Node corrente = contentArea.getChildren().get(0);
             FadeTransition fadeOut = new FadeTransition(Duration.millis(150), corrente);
@@ -135,7 +123,9 @@ public class MainController {
     }
 
     /**
-     * Animazione fade-in per la nuova vista caricata.
+     * Applica l'effetto di dissolvenza in entrata a un nodo.
+     *
+     * @param nodo Il nodo a cui applicare l'animazione.
      */
     private void animaFadeIn(Node nodo) {
         FadeTransition fadeIn = new FadeTransition(Duration.millis(250), nodo);
@@ -145,55 +135,36 @@ public class MainController {
     }
 
     /**
-     * Mostra un pannello placeholder stilizzato per le viste non ancora implementate.
+     * Genera dinamicamente una vista di cortesia quando un modulo FXML non è trovato.
      *
-     * @param nomeModulo Nome del modulo
-     * @param icona      Icona/emoji da mostrare
+     * @param nomeModulo Il nome del modulo non trovato.
+     * @param icona      L'emoji rappresentativa del modulo.
      */
     private void mostraPlaceholder(String nomeModulo, String icona) {
-        VBox placeholder = new VBox(16);
-        placeholder.setStyle("-fx-alignment: center; -fx-padding: 60;");
-
+        VBox placeholder = new VBox(15);
+        placeholder.setStyle("-fx-alignment: center;");
         Label lblIcona = new Label(icona);
-        lblIcona.setStyle("-fx-font-size: 52px; -fx-text-fill: #3d85c8; -fx-opacity: 0.5;");
-
-        Label lblTitolo = new Label("Modulo " + nomeModulo);
-        lblTitolo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e2e8f0; -fx-font-family: 'Courier New';");
-
-        Label lblSottotitolo = new Label("Vista in fase di sviluppo");
-        lblSottotitolo.setStyle("-fx-font-size: 13px; -fx-text-fill: #4a5568; -fx-font-family: 'Courier New';");
-
-        Label lblBadge = new Label("COMING SOON");
-        lblBadge.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #f6ad55; " +
-                "-fx-background-color: #2d1f00; -fx-padding: 4 12; -fx-background-radius: 12; " +
-                "-fx-border-color: #f6ad55; -fx-border-width: 1; -fx-border-radius: 12;");
-
-        placeholder.getChildren().addAll(lblIcona, lblTitolo, lblSottotitolo, lblBadge);
-
-        sostituisciVista(placeholder);
-
-        if (statusLabel != null) {
-            statusLabel.setText("Modulo attivo: " + nomeModulo + " (placeholder)");
-        }
+        lblIcona.setStyle("-fx-font-size: 60px; -fx-text-fill: #3b82f6; -fx-opacity: 0.6;");
+        Label lblTitolo = new Label(nomeModulo);
+        lblTitolo.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #f8fafc;");
+        Label lblSottotitolo = new Label("Interfaccia in costruzione...");
+        lblSottotitolo.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
+        placeholder.getChildren().addAll(lblIcona, lblTitolo, lblSottotitolo);
+        sostituisciVistaConAnimazione(placeholder);
+        statusLabel.setText("Modulo: " + nomeModulo + " (Lavori in corso)");
     }
 
     /**
-     * Aggiorna lo stile dei bottoni della sidebar per evidenziare quello attivo.
+     * Aggiorna lo stile grafico dei bottoni della sidebar per evidenziare la selezione attuale.
      *
-     * @param bottoneAttivo Il bottone da marcare come selezionato.
+     * @param bottoneAttivo Il bottone cliccato dall'utente.
      */
     private void impostaBottoneAttivo(Button bottoneAttivo) {
-        String stileNormale = "-fx-background-color: transparent; -fx-text-fill: #a0aec0; " +
-                "-fx-font-size: 13px; -fx-cursor: hand; -fx-alignment: center-left; " +
-                "-fx-padding: 10 16 10 16; -fx-background-radius: 8;";
+        String stileNormale = "-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-font-size: 15px; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;";
+        String stileAttivo = "-fx-background-color: #2563eb; -fx-text-fill: #ffffff; -fx-font-size: 15px; -fx-font-weight: bold; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;";
 
-        String stileAttivo = "-fx-background-color: #1e3a5f; -fx-text-fill: #63b3ed; " +
-                "-fx-font-size: 13px; -fx-font-weight: bold; -fx-cursor: hand; " +
-                "-fx-alignment: center-left; -fx-padding: 10 16 10 16; -fx-background-radius: 8; " +
-                "-fx-border-color: #3d85c8; -fx-border-width: 0 0 0 3; -fx-border-radius: 0;";
-
-        Button[] tuttiBotoni = {btnDashboard, btnCalciobalilla, btnFreccette, btnBiliardo};
-        for (Button btn : tuttiBotoni) {
+        Button[] bottoni = {btnDashboard, btnCalciobalilla, btnFreccette, btnBiliardo};
+        for (Button btn : bottoni) {
             if (btn != null) {
                 btn.setStyle(btn == bottoneAttivo ? stileAttivo : stileNormale);
             }

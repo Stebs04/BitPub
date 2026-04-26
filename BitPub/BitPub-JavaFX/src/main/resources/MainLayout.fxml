@@ -5,153 +5,41 @@
 <?import javafx.scene.shape.*?>
 <?import javafx.geometry.Insets?>
 
-<!-- Autore Stefano Bellan 20054330 -->
+<BorderPane prefHeight="768.0" prefWidth="1200.0" style="-fx-background-color: #0f172a; -fx-font-family: 'Segoe UI', sans-serif;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.MainController">
 
-<BorderPane
-    prefHeight="720.0"
-    prefWidth="1100.0"
-    style="-fx-background-color: #0d1117;"
-    xmlns="http://javafx.com/javafx"
-    xmlns:fx="http://javafx.com/fxml"
-    fx:controller="com.bitpub.controllers.MainController">
-
-    <!-- ═══════════════════════════════════════════
-         SIDEBAR SINISTRA
-    ════════════════════════════════════════════ -->
     <left>
-        <VBox
-            prefWidth="220"
-            spacing="4"
-            style="-fx-background-color: #0d1117; -fx-border-color: #1e2d3d; -fx-border-width: 0 1 0 0;">
+        <VBox prefWidth="240" spacing="10" style="-fx-background-color: #1e293b; -fx-border-color: #334155; -fx-border-width: 0 1 0 0;">
             <padding>
-                <Insets top="28" right="12" bottom="20" left="12"/>
+                <Insets top="30" right="15" bottom="20" left="15"/>
             </padding>
 
-            <!-- Logo / Brand -->
-            <VBox spacing="2" style="-fx-padding: 0 4 24 4;">
-                <Label
-                    text="BitPub"
-                    style="-fx-text-fill: #e2e8f0; -fx-font-size: 22px; -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
-                <Label
-                    text="Edge Dashboard"
-                    style="-fx-text-fill: #3d85c8; -fx-font-size: 10px; -fx-font-family: 'Courier New'; -fx-letter-spacing: 2px;"/>
+            <VBox spacing="5" style="-fx-padding: 0 0 30 0;">
+                <Label text="BITPUB" style="-fx-text-fill: #f8fafc; -fx-font-size: 26px; -fx-font-weight: 900; -fx-letter-spacing: 2px;"/>
+                <Label text="MANAGEMENT SYSTEM" style="-fx-text-fill: #3b82f6; -fx-font-size: 11px; -fx-font-weight: bold; -fx-letter-spacing: 1px;"/>
             </VBox>
 
-            <!-- Separatore sezione -->
-            <Label
-                text="NAVIGAZIONE"
-                style="-fx-text-fill: #4a5568; -fx-font-size: 9px; -fx-font-family: 'Courier New'; -fx-padding: 0 0 6 4;"/>
+            <Label text="MODULI" style="-fx-text-fill: #64748b; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 0 0 5 5;"/>
 
-            <!-- Bottoni navigazione -->
-            <Button
-                fx:id="btnDashboard"
-                text="⬡  Dashboard"
-                onAction="#mostraDashboard"
-                maxWidth="Infinity"
-                style="-fx-background-color: #1e3a5f; -fx-text-fill: #63b3ed; -fx-font-size: 13px;
-                       -fx-font-weight: bold; -fx-cursor: hand; -fx-alignment: center-left;
-                       -fx-padding: 10 16 10 16; -fx-background-radius: 8;
-                       -fx-border-color: #3d85c8; -fx-border-width: 0 0 0 3; -fx-border-radius: 0;"/>
+            <Button fx:id="btnDashboard" text="📊 Dashboard" onAction="#mostraDashboard" maxWidth="Infinity" styleClass="sidebar-btn" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-font-size: 15px; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;"/>
+            <Button fx:id="btnCalciobalilla" text="⚽ Calciobalilla" onAction="#mostraCalciobalilla" maxWidth="Infinity" styleClass="sidebar-btn" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-font-size: 15px; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;"/>
+            <Button fx:id="btnFreccette" text="🎯 Freccette" onAction="#mostraFreccette" maxWidth="Infinity" styleClass="sidebar-btn" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-font-size: 15px; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;"/>
+            <Button fx:id="btnBiliardo" text="🎱 Biliardo" onAction="#mostraBiliardo" maxWidth="Infinity" styleClass="sidebar-btn" style="-fx-background-color: transparent; -fx-text-fill: #cbd5e1; -fx-font-size: 15px; -fx-alignment: center-left; -fx-padding: 12 15; -fx-cursor: hand; -fx-background-radius: 8;"/>
 
-            <Button
-                fx:id="btnCalciobalilla"
-                text="⬡  Calciobalilla"
-                onAction="#mostraCalciobalilla"
-                maxWidth="Infinity"
-                style="-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 13px;
-                       -fx-cursor: hand; -fx-alignment: center-left;
-                       -fx-padding: 10 16 10 16; -fx-background-radius: 8;"/>
-
-            <Button
-                fx:id="btnFreccette"
-                text="⬡  Freccette"
-                onAction="#mostraFreccette"
-                maxWidth="Infinity"
-                style="-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 13px;
-                       -fx-cursor: hand; -fx-alignment: center-left;
-                       -fx-padding: 10 16 10 16; -fx-background-radius: 8;"/>
-
-            <Button
-                fx:id="btnBiliardo"
-                text="⬡  Biliardo"
-                onAction="#mostraBiliardo"
-                maxWidth="Infinity"
-                style="-fx-background-color: transparent; -fx-text-fill: #a0aec0; -fx-font-size: 13px;
-                       -fx-cursor: hand; -fx-alignment: center-left;
-                       -fx-padding: 10 16 10 16; -fx-background-radius: 8;"/>
-
-            <!-- Spacer -->
             <Region VBox.vgrow="ALWAYS"/>
 
-            <!-- Footer sidebar -->
-            <Separator style="-fx-background-color: #1e2d3d;"/>
-            <VBox spacing="4" style="-fx-padding: 8 4 0 4;">
-                <Label
-                    fx:id="statusLabel"
-                    text="Modulo attivo: Dashboard"
-                    style="-fx-text-fill: #4a5568; -fx-font-size: 10px; -fx-font-family: 'Courier New';"/>
-                <Label
-                    text="v1.0.0-SNAPSHOT"
-                    style="-fx-text-fill: #2d3748; -fx-font-size: 9px; -fx-font-family: 'Courier New';"/>
+            <Separator style="-fx-background-color: #334155;"/>
+            <VBox spacing="5" style="-fx-padding: 15 5 0 5;">
+                <Label fx:id="statusLabel" text="Stato: Connesso" style="-fx-text-fill: #10b981; -fx-font-size: 12px; -fx-font-weight: bold;"/>
+                <Label text="BitPub Edge v2.0" style="-fx-text-fill: #64748b; -fx-font-size: 11px;"/>
             </VBox>
         </VBox>
     </left>
 
-    <!-- ═══════════════════════════════════════════
-         TOPBAR
-    ════════════════════════════════════════════ -->
-    <top>
-        <HBox
-            prefHeight="52"
-            alignment="CENTER_LEFT"
-            spacing="12"
-            style="-fx-background-color: #0d1117; -fx-border-color: #1e2d3d; -fx-border-width: 0 0 1 0;">
-            <padding>
-                <Insets top="0" right="24" bottom="0" left="24"/>
-            </padding>
-
-            <Region HBox.hgrow="ALWAYS"/>
-
-            <!-- Indicatore stato connessione -->
-            <HBox alignment="CENTER" spacing="6"
-                  style="-fx-background-color: #0a1628; -fx-background-radius: 20; -fx-padding: 5 12 5 12;">
-                <Circle radius="4" fill="#48bb78"/>
-                <Label text="Edge Online"
-                       style="-fx-text-fill: #48bb78; -fx-font-size: 11px; -fx-font-family: 'Courier New';"/>
-            </HBox>
-
-            <!-- Separatore verticale -->
-            <Separator orientation="VERTICAL" style="-fx-background-color: #1e2d3d;"/>
-
-            <!-- Info utente -->
-            <Label text="Admin"
-                   style="-fx-text-fill: #718096; -fx-font-size: 12px; -fx-font-family: 'Courier New';"/>
-        </HBox>
-    </top>
-
-    <!-- ═══════════════════════════════════════════
-         AREA CONTENUTO CENTRALE
-    ════════════════════════════════════════════ -->
     <center>
-        <StackPane
-            fx:id="contentArea"
-            style="-fx-background-color: #0d1117;">
+        <StackPane fx:id="contentArea" style="-fx-background-color: #0f172a;">
             <padding>
-                <Insets top="24" right="28" bottom="24" left="28"/>
+                <Insets top="20" right="20" bottom="20" left="20"/>
             </padding>
-
-            <!-- Schermata di benvenuto (sostituita dal controller al load) -->
-            <VBox alignment="CENTER" spacing="16">
-                <Label
-                    text="⬡"
-                    style="-fx-font-size: 52px; -fx-text-fill: #3d85c8; -fx-opacity: 0.4;"/>
-                <Label
-                    text="Benvenuto in BitPub"
-                    style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e2e8f0; -fx-font-family: 'Courier New';"/>
-                <Label
-                    text="Seleziona un modulo dalla sidebar per iniziare"
-                    style="-fx-font-size: 13px; -fx-text-fill: #4a5568;"/>
-            </VBox>
         </StackPane>
     </center>
 
