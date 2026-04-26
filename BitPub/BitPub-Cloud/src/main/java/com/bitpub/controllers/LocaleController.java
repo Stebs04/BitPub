@@ -24,7 +24,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * e gestisce i vincoli di unicità (Nome, IP Edge) durante la persistenza.
  * </p>
  * 
- * @author Stefano Bellan 20054330
+ * @author Stefano Bellan 20054330, Timothy Giolito
  */
 @RestController
 @RequestMapping(value = "/api/locali", produces = "application/resources.v1+json")
