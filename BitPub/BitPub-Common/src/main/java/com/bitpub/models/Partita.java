@@ -50,6 +50,11 @@ public abstract class Partita {
     private Torneo torneo;
 
     /**
+     * L'ID del locale in cui si svolge la partita.
+     */
+    @Expose private Long localeId;
+
+    /**
      * Costruttore predefinito senza parametri.
      * Necessario per il corretto funzionamento dei framework JPA (Hibernate) e GSON.
      */
@@ -98,4 +103,10 @@ public abstract class Partita {
 
     /** @param torneo Imposta il torneo di appartenenza. */
     public void setTorneo(Torneo torneo) { this.torneo = torneo; }
+
+    /** @return L'ID del locale associato alla partita. */
+    public Long getLocaleId() { return localeId; }
+
+    /** @param localeId Imposta l'ID del locale. */
+    public void setLocaleId(Long localeId) { this.localeId = localeId; }
 }

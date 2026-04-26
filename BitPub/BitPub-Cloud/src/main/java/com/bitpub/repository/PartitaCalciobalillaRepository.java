@@ -49,7 +49,21 @@ public interface PartitaCalciobalillaRepository extends JpaRepository<PartitaCal
      * @param localeId L'ID univoco del locale di cui si vogliono calcolare le statistiche.
      * @return La durata media delle partite (in minuti). Restituisce null se non ci sono partite concluse.
      */
-    @Query("SELECT AVG(FUNCTION('DATEDIFF', 'SECOND', p.dataInizio, p.dataFine)) / 60.0 " +
-           "FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.dataFine IS NOT NULL")
-    Double calculateAverageDuration(@Param("localeId") Long localeId);
+    @Query("SELECT p FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.orarioFine IS NOT NULL")
+    java.util.List<PartitaCalciobalilla> findConcluseByLocaleId(@Param("localeId") Long localeId);
+
+    default Double calculateAverageDuration(Long localeId) {
+        java.util.List<PartitaCalciobalilla> partite = findConcluseByLocaleId(localeId);
+        if (partite.isEmpty()) return null;
+        return partite.stream()
+                .mapToDouble(p -> java.time.Duration.between(p.getOrarioInizio(), p.getOrarioFine()).getSeconds() / 60.0)
+                .average()
+                .orElse(0.0);
+    }
+
+    @Query("SELECT p FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND (:stato = 'IN_CORSO' AND p.orarioFine IS NULL)")
+    java.util.List<PartitaCalciobalilla> findByLocaleIdAndStato(@Param("localeId") Long localeId, @Param("stato") String stato);
+
+    @Query("SELECT COUNT(p) FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.orarioInizio >= :today")
+    long countToday(@Param("localeId") Long localeId, @Param("today") java.time.LocalDateTime today);
 }

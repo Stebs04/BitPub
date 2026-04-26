@@ -7,6 +7,8 @@ import jakarta.persistence.*;
  * Modello specifico per le partite di Biliardo.
  * Estende la classe base Partita ereditandone i dati comuni.
  */
+@Entity
+@Table(name = "partita_biliardo")
 public class PartitaBiliardo extends Partita {
 
     @Column(nullable = false)
