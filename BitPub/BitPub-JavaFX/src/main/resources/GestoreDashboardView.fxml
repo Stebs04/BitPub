@@ -1,59 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.chart.*?>
+<?import javafx.geometry.Insets?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.bitpub.controllers.GestoreDashboardController" prefWidth="800" prefHeight="600">
-    <center>
-        <TabPane tabClosingPolicy="UNAVAILABLE">
-            
-            <Tab text="Macchine Attive">
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 20;">
-                    <Label text="Stato Macchine in Real-Time" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <TableView fx:id="macchineTable" VBox.vgrow="ALWAYS">
-                        <columns>
-                            <TableColumn fx:id="colMacchinaNome" text="Nome Macchina" prefWidth="200"/>
-                            <TableColumn fx:id="colMacchinaTipo" text="Tipo Gioco" prefWidth="200"/>
-                            <TableColumn fx:id="colMacchinaStato" text="Stato (Attiva)" prefWidth="100"/>
-                        </columns>
-                    </TableView>
+<VBox spacing="10" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.GestoreDashboardController" prefHeight="600.0" prefWidth="900.0">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="15">
+        <Label text="Dashboard Gestore" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+        <ProgressIndicator fx:id="loadingIndicator" visible="false" prefHeight="30" prefWidth="30"/>
+    </HBox>
+
+    <TabPane fx:id="mainTabPane" VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE">
+        <Tab text="Monitoraggio Real-Time">
+            <VBox spacing="10">
+                <padding><Insets top="10"/></padding>
+                <Label text="Macchine nel Locale" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="macchineTable" prefHeight="200">
+                    <columns>
+                        <TableColumn fx:id="colMacchinaNome" text="Nome Macchina" prefWidth="200"/>
+                        <TableColumn fx:id="colMacchinaTipo" text="Tipo Gioco" prefWidth="150"/>
+                        <TableColumn fx:id="colMacchinaStato" text="Stato" prefWidth="100"/>
+                    </columns>
+                </TableView>
+                
+                <Label text="Partite in Corso" style="-fx-font-weight: bold;"/>
+                <TableView fx:id="partiteTable" prefHeight="200">
+                    <columns>
+                        <TableColumn fx:id="colPartitaTipo" text="Gioco" prefWidth="150"/>
+                        <TableColumn fx:id="colPartitaGiocatori" text="Giocatori" prefWidth="250"/>
+                        <TableColumn fx:id="colPartitaInizio" text="Ora Inizio" prefWidth="150"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </Tab>
+
+        <Tab text="Statistiche" fx:id="tabStatistiche">
+            <ScrollPane fitToWidth="true">
+                <VBox spacing="20" alignment="CENTER">
+                    <padding><Insets top="20" bottom="20"/></padding>
+                    <HBox spacing="30" alignment="CENTER">
+                        <PieChart fx:id="tipoGiocoChart" title="Distribuzione Giochi" prefHeight="300"/>
+                        <VBox spacing="15" alignment="CENTER_LEFT">
+                            <Label fx:id="lblPartiteOggi" text="Partite oggi: --" style="-fx-font-size: 16px;"/>
+                            <Label fx:id="lblDurataMedia" text="Durata media: -- min" style="-fx-font-size: 16px;"/>
+                        </VBox>
+                    </HBox>
+                    <BarChart fx:id="statsBarChart" title="Volume Partite Settimanali" prefHeight="300">
+                        <xAxis><CategoryAxis label="Giorno"/></xAxis>
+                        <yAxis><NumberAxis label="Numero Partite"/></yAxis>
+                    </BarChart>
                 </VBox>
-            </Tab>
+            </ScrollPane>
+        </Tab>
 
-            <Tab text="Partite in Corso">
-                <VBox spacing="10" alignment="CENTER" style="-fx-padding: 20;">
-                    <Label text="Partite Attualmente in Corso" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-                    <TableView fx:id="partiteTable" VBox.vgrow="ALWAYS">
-                        <columns>
-                            <TableColumn fx:id="colPartitaTipo" text="Tipo Gioco" prefWidth="150"/>
-                            <TableColumn fx:id="colPartitaGiocatori" text="Giocatori" prefWidth="200"/>
-                            <TableColumn fx:id="colPartitaInizio" text="Ora Inizio" prefWidth="150"/>
-                        </columns>
-                    </TableView>
-                </VBox>
-            </Tab>
-
-            <Tab text="Statistiche e Tornei">
-                <HBox spacing="20" style="-fx-padding: 20;">
-                    <VBox spacing="10" HBox.hgrow="ALWAYS">
-                        <Label text="Statistiche Odierne" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                        <PieChart fx:id="statisticheChart" prefHeight="300"/>
-                        <Label fx:id="lblMediaDurata" text="Media Durata Partita: -- min"/>
-                    </VBox>
-                    <Separator orientation="VERTICAL" />
-                    <VBox spacing="10" prefWidth="300">
-                        <Label text="Crea Nuovo Torneo" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
-                        <TextField fx:id="txtNomeTorneo" promptText="Nome Torneo"/>
-                        <ChoiceBox fx:id="choiceTipoGioco" prefWidth="300"/>
-                        <DatePicker fx:id="dateInizioTorneo" prefWidth="300" promptText="Data Inizio"/>
-                        <TextField fx:id="txtMaxPartecipanti" promptText="Max Partecipanti (es. 16)"/>
-                        <ChoiceBox fx:id="choiceModalita" prefWidth="300"/>
-                        <Button text="Crea Torneo" onAction="#handleCreaTorneo" prefWidth="300" style="-fx-base: #28a745; -fx-text-fill: white;"/>
-                        <Label fx:id="lblTorneoMsg" textFill="green" wrapText="true"/>
-                    </VBox>
-                </HBox>
-            </Tab>
-
-        </TabPane>
-    </center>
-</BorderPane>
+        <Tab text="Crea Torneo">
+            <VBox spacing="15" maxWidth="400" alignment="TOP_LEFT">
+                <padding><Insets top="20" left="20"/></padding>
+                <Label text="Configurazione Nuovo Torneo" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+                
+                <Label text="Nome Torneo:"/>
+                <TextField fx:id="txtNomeTorneo" promptText="Es: Torneo di Primavera"/>
+                
+                <Label text="Tipo di Gioco:"/>
+                <ChoiceBox fx:id="choiceTipoGioco" prefWidth="400"/>
+                
+                <Label text="Data di Inizio:"/>
+                <DatePicker fx:id="dateInizio" prefWidth="400"/>
+                
+                <Label text="Max Partecipanti:"/>
+                <Spinner fx:id="spinnerPartecipanti" prefWidth="400" editable="true"/>
+                
+                <Label text="Modalità:"/>
+                <ChoiceBox fx:id="choiceModalita" prefWidth="400"/>
+                
+                <Button text="Crea Torneo" onAction="#handleCreaTorneo" 
+                        style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-font-weight: bold;" 
+                        prefWidth="400" prefHeight="40"/>
+            </VBox>
+        </Tab>
+    </TabPane>
+</VBox>
