@@ -60,3 +60,6 @@ Thumbs.db
 
 BitPub-Security/certs/
 .aider*
+
+# Log files
+BitPub-Cloud/logs/

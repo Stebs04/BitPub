@@ -59,3 +59,6 @@ Thumbs.db
 *.key
 
 BitPub-Security/certs/
+
+# Log files
+BitPub-Cloud/logs/
