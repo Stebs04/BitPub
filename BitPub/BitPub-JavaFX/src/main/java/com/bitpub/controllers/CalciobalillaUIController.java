@@ -9,44 +9,36 @@ import javafx.scene.control.Label;
 import javafx.scene.shape.Circle;
 
 /**
- * Controller avanzato per la simulazione del Calciobalilla.
- * Gestisce il motore fisico, le collisioni con le porte, il movimento oscillatorio
- * delle aste e il ciclo di vita della partita (Play/Pausa/Vittoria).
+ * Controller avanzato per l'interfaccia grafica del Calciobalilla.
+ * Gestisce l'aggiornamento visivo, il motore fisico di gioco, le collisioni
+ * e l'interazione diretta dell'utente.
  *
  * @author Stefano Bellan 20054330
  */
 public class CalciobalillaUIController {
 
-    // --- COMPONENTI UI (Iniezione FXML) ---
     @FXML private Label punteggioRosso;
     @FXML private Label punteggioBlu;
     @FXML private Circle pallina;
     @FXML private Label messaggioCentrale;
     @FXML private Button btnAvviaPausa;
-
-    /** Gruppo contenente i nodi grafici delle aste e dei giocatori Rossi */
     @FXML private Group squadraRossa;
-
-    /** Gruppo contenente i nodi grafici delle aste e dei giocatori Blu */
     @FXML private Group squadraBlu;
 
-    // --- COSTANTI E STATO DEL GIOCO ---
     private int scoreRosso = 0;
     private int scoreBlu = 0;
     private final int MAX_GOL = 10;
 
-    // --- FISICA E ANIMAZIONE ---
     private double velocityX = 15.0;
     private double velocityY = 8.0;
     private boolean isPlaying = false;
     private AnimationTimer gameLoop;
 
-    /** Variabile di accumulo per calcolare il moto armonico delle aste */
     private double angoloAste = 0;
 
     /**
-     * Inizializza il controller. Configura il motore fisico ma non avvia l'animazione
-     * finché l'utente non interagisce con la UI.
+     * Metodo di inizializzazione automatico di JavaFX.
+     * Prepara il motore fisico in background, in attesa del comando di avvio dell'utente.
      */
     @FXML
     public void initialize() {
@@ -54,12 +46,12 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Gestisce l'alternanza tra stato di riproduzione e pausa.
-     * Aggiorna dinamicamente lo stile CSS del pulsante di controllo.
+     * Avvia o mette in pausa l'animazione di gioco, modificando visivamente il bottone
+     * per restituire un feedback immediato all'utente.
      */
     @FXML
     public void togglePartita() {
-        // Se la partita è terminata, il tasto agisce come reset per un nuovo match
+        // Se si preme "Avvia" al termine di un match, riavvia la partita da zero
         if (scoreRosso >= MAX_GOL || scoreBlu >= MAX_GOL) {
             resetMatch();
         }
@@ -78,8 +70,8 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Ripristina i parametri di gioco allo stato iniziale.
-     * Ferma il loop fisico e resetta le posizioni grafiche dei componenti.
+     * Resetta completamente i punteggi e la posizione fisica degli elementi visivi
+     * per preparare il campo a una nuova sfida.
      */
     @FXML
     public void resetMatch() {
@@ -89,7 +81,7 @@ public class CalciobalillaUIController {
         scoreBlu = 0;
         aggiornaTestoPunteggi();
 
-        // Reset posizionale dei nodi grafici
+        // Riposizionamento nodi al centro del campo
         pallina.setTranslateX(0);
         pallina.setTranslateY(0);
         squadraRossa.setTranslateY(0);
@@ -101,34 +93,30 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Definisce il ciclo di calcolo della fisica ad alta frequenza.
-     * Include il calcolo del moto armonico per le aste e la rilevazione delle collisioni.
+     * Costruisce il ciclo di aggiornamento grafico ad alta frequenza (60 FPS)
+     * che si occupa del movimento della pallina e delle aste.
      */
     private void creaMotoreFisico() {
         gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                // 1. ANIMAZIONE ASTE: Moto sinusoidale per simulare il movimento dei giocatori
+                // Calcolo dello scorrimento dinamico delle aste (effetto simulazione umana)
                 angoloAste += 0.05;
                 squadraRossa.setTranslateY(Math.sin(angoloAste) * 30);
                 squadraBlu.setTranslateY(Math.cos(angoloAste * 0.8) * 30);
 
-                // 2. CALCOLO TRAIETTORIA PALLINA
                 double nextX = pallina.getTranslateX() + velocityX;
                 double nextY = pallina.getTranslateY() + velocityY;
 
-                // Definizione confini campo (1400x700)
                 double limiteX = 670;
                 double limiteY = 330;
 
-                // 3. RILEVAMENTO GOL E COLLISIONI VERTICALI (Bordi corti)
+                // Gestione dei rimbalzi sui bordi verticali o eventuale ingresso in porta
                 if (nextX > limiteX) {
-                    // Controllo se la coordinata Y è all'interno del raggio della porta
                     if (nextY > -100 && nextY < 100) {
                         gestisciGol("ROSSO");
                         return;
                     } else {
-                        // Rimbalzo su muro di fondo
                         velocityX *= -1;
                         velocityY += (Math.random() - 0.5) * 5;
                     }
@@ -142,13 +130,13 @@ public class CalciobalillaUIController {
                     }
                 }
 
-                // 4. RIMBALZO SPONDE ORIZZONTALI (Bordi lunghi)
+                // Gestione rimbalzo sponde orizzontali lunghe
                 if (nextY > limiteY || nextY < -limiteY) {
                     velocityY *= -1;
                     velocityX += (Math.random() - 0.5) * 5;
                 }
 
-                // 5. CLAMPING VELOCITÀ E AGGIORNAMENTO GRAFICO
+                // Normalizzazione della velocità per non sforare l'area
                 velocityX = Math.max(-25, Math.min(25, velocityX));
                 velocityY = Math.max(-25, Math.min(25, velocityY));
 
@@ -159,12 +147,13 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Gestisce l'evento di segnatura, aggiorna il punteggio e verifica le condizioni di vittoria.
+     * Interrompe l'azione di gioco e aggiorna il tabellone quando avviene una marcatura.
+     * Gestisce anche l'avvio della logica di fine partita se si raggiunge il tetto massimo.
      *
-     * @param squadra Il nome della squadra che ha segnato ("ROSSO" o "BLU").
+     * @param squadra Identificativo della squadra che ha effettuato la marcatura ("ROSSO" o "BLU").
      */
     private void gestisciGol(String squadra) {
-        gameLoop.stop(); // Interruzione momentanea per enfasi visiva sul gol
+        gameLoop.stop();
 
         if (squadra.equals("ROSSO")) {
             scoreRosso++;
@@ -179,13 +168,12 @@ public class CalciobalillaUIController {
         aggiornaTestoPunteggi();
         messaggioCentrale.setVisible(true);
 
-        // CONTROLLO END-GAME
         if (scoreRosso >= MAX_GOL || scoreBlu >= MAX_GOL) {
             finalizzarePartita();
             return;
         }
 
-        // LOGICA DI RIPRESA: Timer asincrono per il cooldown dopo il gol
+        // Timer di cooldown, il ripristino UI viene demandato in modo sicuro al Thread di FX
         new Thread(() -> {
             try { Thread.sleep(1500); } catch (InterruptedException e) { e.printStackTrace(); }
 
@@ -193,7 +181,8 @@ public class CalciobalillaUIController {
                 messaggioCentrale.setVisible(false);
                 pallina.setTranslateX(0);
                 pallina.setTranslateY(0);
-                // Direziona la palla verso chi ha subito il gol
+
+                // Servizio assegnato a chi ha subito il gol
                 velocityX = squadra.equals("ROSSO") ? -12.0 : 12.0;
                 velocityY = (Math.random() * 10) - 5;
                 if (isPlaying) gameLoop.start();
@@ -202,7 +191,7 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Imposta lo stato della UI per la fine della partita e proclama il vincitore.
+     * Calcola e visualizza i complimenti finali fermando in modo definitivo i calcoli del match.
      */
     private void finalizzarePartita() {
         String vincitore = (scoreRosso >= MAX_GOL) ? "ROSSA" : "BLU";
@@ -217,7 +206,7 @@ public class CalciobalillaUIController {
     }
 
     /**
-     * Sincronizza i testi delle Label con i valori numerici degli score.
+     * Sincronizza i testi dei punteggi a schermo.
      */
     private void aggiornaTestoPunteggi() {
         punteggioRosso.setText(String.valueOf(scoreRosso));

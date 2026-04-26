@@ -57,12 +57,21 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.bitpub.Main</mainClass>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <classifier>exec</classifier>  <!-- il fat jar si chiamerà -exec.jar -->
+                    <classifier>exec</classifier>
                     <mainClass>com.bitpub.Main</mainClass>
-                </configuration>                   <!-- il jar normale rimane utilizzabile -->
+                </configuration>
             </plugin>
         </plugins>
     </build>
