@@ -4,12 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.bitpub.models.Torneo;
 import com.bitpub.repository.TorneoRepository;
-import com.bitpub.utils.HateoasResource;
+import com.bitpub.assembler.TorneoModelAssembler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.CollectionModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.List;
 import java.util.Optional;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
  * Controller REST dedicato alla gestione completa del ciclo di vita dei Tornei.
@@ -18,7 +22,8 @@ import java.util.Optional;
  * seguendo un'architettura State-Less. Utilizza il supporto HATEOAS per fornire link
  * dinamici nelle risposte, migliorando l'interazione con l'API.
  * </p>
- * @author Timothy Giolito 20054431
+ * * @author Timothy Giolito 20054431
+ * @athor Stefano Bellan 20054330 (Assembler per esposizione link HATEOAS)
  */
 @RestController
 @RequestMapping("/api/tornei")
@@ -31,6 +36,9 @@ public class TorneoController {
     @Autowired
     private TorneoRepository torneoRepository;
 
+    @Autowired
+    private TorneoModelAssembler assembler;
+
     /**
      * Recupera i dettagli di un singolo torneo identificato dal suo ID univoco.
      * <p>
@@ -41,9 +49,10 @@ public class TorneoController {
      * @param id L'identificativo univoco del torneo da cercare.
      * @return Una {@link ResponseEntity} contenente la risorsa {@link HateoasResource} se trovato,
      * oppure uno stato 404 (Not Found) se il torneo non esiste.
+     * @author Timothy Giolito 20054431 e Modificato da: Stefano Bellan 20054330
      */
     @GetMapping("/{id}")
-    public ResponseEntity<?> getTorneoById(@PathVariable Long id) {
+    public ResponseEntity<EntityModel<Torneo>> getTorneoById(@PathVariable Long id) {
 
         log.info("Ricevuta richiesta GET su /api/tornei/{} - Ricerca torneo in corso", id);
 
@@ -52,22 +61,46 @@ public class TorneoController {
 
         if (torneoTrovato.isPresent()) {
             Torneo torneo = torneoTrovato.get();
-
-            // Creiamo il contenitore HATEOAS con i dati del torneo
-            HateoasResource<Torneo> risorsa = new HateoasResource<>(torneo);
-
-            // TIMOTHY: Iniettiamo i percorsi dinamici (Il nodo _links)
-            risorsa.addLink("self", "/api/tornei/" + id);
-            risorsa.addLink("aggiorna_torneo", "/api/tornei/" + id);
-            risorsa.addLink("elimina_torneo", "/api/tornei/" + id);
-            risorsa.addLink("iscrivi_partecipanti", "/api/tornei/" + id + "/partecipanti");
-
+            
+            //Modifica fatta da Stefano: Delego la creazione dei link dinamici all'Assembler
+            EntityModel<Torneo> resource = assembler.toModel(torneo);
+            
             log.info("Torneo {} trovato con successo. Restituzione risorsa HATEOAS.", id);
-            return ResponseEntity.ok(risorsa);
+            return ResponseEntity.ok(resource);
         } else {
             log.warn("Attenzione: Torneo con ID {} non trovato nel database.", id);
             return ResponseEntity.notFound().build();
         }
+    }
+
+    /**
+     * Endpoint per il recupero della lista completa dei tornei.
+     * <p>
+     * Questo metodo interroga il repository per ottenere tutte le istanze di {@link Torneo},
+     * le trasforma in {@link EntityModel} tramite l'assembler dedicato e le incapsula 
+     * in un {@link CollectionModel} per rispettare lo standard HATEOAS.
+     * @author Stefano Bellan 20054330
+     * </p>
+     *
+     * @return {@link ResponseEntity} contenente la collezione di tornei arricchita con i link ipertestuali.
+     */
+    @GetMapping
+    public ResponseEntity<CollectionModel<EntityModel<Torneo>>> getAllTornei() {
+        // Recupero di tutte le entità di dominio dal database
+        List<Torneo> tornei = torneoRepository.findAll();
+
+        // Trasformazione della lista di entità in una lista di modelli HATEOAS
+        // L'assembler applica automaticamente la logica condizionale (es. link "nextMatch")
+        List<EntityModel<Torneo>> torneiModel = tornei.stream()
+                .map(assembler::toModel)
+                .toList();
+
+        // Creazione del wrapper per la collezione con link self al punto di ingresso dell'API
+        CollectionModel<EntityModel<Torneo>> collectionModel = CollectionModel.of(torneiModel,
+                linkTo(methodOn(TorneoController.class).getAllTornei()).withSelfRel()
+        );
+
+        return ResponseEntity.ok(collectionModel);
     }
 
     /**
@@ -98,15 +131,7 @@ public class TorneoController {
     }
 
     /**
-     * Aggiorna le informazioni di un torneo già esistente nel database.
-     * <p>
-     * Il metodo verifica l'esistenza del torneo tramite ID prima di procedere con la sovrascrittura dei dati.
-     * </p>
-     *
-     * @param id L'ID del torneo da modificare.
-     * @param torneoAggiornato L'oggetto {@link Torneo} con i nuovi dati da salvare.
-     * @param authHeader (Opzionale) Header di autorizzazione.
-     * @return {@link ResponseEntity} con esito positivo (200 OK) o errore (404 Not Found) se l'ID non esiste.
+     * PUT: Aggiorna un torneo esistente.
      */
     @PutMapping("/{id}")
     public ResponseEntity<String> aggiornaTorneo(
@@ -133,11 +158,7 @@ public class TorneoController {
     }
 
     /**
-     * Rimuove un torneo dal database in modo definitivo.
-     *
-     * @param id L'identificativo del torneo da eliminare.
-     * @param authHeader (Opzionale) Header di autorizzazione.
-     * @return {@link ResponseEntity} con conferma dell'eliminazione o errore se il torneo non è stato trovato.
+     * DELETE: Elimina un torneo dal database.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> eliminaTorneo(
@@ -155,4 +176,22 @@ public class TorneoController {
             return ResponseEntity.status(404).body("Errore: Impossibile eliminare, torneo non trovato.");
         }
     }
+
+    /**
+     * Recupera le informazioni sulla prossima partita programmata per un torneo specifico.
+     * <p>
+     * Questo endpoint viene esposto dinamicamente dall'assembler solo se il torneo 
+     * soddisfa i requisiti temporali (non concluso). Fornisce un punto di accesso 
+     * diretto senza che il client debba filtrare manualmente la lista dei match.
+     * </p>
+     *
+     * @param id Identificativo univoco del torneo.
+     * @return {@link ResponseEntity} contenente i dettagli della prossima partita (attualmente in formato testuale).
+     * @author Stefano Bellan 20054330
+     */
+    @GetMapping("/{id}/prossima-partita")
+    public ResponseEntity<String> getProssimaPartita(@PathVariable Long id) {
+        return ResponseEntity.ok("Il server ha fornito questo url HATEOAS. Prossima partita per il torneo: " + id);
+    }
+
 }
