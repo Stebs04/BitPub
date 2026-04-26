@@ -2,6 +2,8 @@ package com.bitpub.mqtt;
 
 import com.bitpub.buffer.MessageBuffer;
 import org.eclipse.paho.client.mqttv3.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -9,8 +11,11 @@ import java.nio.charset.StandardCharsets;
  * Implementa {@link MqttCallback} per reagire asincronamente agli eventi del broker.
  *
  * @author Stefano Bellan 20054330
+ * @modified Stefano Bellan 20054330 - Fase 25: aggiunto logging professionale
  */
 public class LocalCalciobalillaSubscriber implements MqttCallback {
+
+    private static final Logger logger = LoggerFactory.getLogger(LocalCalciobalillaSubscriber.class);
 
     private final MessageBuffer messageBuffer;
     private final MqttClient mqttClient;
@@ -31,30 +36,39 @@ public class LocalCalciobalillaSubscriber implements MqttCallback {
 
     /**
      * Callback invocata all'arrivo di un nuovo messaggio sui topic sottoscritti.
+     *
+     * @param topic   Topic in cui l'evento occorre
+     * @param message Messaggio mqtt che incapsula la stringa Json inviata
+     * @throws Exception lancia eccezione nel caso generico 
      */
     @Override
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         // Conversione payload garantendo il charset UTF-8 per evitare problemi cross-platform
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
 
-        // Inserimento nel buffer per l'elaborazione disaccoppiata (produttore-consumatore)
-        messageBuffer.push(payload);
-
-        // Log informativo (In produzione: sostituire con un Logger strutturato)
-        System.out.println("Il messaggio: " + payload + " è stato aggiunto alla coda");
+        try{
+            logger.debug("Evento ricevuto - tipo: Calciobalilla, sorgente: {}, timestamp: {}", topic, System.currentTimeMillis());
+            // Inserimento nel buffer per l'elaborazione disaccoppiata (produttore-consumatore)
+            messageBuffer.push(payload);
+            logger.info("Evento elaborato con successo - id: (JSON)", payload);
+        } catch(Exception e) {
+            logger.warn("Evento ignorato - formato non valido: {}", payload);
+            logger.error("Errore critico nella ricezione evento", e);
+        }
     }
 
     /**
      * Gestisce l'interruzione imprevista della connessione con il broker.
+     * @param cause Causa persa connessione
      */
     @Override
     public void connectionLost(Throwable cause) {
-        // TODO: Implementare una strategia di backoff e riconnessione automatica
-        System.err.println("Connessione MQTT persa: " + cause.getMessage());
+        logger.error("Connessione MQTT persa", cause);
     }
 
     /**
-     * Invocata quando un messaggio inviato (se presente) è stato consegnato correttamente.
+     * Invocata quando un messaggio inviato (se presente) � stato consegnato correttamente.
+     * @param token Identificativo delivery
      */
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
@@ -74,6 +88,6 @@ public class LocalCalciobalillaSubscriber implements MqttCallback {
         // Sottoscrizione gerarchica: bitpub/locali/[ID_LOCALE]/calciobalilla/[ID_TAVOLO]/eventi
         mqttClient.subscribe("bitpub/locali/+/calciobalilla/+/eventi");
 
-        System.out.println("Subscriber Calciobalilla in ascolto!!!");
+        logger.info("Connessione stabilita sui simulatori calciobalilla !!");
     }
 }
