@@ -5,7 +5,6 @@ import com.bitpub.models.Torneo.TipoGioco;
 import com.bitpub.models.Torneo.ModalitaTorneo;
 import com.bitpub.network.RestClient;
 import com.bitpub.network.SessionManager;
-import com.bitpub.network.HttpResponseParser;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -14,7 +13,6 @@ import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
-import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -25,7 +23,10 @@ import java.util.concurrent.TimeUnit;
 /**
  * Controller per la Dashboard del Gestore.
  * Gestisce il monitoraggio real-time, le statistiche e la creazione di tornei.
- * * @author Stefano Bellan
+ *
+ * @author Stefano Bellan
+ * @version 1.0
+ * @since 1.0
  */
 public class GestoreDashboardController {
 
@@ -49,9 +50,11 @@ public class GestoreDashboardController {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final RestClient restClient = new RestClient();
-    private Long localeId; // Caricato al login
+    private Long localeId; 
 
-    // Definizione DTO interna per la deserializzazione di /macchine
+    /**
+     * Definizione DTO interna per la deserializzazione dei dati delle macchine.
+     */
     public static class Macchina {
         private String nome;
         private String tipoGioco;
@@ -67,7 +70,9 @@ public class GestoreDashboardController {
         public boolean isAttiva() { return attiva; }
     }
 
-    // Definizione DTO interna per la deserializzazione delle statistiche
+    /**
+     * Definizione DTO interna per la deserializzazione delle statistiche.
+     */
     public static class StatisticheDTO {
         private long totalePartiteOggi;
         private double mediaDurataMinuti;
@@ -86,18 +91,19 @@ public class GestoreDashboardController {
         public long getBiliardoCount() { return distribuzione != null ? distribuzione.BILIARDO : 0; }
     }
 
+    /**
+     * Inizializza i componenti grafici della view e avvia il polling dei dati.
+     */
     @FXML
     public void initialize() {
         setupTables();
         setupForm();
         
-        // Supponiamo che il localeId sia salvato nel SessionManager dopo il login
         this.localeId = SessionManager.getInstance().getCurrentLocaleId();
 
-        // Avvio polling ogni 10 secondi
+        // Polling ogni 10 secondi per garantire dati "freschi" sulla dashboard senza sovraccaricare il server
         scheduler.scheduleAtFixedRate(this::pollData, 0, 10, TimeUnit.SECONDS);
 
-        // Carica statistiche quando si cambia tab
         tabStatistiche.setOnSelectionChanged(event -> {
             if (tabStatistiche.isSelected()) {
                 loadStatistics();
@@ -124,10 +130,9 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Esegue il polling asincrono di macchine e partite.
+     * Esegue il polling asincrono di macchine e partite interrogando le API di backend.
      */
     private void pollData() {
-        // 1. Fetch Macchine (lista di seriali come stringhe)
         restClient.faiChiamataGet("/gestore/locali/" + localeId + "/macchine", String[].class)
             .thenAccept(seriali -> {
                 if (seriali != null) {
@@ -139,26 +144,32 @@ public class GestoreDashboardController {
                             return new Macchina(ser, tipo, true);
                         })
                         .toList();
+                    
+                    // Delega l'aggiornamento della UI al JavaFX Application Thread per evitare collisioni di concorrenza
                     Platform.runLater(() -> macchineTable.setItems(FXCollections.observableArrayList(lista)));
                 }
             });
 
-        // 2. Fetch Partite Attive
         restClient.faiChiamataGet("/gestore/locali/" + localeId + "/partite/attive", Partita[].class)
             .thenAccept(partite -> {
                 if (partite != null) {
+                    // Sincronizzazione con il thread UI principale richiesto da JavaFX
                     Platform.runLater(() -> partiteTable.setItems(FXCollections.observableArrayList(partite)));
                 }
             });
     }
 
+    /**
+     * Carica e formatta le statistiche aggregative da mostrare nei grafici.
+     */
     private void loadStatistics() {
         loadingIndicator.setVisible(true);
 
         restClient.faiChiamataGet("/gestore/locali/" + localeId + "/statistiche", StatisticheDTO.class)
             .thenAccept(stats -> {
-                if (stats != null) {
-                    Platform.runLater(() -> {
+                // Modifica stato componenti grafici protetta dal Platform.runLater
+                Platform.runLater(() -> {
+                    if (stats != null) {
                         lblPartiteOggi.setText("Partite oggi: " + stats.getTotalPartiteOggi());
                         lblDurataMedia.setText("Durata media: " + stats.getMediaDurata() + " min");
                         
@@ -168,16 +179,17 @@ public class GestoreDashboardController {
                             new PieChart.Data("Biliardo", stats.getBiliardoCount())
                         );
                         tipoGiocoChart.setData(pieData);
-                        loadingIndicator.setVisible(false);
-                    });
-                } else {
-                    Platform.runLater(() -> loadingIndicator.setVisible(false));
-                }
+                    }
+                    loadingIndicator.setVisible(false);
+                });
             });
     }
 
+    /**
+     * Raccoglie i dati dal form e lancia la chiamata di rete asincrona per la creazione di un torneo.
+     */
     @FXML
-    private void handleCreaTorneo() {
+    public void handleCreaTorneo() {
         Torneo nuovoTorneo = new Torneo();
         nuovoTorneo.setNome(txtNomeTorneo.getText());
         nuovoTorneo.setTipoGioco(choiceTipoGioco.getValue());
@@ -189,6 +201,7 @@ public class GestoreDashboardController {
         loadingIndicator.setVisible(true);
         restClient.faiChiamataPost("/gestore/tornei", nuovoTorneo, String.class)
             .handle((res, ex) -> {
+                // Riporto l'esecuzione sul thread della vista per visualizzare l'Alert
                 Platform.runLater(() -> {
                     loadingIndicator.setVisible(false);
                     if (ex == null && res != null) {
@@ -216,9 +229,11 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Spegne lo scheduler alla chiusura della finestra per evitare memory leak.
+     * Spegne lo scheduler alla chiusura della finestra per evitare memory leak e chiamate fantasma.
      */
     public void stopPolling() {
-        scheduler.shutdown();
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+        }
     }
 }

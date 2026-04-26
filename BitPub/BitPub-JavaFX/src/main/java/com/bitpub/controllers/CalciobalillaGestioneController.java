@@ -1,7 +1,6 @@
 package com.bitpub.controllers;
 
-import com.bitpub.network.AsyncHttpService;
-import com.bitpub.network.HttpResponseParser;
+import com.bitpub.network.RestClient;
 import com.bitpub.network.RispostaHateoas;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -9,19 +8,20 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 
-import java.net.URI;
-import java.net.http.HttpRequest;
 import java.time.LocalTime;
+import java.util.Map;
 
 /**
- * Controller per la gestione integrata del Calciobalilla con integrazione API Reale.
+ * Controller per la gestione integrata del Calciobalilla con integrazione API Cloud.
  * <p>
- * Funge da ponte tra l'interfaccia utente, le API Cloud (per la creazione di risorse come Locali e Tornei)
- * e i simulatori locali. Utilizza AsyncHttpService per chiamate non bloccanti garantendo
- * che l'interfaccia grafica rimanga sempre fluida e reattiva.
+ * Funge da orchestratore tra l'interfaccia utente JavaFX, le chiamate asincrone alle API Cloud
+ * e l'interazione simulata con i sensori fisici. Il controller si affida al modulo unificato
+ * {@link RestClient} per la comunicazione di rete, garantendo una fluida user experience.
  * </p>
  *
  * @author Stefano Bellan
+ * @version 1.1
+ * @since 1.0
  */
 public class CalciobalillaGestioneController {
 
@@ -31,14 +31,13 @@ public class CalciobalillaGestioneController {
     @FXML private TextArea txtLogEventi;
     @FXML private ListView<String> listaDati;
 
-    // Istanza del servizio asincrono per gestire le chiamate HTTP
-    private final AsyncHttpService asyncHttpService = new AsyncHttpService();
-    // Base URL delle tue API (assicurati che corrisponda alla porta del tuo Spring Boot)
-    private final String BASE_URL = "http://localhost:8080/api";
+    // L'utilizzo dell'istanza unificata centralizza la configurazione degli header (es. JWT e versioning)
+    // ed evita di disperdere la logica HTTP cruda nei controller UI.
+    private final RestClient restClient = new RestClient();
 
     /**
-     * Metodo di inizializzazione chiamato automaticamente da JavaFX al caricamento della vista.
-     * Prepara l'interfaccia e avvia il primo download dei dati.
+     * Metodo di inizializzazione chiamato automaticamente dal framework JavaFX.
+     * Bootstrap dello stato dell'interfaccia e pre-fetch dei dati dal database distribuito.
      */
     @FXML
     public void initialize() {
@@ -47,69 +46,68 @@ public class CalciobalillaGestioneController {
     }
 
     /**
-     * Gestisce l'azione di creazione di un nuovo "Locale" inviando una richiesta POST alle API Cloud.
-     * I dati inseriti nel payload JSON andranno a popolare il tuo database.
+     * Gestisce la creazione di un nuovo "Locale" tramite richiesta POST al backend.
+     * * @implNote Sfrutta una Map per la definizione del payload; il RestClient si occuperà
+     * della serializzazione in JSON tramite la libreria Gson, isolando la UI da dettagli implementativi REST.
      */
     @FXML
     public void gestisciCreaLocale() {
         impostaStatoCaricamento("Creazione Locale in corso...", "#b45309", "#fde047");
 
-        // Payload JSON di esempio (potrai espanderlo legandolo a delle vere caselle di testo nell'interfaccia)
-        String jsonPayload = "{ \"nome\": \"BitPub Centrale\", \"citta\": \"Milano\" }";
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/locali"))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/resources.v1+json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                .build();
-
-        // Chiamata asincrona: passiamo la richiesta, come decodificarla e cosa fare in caso di successo o errore
-        asyncHttpService.sendAsync(
-                request,
-                response -> response.body(), // Per una POST base, leggiamo semplicemente la stringa di ritorno
-                risposta -> Platform.runLater(() -> {
-                    logEvento("✅ API: Nuovo Locale creato con successo nel Cloud.");
-                    ripristinaStatoApi();
-                    sincronizzaDatiCloud(); // Aggiorniamo la vista generale dopo la creazione
-                }),
-                errore -> Platform.runLater(() -> gestisciErroreApi("Errore creazione Locale", errore))
+        Map<String, String> payloadLocale = Map.of(
+                "nome", "BitPub Centrale",
+                "citta", "Milano"
         );
+
+        restClient.faiChiamataPost("/locali", payloadLocale, String.class)
+                .thenAccept(risposta -> {
+                    // Protezione della UI: il thread HTTP worker non può manipolare direttamente lo Scene Graph.
+                    // Si usa runLater per accodare l'aggiornamento visivo al thread principale.
+                    Platform.runLater(() -> {
+                        logEvento("✅ API: Nuovo Locale creato con successo nel Cloud.");
+                        ripristinaStatoApi();
+                        sincronizzaDatiCloud(); 
+                    });
+                })
+                .exceptionally(errore -> {
+                    // Protezione della notifica di errore sul JavaFX Application Thread
+                    Platform.runLater(() -> gestisciErroreApi("Errore creazione Locale", errore));
+                    return null;
+                });
     }
 
     /**
-     * Gestisce l'azione di creazione di un nuovo "Torneo" inviando una richiesta POST alle API Cloud.
+     * Gestisce la creazione di un nuovo "Torneo" per il Calciobalilla tramite API Cloud.
      */
     @FXML
     public void gestisciCreaTorneo() {
         impostaStatoCaricamento("Creazione Torneo in corso...", "#4c1d95", "#c4b5fd");
 
-        // Payload JSON di esempio per il Torneo
-        String jsonPayload = "{ \"nome\": \"Torneo Estivo BitPub\", \"premio\": \"100 Euro\" }";
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/tornei"))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/resources.v1+json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                .build();
-
-        asyncHttpService.sendAsync(
-                request,
-                response -> response.body(),
-                risposta -> Platform.runLater(() -> {
-                    logEvento("🏆 API: Nuovo Torneo registrato con successo.");
-                    ripristinaStatoApi();
-                    sincronizzaDatiCloud();
-                }),
-                errore -> Platform.runLater(() -> gestisciErroreApi("Errore creazione Torneo", errore))
+        Map<String, String> payloadTorneo = Map.of(
+                "nome", "Torneo Estivo BitPub",
+                "premio", "100 Euro"
         );
+
+        restClient.faiChiamataPost("/tornei", payloadTorneo, String.class)
+                .thenAccept(risposta -> {
+                    // Transizione di stato visiva protetta per rispetto delle policy thread-safe di JavaFX
+                    Platform.runLater(() -> {
+                        logEvento("🏆 API: Nuovo Torneo registrato con successo.");
+                        ripristinaStatoApi();
+                        sincronizzaDatiCloud();
+                    });
+                })
+                .exceptionally(errore -> {
+                    // Prevenzione del crash dell'app in caso di API irraggiungibili o timeout
+                    Platform.runLater(() -> gestisciErroreApi("Errore creazione Torneo", errore));
+                    return null;
+                });
     }
 
     /**
-     * Avvia il monitoraggio live della partita.
-     * In un'integrazione completa, questo metodo si collegherà al client MQTT
-     * per ricevere i gol veri dal simulatore o dai sensori.
+     * Innesca la modalità partita ed entra in ascolto degli eventi provenienti dal campo fisico.
+     * * @implNote Per fini dimostrativi avvia un thread demone che emula la ricezione MQTT di un gol
+     * dopo un ritardo predefinito.
      */
     @FXML
     public void gestisciAvviaPartita() {
@@ -118,24 +116,27 @@ public class CalciobalillaGestioneController {
         lblPunteggioRosso.setText("0");
         lblPunteggioBlu.setText("0");
 
-        // Qui ho lasciato una piccola simulazione temporale per mostrarti come
-        // aggiornare il punteggio quando riceverai un messaggio MQTT!
+        // Generazione asincrona di eventi per simulare la latenza del protocollo MQTT e del sensore IoT
         new Thread(() -> {
             try {
-                Thread.sleep(2500);
+                Thread.sleep(2500); // Simulazione latenza di gioco di 2.5 secondi
+                
+                // Iniettiamo la modifica del punteggio nel thread grafico. Nessun worker thread può toccare lblPunteggioRosso.
                 Platform.runLater(() -> {
                     lblPunteggioRosso.setText("1");
                     logEvento("🔔 LIVE: GOL Squadra Rossa rilevato dal sensore!");
                 });
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                // Il ripristino dell'interrupted status previene la perdita del segnale in cicli superiori
+                Thread.currentThread().interrupt();
+                logEvento("⚠️ Simulazione interrotta: " + e.getMessage());
             }
         }).start();
     }
 
     /**
-     * Richiede l'aggiornamento dei dati storici dal Cloud tramite una GET HTTP.
-     * Sfrutta l'architettura HATEOAS per popolare la lista destra dell'interfaccia.
+     * Esegue il pull dello storico partite dal database distribuito.
+     * * @implNote Utilizza l'array mapping di Gson per deserializzare direttamente liste di risorse HATEOAS.
      */
     @FXML
     public void sincronizzaDatiCloud() {
@@ -143,54 +144,51 @@ public class CalciobalillaGestioneController {
         listaDati.getItems().clear();
         listaDati.getItems().add("Scaricamento dati in corso...");
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/calciobalilla"))
-                .header("Accept", "application/resources.v1+json")
-                .GET()
-                .build();
+        restClient.faiChiamataGet("/calciobalilla", RispostaHateoas[].class)
+                .thenAccept(risposteArray -> {
+                    // Renderizzazione dei dati HATEOAS protetta sul ciclo di ridisegno JavaFX
+                    Platform.runLater(() -> {
+                        listaDati.getItems().clear();
+                        if (risposteArray != null && risposteArray.length > 0) {
+                            listaDati.getItems().add("✅ Dati ricevuti dal server Cloud:");
 
-        asyncHttpService.sendAsync(
-                request,
-                response -> HttpResponseParser.parseJsonList(response, RispostaHateoas[].class),
-                risposteLista -> Platform.runLater(() -> {
-                    listaDati.getItems().clear();
-                    if (risposteLista != null && !risposteLista.isEmpty()) {
-                        listaDati.getItems().add("✅ Dati ricevuti dal server Cloud:");
-
-                        // Scorre i dati ricevuti e popola la visualizzazione
-                        for(int i = 0; i < risposteLista.size(); i++) {
-                            listaDati.getItems().add("Partita registrata #" + (i+1) + " - Dati HATEOAS connessi");
+                            for(int i = 0; i < risposteArray.length; i++) {
+                                listaDati.getItems().add("Partita registrata #" + (i+1) + " - Dati HATEOAS connessi");
+                            }
+                            logEvento("✅ Sincronizzazione completata.");
+                        } else {
+                            listaDati.getItems().add("Nessuna partita presente al momento nel DB.");
+                            logEvento("ℹ️ Sincronizzazione: Il database sembra vuoto.");
                         }
-                        logEvento("✅ Sincronizzazione completata.");
-                    } else {
-                        listaDati.getItems().add("Nessuna partita presente al momento nel DB.");
-                        logEvento("ℹ️ Sincronizzazione: Il database sembra vuoto.");
-                    }
-                }),
-                errore -> Platform.runLater(() -> {
-                    listaDati.getItems().clear();
-                    listaDati.getItems().add("⚠️ Errore di connessione al Cloud.");
-                    gestisciErroreApi("Errore Sincronizzazione GET", errore);
+                    });
                 })
-        );
+                .exceptionally(errore -> {
+                    // Fallback visivo sicuro in caso di disconnessione o eccezioni di rete
+                    Platform.runLater(() -> {
+                        listaDati.getItems().clear();
+                        listaDati.getItems().add("⚠️ Errore di connessione al Cloud.");
+                        gestisciErroreApi("Errore Sincronizzazione GET", errore);
+                    });
+                    return null;
+                });
     }
 
     /**
-     * Aggiunge un messaggio di testo con l'orario attuale nell'area nera (console) dello schermo.
+     * Esegue il push di un messaggio formattato nella console virtuale della UI.
      *
-     * @param messaggio Il testo da loggare a schermo.
+     * @param messaggio Il contenuto informativo dell'evento di sistema da tracciare.
      */
     private void logEvento(String messaggio) {
-        String time = LocalTime.now().withNano(0).toString(); // Formato HH:mm:ss
+        String time = LocalTime.now().withNano(0).toString(); // Troncamento ai secondi per leggibilità pulita
         txtLogEventi.appendText("[" + time + "] " + messaggio + "\n");
     }
 
     /**
-     * Cambia i colori dell'etichetta in alto a destra per mostrare all'utente che l'app sta lavorando.
+     * Manipola il CSS inline dell'etichetta di stato superiore per comunicare l'attività in background.
      *
-     * @param testo     Il messaggio da mostrare.
-     * @param bgColor   Il colore di sfondo in formato HEX.
-     * @param textColor Il colore del testo in formato HEX.
+     * @param testo     Testo di feedback per l'utente.
+     * @param bgColor   Codice colore esadecimale per lo sfondo.
+     * @param textColor Codice colore esadecimale per il font.
      */
     private void impostaStatoCaricamento(String testo, String bgColor, String textColor) {
         lblStatoApi.setText(testo);
@@ -198,7 +196,7 @@ public class CalciobalillaGestioneController {
     }
 
     /**
-     * Ripristina l'etichetta verde "API Pronta".
+     * Ripristina la visualizzazione dell'indicatore visivo di "idle" delle comunicazioni di rete.
      */
     private void ripristinaStatoApi() {
         lblStatoApi.setText("API Pronta");
@@ -206,10 +204,11 @@ public class CalciobalillaGestioneController {
     }
 
     /**
-     * Centralizza la gestione degli errori di rete: mostra l'errore sia nella console grafica
-     * sia in un'etichetta rossa evidente, in modo che tu capisca subito se il server Spring Boot è spento.
-     * * @param contesto Una breve descrizione di dove è avvenuto l'errore (es. "Errore creazione Locale").
-     * @param errore   L'eccezione lanciata dalla chiamata di rete.
+     * Centralizza il rendering degli stati d'errore (500, connessione persa) informando
+     * tempestivamente l'utente per facilitare il debug dell'infrastruttura Cloud.
+     *
+     * @param contesto Contesto locale o metodo in cui si è innescata la failure.
+     * @param errore   Causa scatenante dell'eccezione propagata asincronamente.
      */
     private void gestisciErroreApi(String contesto, Throwable errore) {
         logEvento("❌ ERRORE " + contesto + ": " + errore.getMessage());
