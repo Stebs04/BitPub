@@ -32,6 +32,18 @@ public class Torneo {
     @Expose
     private List<Partita> partite;
 
+    @Expose
+    @Column(name = "max_partecipanti")
+    private Integer maxPartecipanti;
+
+    @ManyToMany
+    @JoinTable(
+        name = "torneo_iscritti",
+        joinColumns = @JoinColumn(name = "torneo_id"),
+        inverseJoinColumns = @JoinColumn(name = "utente_id")
+    )
+    private List<Utente> iscritti;
+
     // Costruttore vuoto
     public Torneo() {}
 
@@ -62,4 +74,10 @@ public class Torneo {
 
     public List<Partita> getPartite() { return partite; }
     public void setPartite(List<Partita> partite) { this.partite = partite; }
+
+    public Integer getMaxPartecipanti() { return maxPartecipanti; }
+    public void setMaxPartecipanti(Integer maxPartecipanti) { this.maxPartecipanti = maxPartecipanti; }
+
+    public List<Utente> getIscritti() { return iscritti; }
+    public void setIscritti(List<Utente> iscritti) { this.iscritti = iscritti; }
 }
