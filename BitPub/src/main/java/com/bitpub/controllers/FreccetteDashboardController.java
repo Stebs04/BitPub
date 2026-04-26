@@ -1,51 +1,76 @@
 package com.bitpub.controllers;
 
+import com.bitpub.models.PartitaFreccette;
+import com.bitpub.models.StatisticheFreccette;
+import com.bitpub.network.RestClient;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.TableView;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 
+/**
+ * Controller per la Dashboard Freccette.
+ * Gestisce il recupero asincrono delle statistiche aggregate interfacciandosi 
+ * con il modulo unificato RestClient per il rispetto del versioning API.
+ *
+ * @author Timothy Giolito
+ * @version 1.0
+ */
 public class FreccetteDashboardController {
 
-    // L'annotazione @FXML collega queste variabili agli elementi con "fx:id" nel file XML
-    @FXML private Label lblGiocatore1;
-    @FXML private Label lblPunteggio1;
-    @FXML private ProgressBar progressGiocatore1;
+    private static final String API_ENDPOINT_STATISTICHE = "/statistiche/freccette";
+    private static final String TESTO_CARICAMENTO = "...";
 
-    @FXML private Label lblGiocatore2;
-    @FXML private Label lblPunteggio2;
-    @FXML private ProgressBar progressGiocatore2;
+    @FXML public TableView<PartitaFreccette> tabellaPartite;
+    @FXML public Button bottoneAggiorna;
+    @FXML public Label statoLabel;
+    @FXML public Label labelTotale180;
+    @FXML public Label labelMediaPunti;
 
-    // Impostiamo il punteggio iniziale tipico delle freccette
-    private final int PUNTEGGIO_INIZIALE = 501;
+    private final RestClient restClient;
 
-    /**
-     * Metodo chiamato automaticamente da JavaFX quando carica la schermata.
-     */
-    @FXML
-    public void initialize() {
-        // Qui potremmo fare eventuali setup iniziali
-        System.out.println("Dashboard Freccette Inizializzata!");
+    public FreccetteDashboardController() {
+        this.restClient = new RestClient();
     }
 
     /**
-     * Metodo da chiamare quando riceviamo un nuovo evento/punteggio dal server.
-     * * @param giocatore Il numero del giocatore (1 o 2)
-     * @param punteggioRimanente Il punteggio attuale da mostrare
+     * Bootstrap dello stato iniziale della dashboard.
      */
-    public void aggiornaPunteggio(int giocatore, int punteggioRimanente) {
-        // Calcoliamo la percentuale della barra (es. 250 / 501 = ~0.5)
-        double percentualeProgress = (double) punteggioRimanente / PUNTEGGIO_INIZIALE;
+    @FXML
+    public void initialize() {
+        caricaStatisticheFreccette();
+    }
 
-        // CRITICO: Deleghiamo l'aggiornamento visivo al thread grafico di JavaFX!
+    /**
+     * Esegue una chiamata asincrona per recuperare le statistiche aggiornate.
+     * Sincronizza i dati ricevuti con il thread grafico JavaFX.
+     */
+    @FXML
+    public void caricaStatisticheFreccette() {
         Platform.runLater(() -> {
-            if (giocatore == 1) {
-                lblPunteggio1.setText(String.valueOf(punteggioRimanente));
-                progressGiocatore1.setProgress(percentualeProgress);
-            } else if (giocatore == 2) {
-                lblPunteggio2.setText(String.valueOf(punteggioRimanente));
-                progressGiocatore2.setProgress(percentualeProgress);
-            }
+            labelTotale180.setText(TESTO_CARICAMENTO);
+            statoLabel.setText("Aggiornamento in corso...");
+            bottoneAggiorna.setDisable(true);
         });
+
+        restClient.faiChiamataGet(API_ENDPOINT_STATISTICHE, StatisticheFreccette.class)
+                .thenAccept(statistiche -> {
+                    // Riversamento sicuro dei risultati sul JavaFX Application Thread
+                    Platform.runLater(() -> {
+                        labelTotale180.setText(String.valueOf(statistiche.getTotale180()));
+                        labelMediaPunti.setText(String.format("%.2f", statistiche.getMediaPuntiTorneo()));
+                        statoLabel.setText("Dati sincronizzati.");
+                        bottoneAggiorna.setDisable(false);
+                    });
+                })
+                .exceptionally(errore -> {
+                    Platform.runLater(() -> {
+                        statoLabel.setText("Errore di sincronizzazione.");
+                        bottoneAggiorna.setDisable(false);
+                    });
+                    return null;
+                });
     }
 }

@@ -22,7 +22,6 @@ import java.net.http.HttpResponse;
  * Gestisce l'interfaccia di login e il reindirizzamento dinamico basato sui ruoli.
  *
  * @author Stefano Bellan
- * @version 1.1
  */
 public class LoginController {
 
