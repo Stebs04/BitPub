@@ -4,6 +4,8 @@ import com.bitpub.buffer.MessageBuffer;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Thread Consumatore: estrae i log dalla BlockingQueue e li invia al Cloud.
@@ -11,8 +13,11 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
  *
  * @author Timothy (Fase 20 e 21: Architettura Offline Completa)
  * @author Stefano Bellan 20054330 (Implementazione di meccanismo di fallback e coda circolare)
+ * @modified Stefano Bellan 20054330 - Fase 25: aggiunto logging professionale
  */
 public class InoltroCloudTask implements Runnable {
+
+    private static final Logger logger = LoggerFactory.getLogger(InoltroCloudTask.class);
 
     private final MessageBuffer buffer;
     private final MqttClient cloudClient;
@@ -21,12 +26,26 @@ public class InoltroCloudTask implements Runnable {
     // modifica
     private volatile boolean inEsecuzione;
 
+    private boolean wasConnected = true;
+    private int attempt = 0;
+    private long downtimeStart = 0;
+    private final int MAX_ATTEMPTS = 50; // Soglia 50 tentativi per log error critico
+    private int eventiInviati = 0; // Contatore batch per flush logging
+
+    /**
+     * Inizializza il task in thread separato verso il cloud remoto
+     * @param buffer riferimento buffer edge
+     * @param cloudClient client remoto nel Cloud
+     */
     public InoltroCloudTask(MessageBuffer buffer, MqttClient cloudClient) {
         this.buffer = buffer;
         this.cloudClient = cloudClient;
         this.inEsecuzione = true;
     }
 
+    /**
+     * Arresta la lettura pendente e blocca loop
+     */
     public void fermaInoltro() {
         this.inEsecuzione = false;
     }
@@ -48,7 +67,7 @@ public class InoltroCloudTask implements Runnable {
      */
     @Override
     public void run() {
-        System.out.println("[InoltroCloud] Thread Consumer avviato. In attesa di eventi...");
+        logger.info("Connessione Edge?Cloud stabilita - endpoint: {}", cloudClient.getServerURI());
 
         while (inEsecuzione) {
             try {
@@ -56,11 +75,22 @@ public class InoltroCloudTask implements Runnable {
                 String payload = buffer.peek();
 
                 if (payload == null) {
+                    if (eventiInviati > 0) {
+                        logger.info("Flush buffer completato - {} eventi inviati al Cloud", eventiInviati);
+                        eventiInviati = 0; // reset
+                    }
                     Thread.sleep(100); // Evita il busy-waiting eccessivo
                     continue;
                 }
 
                 if (cloudClient.isConnected()) {
+                    if (!wasConnected) {
+                        long downtimeMs = System.currentTimeMillis() - downtimeStart;
+                        logger.info("Riconnessione avvenuta con successo - endpoint: {}, dopo {} ms di interruzione", cloudClient.getServerURI(), downtimeMs);
+                        wasConnected = true;
+                        attempt = 0;
+                    }
+
                     MqttMessage message = new MqttMessage(payload.getBytes());
                     message.setQos(1); // Garantisce la consegna "at least once"
 
@@ -70,21 +100,35 @@ public class InoltroCloudTask implements Runnable {
                         
                         // Rimuovo dal buffer solo post-conferma successo
                         buffer.poll(); 
+                        eventiInviati++;
                         
-                        System.out.println("[InoltroCloud] Inviato al Cloud con successo e rimosso dalla coda! Rimanenti: " + buffer.getDimensione());
+                        logger.debug("Log inviato al cloud! Rimanenti {}", buffer.getDimensione());
                     } catch (MqttException e) {
                         // In caso di errore di pubblicazione, il messaggio resta nel buffer (logica di fallback)
-                        System.err.println("[FALLBACK] Errore di invio al Broker. L'evento RESTA nella coda locale.");
+                        logger.warn("Errore di invio al Broker. L'evento RESTA nella coda locale.", e);
                         Thread.sleep(2000);
                     }
                 } else {
-                    // Broker non raggiungibile: attendo il ripristino della connettivitÃ 
-                    System.out.println("[InoltroCloud] Connessione Cloud assente. L'evento RESTA in testa alla coda. Riprovo tra 5 secondi...");
+                    if (wasConnected) {
+                        logger.warn("Connessione persa verso il Cloud - endpoint: {}, tentativo riconnessione in {} ms", cloudClient.getServerURI(), 5000);
+                        wasConnected = false;
+                        downtimeStart = System.currentTimeMillis();
+                        attempt = 1;
+                    } else {
+                        attempt++;
+                        logger.info("Tentativo di riconnessione #{} verso {}", attempt, cloudClient.getServerURI());
+                        if (attempt >= MAX_ATTEMPTS) {
+                            logger.error("Impossibile riconnettersi al Cloud dopo {} tentativi - endpoint: {}", MAX_ATTEMPTS, cloudClient.getServerURI());
+                            attempt = 0; // Reset after logging error
+                        }
+                    }
+
+                    // Broker non raggiungibile: attendo il ripristino della connettività
                     Thread.sleep(5000);
                 }
             } catch (InterruptedException e) {
                 // Gestione corretta dell'interruzione per lo shutdown del thread
-                System.out.println("[InoltroCloud] Consumer interrotto. Chiusura in corso...");
+                logger.warn("Consumer interrotto. Chiusura in corso...");
                 Thread.currentThread().interrupt();
                 break;
             }
