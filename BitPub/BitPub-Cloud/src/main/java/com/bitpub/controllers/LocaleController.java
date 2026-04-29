@@ -23,7 +23,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * Utilizza un {@link LocaleModelAssembler} per la trasformazione delle risorse
  * e gestisce i vincoli di unicità (Nome, IP Edge) durante la persistenza.
  * </p>
- * * @author Stefano Bellan 20054330, Timothy Giolito
+ * * @author Stefano Bellan 20054330, Timothy Giolito 20054431
  */
 @RestController
 @RequestMapping(value = "/api/locali", produces = "application/resources.v1+json")
