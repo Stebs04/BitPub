@@ -10730,3 +10730,9 @@
 20:02:22.979 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
 20:02:22.980 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
 20:02:22.980 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+11:52:46.742 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
+11:52:47.054 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+11:52:47.614 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Connessione Edge?Cloud stabilita - endpoint: ssl://localhost:8883
+12:30:51.173 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
+12:30:51.509 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+12:30:52.138 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Connessione Edge?Cloud stabilita - endpoint: ssl://localhost:8883
