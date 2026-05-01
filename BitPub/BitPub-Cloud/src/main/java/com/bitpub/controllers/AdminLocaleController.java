@@ -35,20 +35,13 @@ public class AdminLocaleController {
     /**
      * Recupera l'elenco di tutti i locali per la dashboard Admin.
      * Questo metodo è accessibile a più ruoli, quindi non lo blocchiamo solo all'ADMIN.
+     * Restituisce una lista piatta per uniformità con il resto della dashboard amministrativa.
      *
-     * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
+     * @return {@link List} contenente i locali.
      */
     @GetMapping
-    public ResponseEntity<CollectionModel<EntityModel<Locale>>> getAll() {
-        List<EntityModel<Locale>> localiModel = localeRepository.findAll().stream()
-                .map(this::toModel)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(
-                CollectionModel.of(localiModel,
-                        linkTo(methodOn(AdminLocaleController.class).getAll()).withSelfRel()
-                )
-        );
+    public ResponseEntity<List<Locale>> getAll() {
+        return ResponseEntity.ok(localeRepository.findAll());
     }
 
     /**
