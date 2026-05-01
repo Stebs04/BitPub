@@ -32,7 +32,7 @@ public class FreccetteDashboardController {
     private final RestClient restClient;
 
     public FreccetteDashboardController() {
-        this.restClient = new RestClient();
+        this.restClient = RestClient.getInstance();
     }
 
     /**

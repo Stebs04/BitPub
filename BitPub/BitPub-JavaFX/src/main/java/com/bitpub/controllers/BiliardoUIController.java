@@ -28,7 +28,7 @@ public class BiliardoUIController {
 
     @FXML
     public void initialize() {
-        this.restClient = new RestClient();
+        this.restClient = RestClient.getInstance();
         caricaDatiBiliardo();
     }
 

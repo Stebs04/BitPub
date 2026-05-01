@@ -33,8 +33,7 @@ import java.util.List;
 public class AdminDashboardController {
 
     /** URL base per le risorse dei locali */
-    // FIX: Cambiato l'endpoint da /api/locali a /api/v1/admin/locali
-    private static final String API_BASE_URL = "http://localhost:8080/api/v1/admin/locali";
+    private static final String API_BASE_URL = "http://localhost:8080/api/locali";
     
     /** * MediaType specifico richiesto dall'ApiVersionFilter del Cloud.
      * L'uso di application/json causerebbe un errore 406 Not Acceptable.
@@ -230,11 +229,9 @@ public class AdminDashboardController {
             selezionato.setName(selezionato.getName() + " - Aggiornato");
             
             HttpRequest request = HttpRequest.newBuilder()
-                    // FIX: Uso la costante API_BASE_URL per essere sicuri che punti alla rotta dell'Admin
-                    .uri(URI.create(API_BASE_URL + "/" + selezionato.getId()))
-                    .header("Accept", MEDIA_TYPE_V1)
+                    .uri(URI.create("http://localhost:8080/api/v1/admin/locali/" + selezionato.getId()))
+                    .header("Accept", "application/resources.v1+json")
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
                     .PUT(HttpRequest.BodyPublishers.ofString(gson.toJson(selezionato)))
                     .build();
 
@@ -299,8 +296,7 @@ public class AdminDashboardController {
             progressIndicator.setVisible(true);
             String json = String.format("{\"name\":\"%s\", \"citta\":\"%s\"}", 
                     localeAggiornato.getName(), localeAggiornato.getCitta());
-            // FIX: Corretto l'endpoint in modo che usi l'API dell'Admin per aggiornare
-            String endpoint = "/api/v1/admin/locali/" + selezionato.getId();
+            String endpoint = "/api/locali/" + selezionato.getId();
 
             com.bitpub.network.AsyncHttpService httpService = new com.bitpub.network.AsyncHttpService();
             httpService.putAsync(endpoint, json, SessionManager.getInstance().getJwtToken())
