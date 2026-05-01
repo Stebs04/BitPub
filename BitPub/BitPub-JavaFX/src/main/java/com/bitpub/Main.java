@@ -74,7 +74,7 @@ public class Main extends Application {
                 } else {
                     // Carica il layout principale con sidebar per l'utente standard
                     // ASSICURATI che il file si chiami MainLayout.fxml o DashboardView.fxml
-                    cambiaScena("/DashboardView.fxml", "BitPub - Dashboard", 1024, 768);
+                    cambiaScena("/DashboardUtenteView.fxml", "BitPub - Dashboard", 1024, 768);
                 }
             } catch (IOException e) {
                 System.err.println("Errore nel redirect: " + e.getMessage());

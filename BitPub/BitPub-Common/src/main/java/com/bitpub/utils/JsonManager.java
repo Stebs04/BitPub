@@ -1,30 +1,33 @@
 package com.bitpub.utils;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.bitpub.models.Partita;
 
 /**
- * Classe di utilità per la gestione della serializzazione e deserializzazione JSON.
- * Configura il motore Gson per rispettare le annotazioni di visibilità dei campi.
- *
- * @author Stefano Bellan 20054330
+ * Utility per la gestione del formato JSON.
+ * Stefano Bellan
  */
 public class JsonManager {
+    private static JsonManager instance;
+    private final Gson gson;
 
-    /**
-     * Crea e restituisce un'istanza configurata di Gson.
-     *
-     * @return Un oggetto Gson che processa solo i campi annotati con @Expose.
-     */
-    public static Gson getGson() {
-        // Usa il Builder per personalizzare il comportamento di Gson
-        return new GsonBuilder()
-                // Fondamentale: ignora tutti i campi che NON hanno l'annotazione @Expose
-                .excludeFieldsWithoutExposeAnnotation()
-                // In questo modo Gson saprà come smistare Biliardo e Freccette!
-                .registerTypeAdapter(Partita.class, new PartitaDeserializer())
-                // Finalizza la configurazione e crea l'oggetto pronto all'uso
-                .create();
+    // Il costruttore deve essere privato per il Singleton
+    private JsonManager() {
+        this.gson = new Gson();
+    }
+
+    // Questo è il metodo che manca e causa l'errore nel RestClient
+    public static synchronized JsonManager getInstance() {
+        if (instance == null) {
+            instance = new JsonManager();
+        }
+        return instance;
+    }
+
+    public String toJson(Object obj) { 
+        return gson.toJson(obj); 
+    }
+    
+    public <T> T fromJson(String json, Class<T> classOfT) { 
+        return gson.fromJson(json, classOfT); 
     }
 }
