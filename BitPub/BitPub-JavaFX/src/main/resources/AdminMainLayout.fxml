@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane fx:id="mainContainer" prefHeight="720.0" prefWidth="1080.0" stylesheets="@../style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminMainController">
+
+    <!-- SIDEBAR SINISTRA -->
+    <left>
+        <VBox prefWidth="220.0" spacing="10.0" styleClass="sidebar">
+            <padding>
+                <Insets top="30.0" left="15.0" right="15.0" bottom="20.0"/>
+            </padding>
+            <children>
+                <Label text="BitPub ADMIN" textFill="WHITE">
+                    <font>
+                        <Font name="System Bold" size="20.0" />
+                    </font>
+                    <VBox.margin>
+                        <Insets bottom="30.0" />
+                    </VBox.margin>
+                </Label>
+
+                <Button maxWidth="Infinity" styleClass="nav-button" text="🏠 Dashboard" onAction="#showDashboard" />
+                <Button maxWidth="Infinity" styleClass="nav-button" text="🌐 Stato Rete" onAction="#showNetworkStatus" />
+                <Button maxWidth="Infinity" styleClass="nav-button" text="👥 Gestione Utenti" onAction="#showUsers" />
+                <Button maxWidth="Infinity" styleClass="nav-button" text="🚨 Emergenze" onAction="#showSessions" />
+                <Button maxWidth="Infinity" styleClass="nav-button" text="📜 Log Sistema" onAction="#showLogs" />
+
+                <Region VBox.vgrow="ALWAYS" />
+
+                <Button maxWidth="Infinity" styleClass="logout-button" text="🚪 Logout" onAction="#handleLogout" />
+            </children>
+        </VBox>
+    </left>
+
+    <!-- AREA CONTENUTO DINAMICA -->
+    <center>
+        <StackPane fx:id="contentArea" style="-fx-background-color: #f8fafc;">
+            <!-- Qui verranno caricate le altre viste -->
+            <Label text="Benvenuto, Amministratore" textFill="#64748b" />
+        </StackPane>
+    </center>
+
+</BorderPane>

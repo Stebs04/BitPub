@@ -1,12 +1,13 @@
 package com.bitpub.controllers;
 
 import com.bitpub.models.Locale;
-import com.bitpub.repository.LocaleRepository;
+import com.bitpub.repository.LocaleRepository; // Aggiornato per il modulo Cloud
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // Import per la sicurezza basata sui ruoli
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +24,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * @version 1.0
  */
 @RestController
-@RequestMapping(value = "/api/v1/admin/locali", produces = "application/resources.v1+json")
+// Modificato l'endpoint per combaciare con le chiamate del RestClient in JavaFX
+@RequestMapping(value = "/api/v1/locali", produces = "application/resources.v1+json")
 @CrossOrigin(origins = "*") // FIX: Abilita CORS per permettere al client JavaFX di leggere i dati
 public class AdminLocaleController {
 
@@ -32,6 +34,7 @@ public class AdminLocaleController {
 
     /**
      * Recupera l'elenco di tutti i locali per la dashboard Admin.
+     * Questo metodo è accessibile a più ruoli, quindi non lo blocchiamo solo all'ADMIN.
      *
      * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
      */
@@ -50,11 +53,13 @@ public class AdminLocaleController {
 
     /**
      * Crea un nuovo locale.
+     * Solo l'amministratore può creare un nuovo locale.
      *
      * @param nuovo Dati del nuovo locale da creare (nome, indirizzo, citta, capienza, gestoreId).
      * @return 201 Created con i dati salvati e links.
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')") // Sicurezza: solo l'Admin con JWT valido può usare questa POST
     public ResponseEntity<?> crea(@RequestBody Locale nuovo) {
         // Validazioni base
         if (nuovo.getName() == null || nuovo.getName().isBlank()) {
@@ -76,12 +81,14 @@ public class AdminLocaleController {
 
     /**
      * Modifica un locale esistente.
+     * Solo l'amministratore può modificare l'anagrafica di un locale.
      *
      * @param id ID del locale da modificare.
      * @param datiAggiornati Nuovi dati.
      * @return Modello aggiornato o 404.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") // Sicurezza: solo l'Admin con JWT valido può usare questa PUT
     public ResponseEntity<?> aggiorna(@PathVariable("id") Long id, @RequestBody Locale datiAggiornati) {
         return localeRepository.findById(id).map(esistente -> {
             if (datiAggiornati.getName() != null) esistente.setName(datiAggiornati.getName());
@@ -98,11 +105,13 @@ public class AdminLocaleController {
 
     /**
      * Rimuove un locale.
+     * Solo l'amministratore può eliminare un locale.
      *
      * @param id ID.
      * @return 204 No Content.
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") // Sicurezza: solo l'Admin con JWT valido può usare questa DELETE
     public ResponseEntity<Void> elimina(@PathVariable("id") Long id) {
         if (localeRepository.existsById(id)) {
             localeRepository.deleteById(id);
@@ -117,15 +126,16 @@ public class AdminLocaleController {
      */
     private EntityModel<Locale> toModel(Locale locale) {
         EntityModel<Locale> model = EntityModel.of(locale);
-        
+
         // Link a sé stesso
         model.add(linkTo(methodOn(AdminLocaleController.class).getAll()).slash(locale.getId()).withSelfRel());
-        
+
         // Link al gestore se assegnato
         if (locale.getGestoreId() != null) {
+            // Usa il nome della classe stringa se UtenteController non è importato qui
             model.add(linkTo(UtenteController.class).slash(locale.getGestoreId()).withRel("gestore"));
         }
-        
+
         // Link ai dispositivi attivi (usando Controller originale LocaleController come target simulato)
         model.add(linkTo(methodOn(LocaleController.class).getDispositiviLocale(locale.getId())).withRel("dispositivi"));
 

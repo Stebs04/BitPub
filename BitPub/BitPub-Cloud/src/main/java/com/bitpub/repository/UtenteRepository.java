@@ -1,61 +1,74 @@
-package com.bitpub.repository; // Definizione del package di appartenenza
+package com.bitpub.repository;
 
-import com.bitpub.models.Utente; // Entity di riferimento gestita dal repository
-import org.springframework.data.jpa.repository.JpaRepository; // Interfaccia base per operazioni CRUD e paginazione
-import org.springframework.data.jpa.repository.Query; // Annotation per definire query JPQL custom
-import org.springframework.data.repository.query.Param; // Per il mapping sicuro dei parametri nelle query
-import org.springframework.stereotype.Repository; // Annotation di stereotipo per il discovery di Spring
-import java.util.List; // Struttura dati per collezioni di risultati
-import java.util.Optional; // Wrapper per la gestione sicura dei valori potenzialmente nulli
+import com.bitpub.models.Utente;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository per la gestione della persistenza dell'entità {@link Utente}.
- * Estende JpaRepository per ereditare i metodi standard di salvataggio, eliminazione e ricerca.
+ * Estende JpaRepository per fornire l'accesso ai dati tramite operazioni CRUD standard,
+ * gestione della paginazione e query derivate basate sulle proprietà del modello.
+ *
  * @author Stefano Bellan 20054330
+ * @since 2024
  */
-@Repository // Marca l'interfaccia come componente Spring Data e abilita la traduzione delle eccezioni DB
+@Repository
 public interface UtenteRepository extends JpaRepository<Utente, Long> {
 
     /**
-     * Ricerca un utente in base al nickname.
-     * @param nickname il nickname univoco dell'utente
-     * @return un Optional contenente l'utente se trovato, altrimenti vuoto
+     * Ricerca un utente in base allo username univoco.
+     *
+     * @param username Lo username dell'utente (Subject del token JWT).
+     * @return Un {@link Optional} contenente l'utente se presente nel database.
      */
-    Optional<Utente> findByNickname(String nickname); // Query derivata: SELECT * FROM utente WHERE nickname = ?
+    Optional<Utente> findByUsername(String username);
 
     /**
-     * Ricerca un utente in base all'indirizzo email.
-     * @param email l'email associata all'account
-     * @return un Optional per una gestione null-safe dei risultati
+     * Ricerca un utente tramite l'indirizzo email registrato.
+     * Utilizzato primariamente durante i processi di autenticazione e recupero credenziali.
+     *
+     * @param email L'indirizzo e-mail associato all'account.
+     * @return Un {@link Optional} contenente il profilo utente corrispondente.
      */
-    Optional<Utente> findByEmail(String email); // Query derivata: utile per il caricamento dell'utente in fase di login
+    Optional<Utente> findByEmail(String email);
 
     /**
-     * Verifica la presenza di un utente con il nickname specificato.
-     * @param nickname il nickname da controllare
-     * @return true se esiste già, false altrimenti
+     * Verifica la disponibilità di uno username nel sistema.
+     *
+     * @param username Lo username da validare.
+     * @return true se lo username è già occupato, false altrimenti.
      */
-    boolean existsByNickname(String nickname); // Ottimizzato: esegue una SELECT COUNT o EXISTS a livello DB
+    boolean existsByUsername(String username);
 
     /**
-     * Verifica la presenza di un utente con l'email specificata.
-     * @param email l'indirizzo email da controllare
-     * @return true se l'email è già registrata
+     * Verifica se un indirizzo e-mail è già associato a un account esistente.
+     *
+     * @param email L'email da controllare.
+     * @return true se l'email è presente nel database.
      */
-    boolean existsByEmail(String email); // Fondamentale per la validazione in fase di registrazione (Unique constraint)
+    boolean existsByEmail(String email);
 
     /**
-     * Recupera tutti gli utenti associati a un determinato ruolo.
-     * @param ruolo il nome del ruolo (es. ROLE_USER, ROLE_ADMIN)
-     * @return una lista di utenti filtrati
+     * Filtra gli utenti in base al loro ruolo di accesso.
+     *
+     * @param role Il nome del ruolo (es: "ADMIN", "GESTORE", "UTENTE").
+     * @return Una {@link List} di utenti appartenenti al ruolo specificato.
      */
-    List<Utente> findByRuolo(String ruolo); // Query derivata: SELECT * FROM utente WHERE ruolo = ?
+    List<Utente> findByRole(String role);
 
     /**
-     * Esegue una ricerca full-text parziale e case-insensitive su nome e cognome.
-     * @param keyword la stringa da ricercare
-     * @return lista di utenti che corrispondono ai criteri di ricerca
+     * Esegue una ricerca testuale parziale (fuzzy search) e case-insensitive su più campi.
+     * La ricerca analizza nome, cognome e username per supportare i filtri della dashboard Admin.
+     *
+     * @param keyword La chiave di ricerca inserita dall'amministratore.
+     * @return Una collezione di utenti che soddisfano i criteri di match parziale.
      */
-    @Query("SELECT u FROM Utente u WHERE LOWER(u.nome) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.cognome) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    List<Utente> cercaPerNomeOCognome(@Param("keyword") String keyword); // JPQL custom con concatenazione di wildcard per la clausola LIKE
+    @Query("SELECT u FROM Utente u WHERE LOWER(u.nome) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(u.cognome) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Utente> cercaPerNomeCognomeOUsername(@Param("keyword") String keyword);
 }
