@@ -145,8 +145,83 @@ public class AdminDashboardController {
      */
     @FXML
     public void handleNuovoLocale() {
-        // Logica per apertura dialog inserimento
-        System.out.println("Apertura procedura nuovo locale...");
+        // Creazione di un Dialog personalizzato
+        Dialog<Locale> dialog = new Dialog<>();
+        dialog.setTitle("Nuovo Locale");
+        dialog.setHeaderText("Inserisci i dati del nuovo locale");
+
+        // Imposta i bottoni
+        ButtonType creaButtonType = new ButtonType("Crea", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(creaButtonType, ButtonType.CANCEL);
+
+        // Grid con i campi di testo
+        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+
+        TextField nomeInput = new TextField();
+        nomeInput.setPromptText("Nome");
+        TextField indirizzoInput = new TextField();
+        indirizzoInput.setPromptText("Indirizzo");
+        TextField cittaInput = new TextField();
+        cittaInput.setPromptText("Città");
+        TextField ipEdgeInput = new TextField();
+        ipEdgeInput.setPromptText("IP Edge");
+
+        grid.add(new Label("Nome:"), 0, 0);
+        grid.add(nomeInput, 1, 0);
+        grid.add(new Label("Indirizzo:"), 0, 1);
+        grid.add(indirizzoInput, 1, 1);
+        grid.add(new Label("Città:"), 0, 2);
+        grid.add(cittaInput, 1, 2);
+        grid.add(new Label("IP Edge:"), 0, 3);
+        grid.add(ipEdgeInput, 1, 3);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Converti il risultato del dialog
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == creaButtonType) {
+                Locale loc = new Locale();
+                loc.setName(nomeInput.getText());
+                loc.setIndirizzo(indirizzoInput.getText());
+                loc.setCitta(cittaInput.getText());
+                loc.setIpAddressEdge(ipEdgeInput.getText());
+                return loc;
+            }
+            return null;
+        });
+
+        // Mostra il dialog e aspetta il risultato
+        dialog.showAndWait().ifPresent(nuovoLocale -> {
+            com.bitpub.network.AsyncHttpService httpService = new com.bitpub.network.AsyncHttpService();
+            String jsonPayload = gson.toJson(nuovoLocale);
+
+            progressIndicator.setVisible(true);
+
+            String tokenUtenteLoggato = SessionManager.getInstance().getJwtToken();
+            
+            httpService.creaLocaleAsincrono(jsonPayload, tokenUtenteLoggato, "http://localhost:8080")
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        progressIndicator.setVisible(false);
+                        if (response.statusCode() == 201) {
+                            mostraNotifica("Successo", "Locale creato correttamente!", Alert.AlertType.INFORMATION);
+                            caricaDati(); // Ricarica la lista aggiornata
+                        } else {
+                            mostraNotifica("Errore (" + response.statusCode() + ")", 
+                                "Impossibile creare: " + response.body(), Alert.AlertType.ERROR);
+                        }
+                    });
+                })
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> {
+                        progressIndicator.setVisible(false);
+                        mostraNotifica("Errore di rete", ex.getMessage(), Alert.AlertType.ERROR);
+                    });
+                    return null;
+                });
+        });
     }
 
     /**

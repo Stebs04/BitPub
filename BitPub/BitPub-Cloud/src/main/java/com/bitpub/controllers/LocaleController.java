@@ -87,6 +87,10 @@ public class LocaleController {
      */
     @PostMapping
     public ResponseEntity<?> creaLocale(@RequestBody Locale nuovo) {
+        if (nuovo.getIpAddressEdge() == null || nuovo.getIpAddressEdge().isEmpty()) {
+            return ResponseEntity.badRequest().body("Errore: L'IP del nodo Edge è obbligatorio!");
+        }
+        
         if (localeRepository.existsByName(nuovo.getName())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Nome locale già esistente.");
         }
