@@ -38,7 +38,7 @@ public class TorneoModelAssembler implements RepresentationModelAssembler<Torneo
         // Creazione del modello base con i link di gestione risorsa (CRUD)
         EntityModel<Torneo> torneoModel = EntityModel.of(torneo,
                 linkTo(methodOn(TorneoController.class).getTorneoById(id)).withSelfRel(),
-                linkTo(methodOn(TorneoController.class).aggiornaTorneo(id, null, null)).withRel("aggiorna_torneo"),
+                linkTo(methodOn(TorneoController.class).aggiornaTorneo(id, null)).withRel("aggiorna_torneo"),
                 linkTo(methodOn(TorneoController.class).eliminaTorneo(id, null)).withRel("elimina_torneo")
         );
 

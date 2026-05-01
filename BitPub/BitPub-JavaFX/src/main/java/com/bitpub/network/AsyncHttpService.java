@@ -89,4 +89,25 @@ public class AsyncHttpService {
 
         return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
     }
+
+    /**
+     * Invia un aggiornamento HTTP PUT in modo asincrono.
+     * Utilizzato per aggiornare risorse remote sul Cloud.
+     * 
+     * @param endpoint L'URI relativo per l'endpoint (es. /api/locali/1)
+     * @param jsonPayload I dati in formato JSON per l'aggiornamento
+     * @param jwtToken Il token JWT dell'utente loggato
+     * @return CompletableFuture con la risposta HTTP restituita
+     */
+    public CompletableFuture<HttpResponse<String>> putAsync(String endpoint, String jsonPayload, String jwtToken) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:8080" + endpoint))
+                .header("Authorization", "Bearer " + jwtToken)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/resources.v1+json") // Mantieni il versioning richiesto!
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonPayload)) // Nota: usa .PUT
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    }
 }

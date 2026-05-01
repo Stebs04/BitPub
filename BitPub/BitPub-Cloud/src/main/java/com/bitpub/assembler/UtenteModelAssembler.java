@@ -34,6 +34,7 @@ public class UtenteModelAssembler implements RepresentationModelAssembler<Utente
     public EntityModel<Utente> toModel(Utente utente) {
         // Estrazione della chiave naturale per la costruzione degli endpoint
         String nick = utente.getNickname();
+        Long id = utente.getId();
 
         /*
          * Definizione dei link ipertestuali:
@@ -46,7 +47,7 @@ public class UtenteModelAssembler implements RepresentationModelAssembler<Utente
                 linkTo(methodOn(UtenteController.class).getUtenteByNickname(nick, null)).withSelfRel(),
                 
                 // Endpoint di mutazione risorsa
-                linkTo(methodOn(UtenteController.class).modificaUtente(nick, null)).withRel("modifica"),
+                linkTo(methodOn(UtenteController.class).aggiornaUtente(id, null)).withRel("modifica"),
                 
                 // Collegamenti a risorse correlate (Discovery)
                 linkTo(methodOn(UtenteController.class).getPartiteUtente(nick)).withRel("partite"),

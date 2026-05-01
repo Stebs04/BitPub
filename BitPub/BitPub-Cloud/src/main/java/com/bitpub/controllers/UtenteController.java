@@ -98,6 +98,7 @@ public class UtenteController {
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         List<Utente> risultati = utenteRepository.cercaPerNomeOCognome(keyword);
+        
         List<EntityModel<Utente>> risorse = risultati.stream()
                 .map(assembler::toModel)
                 .collect(Collectors.toList());
@@ -107,20 +108,28 @@ public class UtenteController {
     }
 
     /**
-     * Aggiorna o modifica parzialmente i dati del profilo di un utente.
-     * * @param nickname Identificativo naturale dell'utente da modificare.
-     * @return ResponseEntity con messaggio di conferma.
+     * Aggiorna i dati del proprio profilo utente.
+     * 
+     * @param id L'identificativo dell'utente da aggiornare.
+     * @param datiAggiornati I dati da aggiornare.
+     * @return Una ResponseEntity con l'utente aggiornato convertito in HATEOAS.
      */
-    @PutMapping("/{nickname}")
-    public ResponseEntity<?> modificaUtente(@PathVariable("nickname") String nickname, @RequestBody Utente datiAggiornati) {
-        return utenteRepository.findByNickname(nickname)
-                .map(utenteEsistente -> {
-                    if (datiAggiornati.getEmail() != null) utenteEsistente.setEmail(datiAggiornati.getEmail());
-                    // add other fields you allow to update? We can assume standard fields like password
-                    if (datiAggiornati.getPassword() != null) utenteEsistente.setPassword(datiAggiornati.getPassword());
-                    utenteRepository.save(utenteEsistente);
-                    return ResponseEntity.ok(assembler.toModel(utenteEsistente));
-                }).orElse(ResponseEntity.notFound().build());
+    @PutMapping("/{id}")
+    public ResponseEntity<?> aggiornaUtente(@PathVariable("id") Long id, @RequestBody Utente datiAggiornati) {
+        return utenteRepository.findById(id).map(utente -> {
+            if (datiAggiornati.getNome() != null) {
+                utente.setNome(datiAggiornati.getNome());
+            }
+            if (datiAggiornati.getCognome() != null) {
+                utente.setCognome(datiAggiornati.getCognome());
+            }
+            if (datiAggiornati.getEmail() != null) {
+                utente.setEmail(datiAggiornati.getEmail());
+            }
+            
+            Utente salvato = utenteRepository.save(utente);
+            return ResponseEntity.ok(assembler.toModel(salvato));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     /**
