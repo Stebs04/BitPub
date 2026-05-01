@@ -108,11 +108,17 @@ public class LocaleController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<?> aggiornaLocale(@PathVariable("id") Long id, @RequestBody Locale datiAggiornati) {
-        return localeRepository.findById(id).map(esistente -> {
-            esistente.setName(datiAggiornati.getName());
-            esistente.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
-            localeRepository.save(esistente);
-            return ResponseEntity.ok(assembler.toModel(esistente));
+        return localeRepository.findById(id).map(locale -> {
+            locale.setName(datiAggiornati.getName());
+            locale.setIndirizzo(datiAggiornati.getIndirizzo());
+            locale.setCitta(datiAggiornati.getCitta());
+            
+            if (datiAggiornati.getIpAddressEdge() != null) {
+                locale.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
+            }
+            
+            Locale salvato = localeRepository.save(locale);
+            return ResponseEntity.ok(assembler.toModel(salvato));
         }).orElse(ResponseEntity.notFound().build());
     }
 

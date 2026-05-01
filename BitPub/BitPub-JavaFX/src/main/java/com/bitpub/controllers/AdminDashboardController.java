@@ -248,6 +248,72 @@ public class AdminDashboardController {
         }
     }
 
+    @FXML
+    public void popupNuovoLocale() {
+        handleNuovoLocale();
+    }
+
+    /**
+     * Gestisce l'aggiornamento (PUT) di un locale.
+     */
+    @FXML
+    public void handleAggiornaLocale() {
+        Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
+        if (selezionato == null) {
+            mostraNotifica("Errore", "Seleziona un locale da aggiornare", Alert.AlertType.WARNING);
+            return;
+        }
+
+        Dialog<Locale> dialog = new Dialog<>();
+        dialog.setTitle("Aggiorna Locale");
+        dialog.setHeaderText("Modifica i dati di: " + selezionato.getName());
+
+        ButtonType aggiornaButtonType = new ButtonType("Aggiorna", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(aggiornaButtonType, ButtonType.CANCEL);
+
+        TextField campoNome = new TextField(selezionato.getName());
+        TextField campoCitta = new TextField(selezionato.getCitta());
+        
+        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.add(new Label("Nome:"), 0, 0);
+        grid.add(campoNome, 1, 0);
+        grid.add(new Label("Città:"), 0, 1);
+        grid.add(campoCitta, 1, 1);
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == aggiornaButtonType) {
+                selezionato.setName(campoNome.getText());
+                selezionato.setCitta(campoCitta.getText());
+                return selezionato;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(localeAggiornato -> {
+            progressIndicator.setVisible(true);
+            String json = String.format("{\"name\":\"%s\", \"citta\":\"%s\"}", 
+                    localeAggiornato.getName(), localeAggiornato.getCitta());
+            String endpoint = "/api/locali/" + selezionato.getId();
+
+            com.bitpub.network.AsyncHttpService httpService = new com.bitpub.network.AsyncHttpService();
+            httpService.putAsync(endpoint, json, SessionManager.getInstance().getJwtToken())
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        progressIndicator.setVisible(false);
+                        if (response.statusCode() == 200 || response.statusCode() == 204) {
+                            mostraNotifica("Successo", "Locale aggiornato!", Alert.AlertType.INFORMATION);
+                            caricaDati(); // Ricarica la tabella
+                        } else {
+                            mostraNotifica("Errore", "Errore " + response.statusCode() + ": " + response.body(), Alert.AlertType.ERROR);
+                        }
+                    });
+                });
+        });
+    }
+
     /**
      * Gestisce l'eliminazione logica o fisica del locale selezionato.
      */
