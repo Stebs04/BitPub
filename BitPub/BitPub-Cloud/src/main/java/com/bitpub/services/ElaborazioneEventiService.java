@@ -1,5 +1,8 @@
 package com.bitpub.services;
 
+import com.google.gson.Gson;
+import com.bitpub.models.PartitaCalciobalilla;
+import com.bitpub.repository.PartitaCalciobalillaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,9 @@ public class ElaborazioneEventiService {
     // Interfacce Spring Data JPA
     // @Autowired
     // private EventoBiliardoRepository biliardoRepo;
+
+    @Autowired
+    private PartitaCalciobalillaRepository calciobalillaRepo;
 
     /**
      * Metodo asincrono: viene eseguito in un thread separato dal Thread Pool.
@@ -41,6 +47,12 @@ public class ElaborazioneEventiService {
                 log.info("Evento Biliardo salvato con successo su PostgreSQL!");
             }
             // Aggiungerete poi gli if per calciobalilla e freccette
+            else if (topic.contains("calciobalilla")) {
+                log.debug("Rilevato evento Calciobalilla tramite MQTT. Avvio conversione JSON...");
+                PartitaCalciobalilla entity = new Gson().fromJson(payloadJson, PartitaCalciobalilla.class);
+                calciobalillaRepo.save(entity);
+                log.info("Evento Calciobalilla processato e salvato su PostgreSQL tramite layer Spring Data JPA!");
+            }
             else if (topic.contains("freccette")) {
                 log.debug("Rilevato evento Freccette. (Logica in costruzione...)");
             }

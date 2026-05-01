@@ -47,7 +47,7 @@ public class FreccetteDashboardController {
      * Inizializza i servizi necessari prima del caricamento della vista.
      */
     public FreccetteDashboardController() {
-        this.restClient = new RestClient();
+        this.restClient = RestClient.getInstance();
     }
 
     /**
