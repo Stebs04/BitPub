@@ -36,10 +36,10 @@
 
                 <TableView fx:id="localiTable" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="colId" prefWidth="70.0" text="ID" />
-                        <TableColumn fx:id="colNome" prefWidth="200.0" text="Nome Locale" />
-                        <TableColumn fx:id="colCitta" prefWidth="150.0" text="Città" />
-                        <TableColumn fx:id="colIndirizzo" prefWidth="300.0" text="Indirizzo Completo" />
+                        <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+                        <TableColumn fx:id="colNome" text="Nome" prefWidth="150"/>
+                        <TableColumn fx:id="colCitta" text="Città" prefWidth="150"/>
+                        <TableColumn fx:id="colIndirizzo" text="Indirizzo" prefWidth="200"/>
                     </columns>
                     <columnResizePolicy>
                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

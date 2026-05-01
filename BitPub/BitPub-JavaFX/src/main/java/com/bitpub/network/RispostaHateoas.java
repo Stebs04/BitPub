@@ -6,11 +6,13 @@ import java.util.Map;
 public class RispostaHateoas<T> {
 
     // I dati veri e propri (es. la lista delle partite o un singolo locale)
+    @com.google.gson.annotations.Expose
     private T data;
 
     // Mappa che conterrà l'oggetto "_links" generato da Spring
     // La chiave è il nome dell'azione (es. "self", "update", "delete")
     // Il valore è il link vero e proprio
+    @com.google.gson.annotations.Expose
     private Map<String, LinkDettaglio> _links;
 
     public T getData() { return data; }
@@ -18,6 +20,7 @@ public class RispostaHateoas<T> {
 
     // Sotto-classe per leggere la struttura esatta dei link di Spring HATEOAS
     public static class LinkDettaglio {
+        @com.google.gson.annotations.Expose
         private String href;
         public String getHref() { return href; }
     }

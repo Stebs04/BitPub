@@ -2,6 +2,8 @@ package com.bitpub.controllers;
 
 import com.bitpub.repository.AuditLogEntity;
 import com.bitpub.repository.AuditLogRepository;
+import com.bitpub.cloud.repository.EdgeStatusEntity;
+import com.bitpub.repository.EdgeStatusRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +24,10 @@ public class SystemLogController {
     /** Accesso allo strato di persistenza per i dati di audit. */
     @Autowired
     private AuditLogRepository logRepository;
+
+    /** Accesso allo strato di persistenza per lo stato dei nodi Edge. */
+    @Autowired
+    private EdgeStatusRepository edgeStatusRepository;
 
     /**
      * Recupera l'elenco dei log di sistema, con possibilità di filtraggio per severità.
@@ -44,5 +50,16 @@ public class SystemLogController {
 
         // Restituzione di tutti i log presenti nel database se nessun filtro è applicato
         return logRepository.findAll();
+    }
+
+    /**
+     * Recupera l'elenco dello stato attuale di connessione dei nodi edge.
+     * Endpoint: GET /api/v1/system/network-status
+     *
+     * @return Una {@link List} di {@link EdgeStatusEntity} con le info sui vari locali.
+     */
+    @GetMapping(value = "/network-status", produces = "application/resources.v1+json")
+    public List<EdgeStatusEntity> getNetworkStatus() {
+        return edgeStatusRepository.findAll();
     }
 }

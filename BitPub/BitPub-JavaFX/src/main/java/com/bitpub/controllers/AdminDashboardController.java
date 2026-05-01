@@ -1,8 +1,9 @@
 package com.bitpub.controllers;
 
 import com.bitpub.models.Locale;
-import com.bitpub.models.Utente; // Assicurati di avere questo import!
+import com.bitpub.models.Utente;
 import com.bitpub.network.RestClient;
+import com.bitpub.network.RispostaLocali;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -74,17 +75,18 @@ public class AdminDashboardController {
                 .thenAccept(localiArray -> {
                     Platform.runLater(() -> {
                         if (localiArray != null) {
-                            // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
                             listaLocaliObservable.setAll(Arrays.asList(localiArray));
                             System.out.println("Lista aggiornata con " + localiArray.length + " locali.");
                         } else {
-                            mostraNotifica("Errore Dati", "Formato risposta non valido o vuoto.", Alert.AlertType.WARNING);
+                            listaLocaliObservable.clear();
+                            System.out.println("Nessun locale presente o array nullo.");
                         }
                         progressIndicator.setVisible(false);
                     });
                 })
                 .exceptionally(e -> {
-                    // Sincronizzazione con il JavaFX Application Thread per la manipolazione sicura dei nodi grafici
+                    System.err.println("Dettaglio errore di rete in caricaDati:");
+                    e.printStackTrace();
                     Platform.runLater(() -> {
                         progressIndicator.setVisible(false);
                         mostraNotifica("Errore Connessione", "Impossibile contattare il server.", Alert.AlertType.ERROR);
