@@ -28,7 +28,8 @@ public class EdgeStatusEntity {
     private String status;
 
     /** Marca temporale dell'ultima attività registrata (Heartbeat). */
-    private LocalDateTime lastSeen; 
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastSeen;  
 
     /**
      * Costruttore predefinito richiesto dalle specifiche JPA per l'istanziazione tramite reflection.
