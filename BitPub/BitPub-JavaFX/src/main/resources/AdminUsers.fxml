@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" styleClass="root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminUsersController">
+    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+    <Label text="Gestione Utenti e Credito" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField" promptText="Cerca per username..." prefWidth="300"/>
+        <Button text="Cerca" onAction="#handleSearch"/>
+    </HBox>
+
+    <TableView fx:id="usersTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colUsername" text="Username" prefWidth="150"/>
+            <TableColumn fx:id="colEmail" text="Email" prefWidth="200"/>
+            <TableColumn fx:id="colRole" text="Ruolo" prefWidth="100"/>
+            <TableColumn fx:id="colCredito" text="Credito (€)" prefWidth="100"/>
+            <TableColumn fx:id="colStato" text="Stato" prefWidth="100"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button fx:id="toggleStatusButton" text="Sospendi/Riattiva" onAction="#handleToggleStatus" style="-fx-background-color: #f39c12;"/>
+    </HBox>
+</VBox>

@@ -33,7 +33,7 @@ public class UtenteModelAssembler implements RepresentationModelAssembler<Utente
     @Override
     public EntityModel<Utente> toModel(Utente utente) {
         // Estrazione della chiave naturale per la costruzione degli endpoint
-        String nick = utente.getNickname();
+        String nick = utente.getUsername();
         Long id = utente.getId();
 
         /*

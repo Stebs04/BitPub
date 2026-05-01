@@ -3,94 +3,79 @@ package com.bitpub.controllers;
 import com.bitpub.Main;
 import com.bitpub.models.AuthRequest;
 import com.bitpub.models.AuthResponse;
+import com.bitpub.network.RestClient;
 import com.bitpub.network.SessionManager;
-import com.google.gson.Gson;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import javafx.scene.control.*;
 
 /**
- * Controller per la gestione dell'autenticazione utente.
- * Gestisce l'interfaccia di login e il reindirizzamento dinamico basato sui ruoli.
- *
- * @author Stefano Bellan
+ * Controller per la gestione della vista di Login.
+ * Gestisce l'interazione con l'utente per l'autenticazione, interfacciandosi
+ * con il server Cloud e coordinando il reindirizzamento post-login basato sui ruoli.
+ * 
+ * @author Stefano Bellan 20054330
+ * @since 2024
  */
 public class LoginController {
 
-    @FXML private TextField usernameField;
+    @FXML private TextField usernameField;   // Collegato al componente fx:id="usernameField"
     @FXML private PasswordField passwordField;
-    @FXML private Label erroreLabel;
+    @FXML private Label erroreLabel;          // Collegato al componente fx:id="erroreLabel"
 
-    private static final String API_URL = "http://localhost:8080/api/v1/auth/login";
-    private final HttpClient httpClient;
-    private final Gson gson;
-
-    public LoginController() {
-        this.httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .build();
-        this.gson = new Gson();
-    }
-
+    /**
+     * Innesca la procedura di autenticazione.
+     * Recupera le credenziali dai campi di testo e invia una richiesta POST asincrona al server.
+     */
     @FXML
-    public void handleLogin(ActionEvent event) {
+    public void handleLogin() {
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        if (username.isBlank() || password.isBlank()) {
-            erroreLabel.setText("Inserisci username e password");
+        // Validazione formale dell'input locale
+        if (username.isEmpty() || password.isEmpty()) {
+            erroreLabel.setText("Inserisci username e password.");
             return;
         }
 
-        AuthRequest authRequest = new AuthRequest();
-        authRequest.setUsername(username.trim());
-        authRequest.setPassword(password);
-        String jsonBody = gson.toJson(authRequest);
+        // Reset dei messaggi di errore precedenti
+        erroreLabel.setText("");
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/resources.v1+json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
+        // Creazione del DTO per la richiesta di autenticazione
+        AuthRequest request = new AuthRequest(username, password);
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        // Chiamata REST asincrona tramite il client centralizzato
+        RestClient.getInstance().faiChiamataPost("/api/v1/auth/login", request, AuthResponse.class)
                 .thenAccept(response -> {
-                    Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            AuthResponse authResponse = gson.fromJson(response.body(), AuthResponse.class);
-                            
-                            // Salvataggio della sessione nel SessionManager globale
-                            SessionManager.getInstance().setSession(
-                                    authResponse.getUsername(),
-                                    authResponse.getToken(),
-                                    authResponse.getRuolo(),
-                                    null
-                            );
-                            
-                            // DELEGA AL MAIN: Smistamento basato sul ruolo (Admin, Gestore o Utente)
-                            Main.redirectDopoLogin();
-                        } else {
-                            erroreLabel.setText("Credenziali errate.");
-                        }
-                    });
+                    if (response != null && response.getToken() != null) {
+                        // 1. Persistenza dei metadati di sessione nel Singleton locale
+                        SessionManager.getInstance().setJwtToken(response.getToken());
+                        SessionManager.getInstance().setUsername(response.getUsername());
+                        
+                        // 2. Memorizzazione del ruolo per la logica di routing centralizzata
+                        SessionManager.getInstance().setUserRole(response.getRole());
+                        
+                        // 3. Esecuzione del redirect sul thread JavaFX Application
+                        Platform.runLater(Main::redirectDopoLogin);
+                    } else {
+                        // Gestione errore credenziali (es. 401 Unauthorized)
+                        Platform.runLater(() ->
+                            erroreLabel.setText("Credenziali errate o utente non autorizzato."));
+                    }
                 })
                 .exceptionally(ex -> {
-                    Platform.runLater(() -> erroreLabel.setText("Connessione fallita."));
+                    // Gestione fallimento connessione o eccezioni di rete
+                    Platform.runLater(() ->
+                        erroreLabel.setText("Errore di rete: impossibile contattare il server."));
                     return null;
                 });
     }
 
+    /**
+     * Reindirizza l'utente alla schermata di registrazione.
+     */
     @FXML
-    public void vaiARegistrazione(ActionEvent event) {
+    private void vaiARegistrazione() {
         Main.navigaVerso("/RegistrazioneView.fxml", "BitPub - Registrazione");
     }
 }

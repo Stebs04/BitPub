@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="20" styleClass="root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminSessionsController">
+    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+
+    <Label text="Gestione Emergenze Sessioni" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+
+    <TableView fx:id="sessionsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="colVenue" text="Locale ID" prefWidth="150"/>
+            <TableColumn fx:id="colTable" text="Tavolo/Postazione" prefWidth="150"/>
+            <TableColumn fx:id="colStart" text="Inizio" prefWidth="200"/>
+            <TableColumn fx:id="colStatus" text="Stato" prefWidth="150"/>
+        </columns>
+    </TableView>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Button text="Aggiorna Elenco" onAction="#loadSessions"/>
+        <Button text="FORZA SBLOCCO" onAction="#handleForceUnlock" style="-fx-background-color: #e74c3c;"/>
+    </HBox>
+</VBox>
