@@ -1,8 +1,9 @@
 package com.bitpub.controllers;
 
 import com.bitpub.models.Locale;
-import com.bitpub.models.Utente; // Assicurati di avere questo import!
+import com.bitpub.models.Utente;
 import com.bitpub.network.RestClient;
+import com.bitpub.network.RispostaLocali;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -70,13 +71,23 @@ public class AdminDashboardController {
         progressIndicator.setVisible(true);
 
         // Uso del RestClient centralizzato per la chiamata GET
-        RestClient.getInstance().faiChiamataGet("/api/v1/locali", Locale[].class)
-                .thenAccept(localiArray -> {
+        RestClient.getInstance().faiChiamataGet("/api/v1/locali", RispostaLocali.class)
+                .thenAccept(risposta -> {
                     Platform.runLater(() -> {
-                        if (localiArray != null) {
-                            // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
+                        // 1. Controlliamo che la risposta esista e contenga la lista dei locali
+                        if (risposta != null && risposta.getContent() != null) {
+
+                            // 2. ESTRAIAMO L'ARRAY DALLA RISPOSTA (Ecco la riga che mancava!)
+                            Locale[] localiArray = risposta.getContent();
+
+                            // 3. Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
                             listaLocaliObservable.setAll(Arrays.asList(localiArray));
                             System.out.println("Lista aggiornata con " + localiArray.length + " locali.");
+
+                        } else if (risposta != null && risposta.getContent() == null) {
+                            // Se la risposta è arrivata ma il contenuto è vuoto, svuotiamo la tabella
+                            listaLocaliObservable.clear();
+                            System.out.println("Nessun locale presente nel database.");
                         } else {
                             mostraNotifica("Errore Dati", "Formato risposta non valido o vuoto.", Alert.AlertType.WARNING);
                         }
@@ -84,6 +95,8 @@ public class AdminDashboardController {
                     });
                 })
                 .exceptionally(e -> {
+                    System.err.println("Dettaglio errore di rete in caricaDati:");
+                    e.printStackTrace();
                     // Sincronizzazione con il JavaFX Application Thread per la manipolazione sicura dei nodi grafici
                     Platform.runLater(() -> {
                         progressIndicator.setVisible(false);
