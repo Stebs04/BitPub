@@ -24,15 +24,12 @@ public class CloudMqttManager {
      * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://localhost:8883").
      * @param nomeLocale     Identificativo testuale del locale per la generazione del ClientID.
      * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
-     * @throws Exception Se l'URL del broker non è valido o l'istanziazione fallisce.
+     * @throws Exception Se l'URL del broker non è valido, i certificati mancano o la connessione fallisce.
      */
     public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws Exception {
 
         // Definizione ClientID statico: critico per il ripristino della sessione lato broker
         String clientIdFisso = "Edge-" + nomeLocale;
-
-        // Utilizzo MemoryPersistence per i metadati del client
-        MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
         MqttConnectOptions connOpts = new MqttConnectOptions();
 
@@ -55,23 +52,26 @@ public class CloudMqttManager {
 
         /*
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
-         * Mutual TLS (mTLS): carichiamo l'intera catena di certificati.
-         * Fix Bug #3: l'eccezione viene ora propagata invece di essere
-         * catturata silenziosamente, rendendo visibile ogni problema sui certificati.
+         *
+         * FIX CRITICO - ORDINE DI ESECUZIONE:
+         * TlsUtility.applyTlsToOptions() deve essere chiamato QUI, PRIMA di
+         * "new MqttClient(...)", perché Paho legge il SSLContext.getDefault()
+         * durante la costruzione del client. Se il default non è ancora stato
+         * sovrascritto, Paho usa il TrustManager della JVM e fallisce con
+         * "PKIX path building failed" su certificati self-signed / CA privata.
          */
-        
-        // ATTENZIONE: Assicurati che questo percorso sia corretto rispetto a dove lanci il JAR/Eseguibile.
-        String certsBasePath = "../BitPub-Security"; 
-
-        // applyTlsToOptions ora dichiara throws Exception: se i certificati
-        // mancano o sono corrotti, il metodo lancia e stoppiamo subito l'avvio.
+        String certsBasePath = "../BitPub-Security/certs";
         try {
             TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
             System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
         } catch (Exception e) {
-            System.err.println("[CRITICAL] Impossibile caricare i certificati di sicurezza: " + e.getMessage());
+            System.err.println("[CRITICAL] Impossibile configurare TLS: " + e.getMessage());
             throw e; // Rilanciamo per bloccare l'avvio del sistema
         }
+
+        // Utilizzo MemoryPersistence per i metadati del client.
+        // NOTA: costruito DOPO applyTlsToOptions() — ordine obbligatorio (vedi sopra).
+        MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
         cloudClient.connect(connOpts);
 
