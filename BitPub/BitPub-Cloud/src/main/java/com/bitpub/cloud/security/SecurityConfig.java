@@ -38,8 +38,24 @@ public class SecurityConfig {
                 // 3. Regole di autorizzazione per le rotte (Endpoints).
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**", "/error").permitAll() // Auth pubblica
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") // Solo admin
-                        .requestMatchers("/api/v1/gestore/**").hasAnyRole("GESTORE", "ADMIN") // Gestore e admin
+                        
+                        // --- GESTIONE LOCALI (Admin) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/locali").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/locali/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/locali").hasAnyRole("ADMIN", "GESTORE", "UTENTE")
+                        
+                        // --- GESTIONE TORNEI (Gestore) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tornei").hasRole("GESTORE")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/tornei/**").hasRole("GESTORE")
+                        
+                        // --- STATISTICHE TAVOLI (Fix per l'Errore 403 in foto) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/calciobalilla/stats").hasAnyRole("GESTORE", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/biliardo/stats").hasAnyRole("GESTORE", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/freccette/stats").hasAnyRole("GESTORE", "ADMIN")
+                        
+                        // --- UTENTI ---
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/utenti/**").hasRole("UTENTE") // Un utente modifica il proprio profilo
+                        
                         // Per le altre API originali le proteggiamo richiedendo autenticazione
                         .anyRequest().authenticated()
                 )

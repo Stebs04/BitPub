@@ -108,41 +108,35 @@ public class TorneoController {
         try {
             torneoRepository.save(nuovoTorneo);
             log.info("Torneo salvato con successo nel database PostgreSQL!");
-            return ResponseEntity.ok("Torneo salvato con successo nel database!");
-
+            return ResponseEntity.ok("Torneo creato.");
         } catch (Exception e) {
-            log.error("ERRORE CRITICO durante il salvataggio del torneo: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body("Errore interno durante il salvataggio.");
+            log.error("Errore durante la creazione del torneo", e);
+            return ResponseEntity.internalServerError().body("Errore interno");
         }
     }
 
     /**
-     * Sovrascrive/aggiorna integralmente i dettagli di un torneo esistente.
-     * * @param id               L'identificativo del torneo da aggiornare.
-     * @param torneoAggiornato L'entità torneo con i nuovi dati da applicare.
-     * @param authHeader       Header di sicurezza per il controllo accessi.
-     * @return ResponseEntity confermante l'avvenuta modifica o 404 se inesistente.
+     * Aggiorna un torneo esistente.
+     * 
+     * @param id L'identificativo del torneo.
+     * @param datiAggiornati I dati da aggiornare.
+     * @return Una ResponseEntity con il torneo aggiornato convertito in HATEOAS.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<String> aggiornaTorneo(
-            @PathVariable("id") Long id,
-            @RequestBody Torneo torneoAggiornato,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
+    public ResponseEntity<?> aggiornaTorneo(@PathVariable("id") Long id, @RequestBody Torneo datiAggiornati) {
         log.info("Ricevuta richiesta PUT su /api/tornei/{} - Aggiornamento torneo in corso", id);
-        Optional<Torneo> torneoEsistente = torneoRepository.findById(id);
-
-        if (torneoEsistente.isPresent()) {
-            // Impedisce ID hijacking garantendo che l'entità mantenga l'ID della risorsa URL
-            torneoAggiornato.setId(id);
-            torneoRepository.save(torneoAggiornato);
-
-            log.info("Torneo {} aggiornato correttamente nel database.", id);
-            return ResponseEntity.ok("Torneo " + id + " aggiornato correttamente.");
-        } else {
-            log.warn("Impossibile aggiornare: Torneo con ID {} non trovato.", id);
-            return ResponseEntity.status(404).body("Errore: Torneo non trovato.");
-        }
+        return torneoRepository.findById(id).map(torneo -> {
+            if (datiAggiornati.getNome() != null) {
+                torneo.setNome(datiAggiornati.getNome());
+            }
+            if (datiAggiornati.getPremio() != null) {
+                torneo.setPremio(datiAggiornati.getPremio());
+            }
+            
+            Torneo salvato = torneoRepository.save(torneo);
+            log.info("Torneo {} aggiornato con successo.", id);
+            return ResponseEntity.ok(assembler.toModel(salvato));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     /**

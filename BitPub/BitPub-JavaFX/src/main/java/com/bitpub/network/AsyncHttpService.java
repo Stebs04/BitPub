@@ -69,4 +69,45 @@ public class AsyncHttpService {
                     return null;
                 });
     }
+
+    /**
+     * Invia in modo asincrono i dati per la creazione di un nuovo locale al Cloud.
+     * È essenziale definire l'header Accept per il Semantic Versioning.
+     *
+     * @param jsonPayload I dati del locale serializzati in JSON
+     * @param jwtToken    Il token di autenticazione dell'admin
+     * @return Future della risposta HTTP
+     */
+    public CompletableFuture<HttpResponse<String>> creaLocaleAsincrono(String jsonPayload, String jwtToken, String baseUrl) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(java.net.URI.create(baseUrl + "/api/locali")) // O adatta al path
+                .header("Authorization", "Bearer " + jwtToken)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/resources.v1+json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /**
+     * Invia un aggiornamento HTTP PUT in modo asincrono.
+     * Utilizzato per aggiornare risorse remote sul Cloud.
+     * 
+     * @param endpoint L'URI relativo per l'endpoint (es. /api/locali/1)
+     * @param jsonPayload I dati in formato JSON per l'aggiornamento
+     * @param jwtToken Il token JWT dell'utente loggato
+     * @return CompletableFuture con la risposta HTTP restituita
+     */
+    public CompletableFuture<HttpResponse<String>> putAsync(String endpoint, String jsonPayload, String jwtToken) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:8080" + endpoint))
+                .header("Authorization", "Bearer " + jwtToken)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/resources.v1+json") // Mantieni il versioning richiesto!
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonPayload)) // Nota: usa .PUT
+                .build();
+
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
+    }
 }
