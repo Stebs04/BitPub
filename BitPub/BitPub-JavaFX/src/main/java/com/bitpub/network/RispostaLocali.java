@@ -9,6 +9,7 @@ import com.bitpub.models.Locale;
 public class RispostaLocali {
     
     // Questo campo deve chiamarsi ESATTAMENTE come nel JSON del server ("content")
+    @com.google.gson.annotations.Expose
     private Locale[] content;
 
     // Costruttore vuoto necessario per la conversione JSON (Gson)
