@@ -40,15 +40,13 @@ public class LocaleController {
      * * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
      */
     @GetMapping
-    public ResponseEntity<CollectionModel<EntityModel<Locale>>> getAllLocali() {
+    public CollectionModel<EntityModel<Locale>> getAllLocali() {
         List<EntityModel<Locale>> localiModel = localeRepository.findAll().stream()
                 .map(assembler::toModel)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(
-                CollectionModel.of(localiModel,
-                        linkTo(methodOn(LocaleController.class).getAllLocali()).withSelfRel()
-                )
+        return CollectionModel.of(localiModel,
+                linkTo(methodOn(LocaleController.class).getAllLocali()).withSelfRel()
         );
     }
 
@@ -87,6 +85,10 @@ public class LocaleController {
      */
     @PostMapping
     public ResponseEntity<?> creaLocale(@RequestBody Locale nuovo) {
+        if (nuovo.getIpAddressEdge() == null || nuovo.getIpAddressEdge().isEmpty()) {
+            nuovo.setIpAddressEdge("127.0.0.1"); // Assegna IP di default se non fornito
+        }
+        
         if (localeRepository.existsByName(nuovo.getName())) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Nome locale già esistente.");
         }
@@ -106,11 +108,17 @@ public class LocaleController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<?> aggiornaLocale(@PathVariable("id") Long id, @RequestBody Locale datiAggiornati) {
-        return localeRepository.findById(id).map(esistente -> {
-            esistente.setName(datiAggiornati.getName());
-            esistente.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
-            localeRepository.save(esistente);
-            return ResponseEntity.ok(assembler.toModel(esistente));
+        return localeRepository.findById(id).map(locale -> {
+            locale.setName(datiAggiornati.getName());
+            locale.setIndirizzo(datiAggiornati.getIndirizzo());
+            locale.setCitta(datiAggiornati.getCitta());
+            
+            if (datiAggiornati.getIpAddressEdge() != null) {
+                locale.setIpAddressEdge(datiAggiornati.getIpAddressEdge());
+            }
+            
+            Locale salvato = localeRepository.save(locale);
+            return ResponseEntity.ok(assembler.toModel(salvato));
         }).orElse(ResponseEntity.notFound().build());
     }
 

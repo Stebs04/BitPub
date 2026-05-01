@@ -202,12 +202,20 @@ public class Utente {
         return cognome;
     }
 
+    public void setCognome(String cognome) {
+        this.cognome = cognome;
+    }
+
     /**
      * Restituisce il nome anagrafico dell'utente.
      * @return il nome
      */
     public String getNome() {
         return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
     }
 
     /**
