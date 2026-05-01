@@ -112,8 +112,15 @@ public class UtenteController {
      * @return ResponseEntity con messaggio di conferma.
      */
     @PutMapping("/{nickname}")
-    public ResponseEntity<String> modificaUtente(@PathVariable("nickname") String nickname) {
-        return ResponseEntity.ok("Endpoint modifica per " + nickname);
+    public ResponseEntity<?> modificaUtente(@PathVariable("nickname") String nickname, @RequestBody Utente datiAggiornati) {
+        return utenteRepository.findByNickname(nickname)
+                .map(utenteEsistente -> {
+                    if (datiAggiornati.getEmail() != null) utenteEsistente.setEmail(datiAggiornati.getEmail());
+                    // add other fields you allow to update? We can assume standard fields like password
+                    if (datiAggiornati.getPassword() != null) utenteEsistente.setPassword(datiAggiornati.getPassword());
+                    utenteRepository.save(utenteEsistente);
+                    return ResponseEntity.ok(assembler.toModel(utenteEsistente));
+                }).orElse(ResponseEntity.notFound().build());
     }
 
     /**

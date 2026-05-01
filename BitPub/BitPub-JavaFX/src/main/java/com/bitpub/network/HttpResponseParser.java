@@ -85,4 +85,26 @@ public final class HttpResponseParser {
         requireSuccess(response);
         return response.body();
     }
+
+    /**
+     * Estrae i dati dal wrapper HATEOAS "_embedded".
+     *
+     * @param jsonResponse stringa json HATEOAS
+     * @return lista di locali
+     */
+    public static List<com.bitpub.models.Locale> parseLocali(String jsonResponse) {
+        List<com.bitpub.models.Locale> lista = new java.util.ArrayList<>();
+        try {
+            com.google.gson.JsonObject root = com.google.gson.JsonParser.parseString(jsonResponse).getAsJsonObject();
+            if (root.has("_embedded")) {
+                com.google.gson.JsonArray localiArray = root.getAsJsonObject("_embedded").getAsJsonArray("localeList");
+                for (com.google.gson.JsonElement element : localiArray) {
+                    lista.add(GSON.fromJson(element, com.bitpub.models.Locale.class));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return lista;
+    }
 }
