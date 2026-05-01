@@ -28,9 +28,9 @@ public class Utente extends ResourceModel {
     private String username;
 
     /** Ruolo associato all'utente per la gestione dei permessi (es. ADMIN, GESTORE, UTENTE). */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'USER'")
     @Expose
-    private String role;
+    private String role = "USER";
 
     /** Nome anagrafico del titolare del profilo. */
     @Expose
@@ -53,12 +53,12 @@ public class Utente extends ResourceModel {
     private String password;
 
     /** Credito residuo disponibile per l'utilizzo dei servizi. */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "float8 default 0.0")
     @Expose
     private Double credito = 0.0;
 
     /** Flag di stato dell'account per inibire l'accesso (Attivo/Sospeso). */
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default true")
     @Expose
     private Boolean attivo = true;
 

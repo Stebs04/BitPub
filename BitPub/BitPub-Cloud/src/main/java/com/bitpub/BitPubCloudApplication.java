@@ -7,24 +7,31 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
- * Punto di ingresso principale per BitPub Cloud.
- * Questa classe sostituisce ogni altro Main e avvia l'intero ecosistema.
+ * Entry Point principale per l'applicazione BitPub Cloud.
+ * Configura il contesto di Spring Boot, abilita la scansione globale dei pacchetti
+ * per la persistenza JPA e attiva il supporto per le operazioni asincrone.
+ * 
  */
-@SpringBootApplication(scanBasePackages = "com.bitpub") // 1. Scansiona Controller, Service e il Gateway MQTT
-@EntityScan(basePackages = "com.bitpub.models")        // 2. Collega le classi Entity per PostgreSQL
-@EnableJpaRepositories(basePackages = "com.bitpub.repository") // 3. Attiva i DAO/Repository
-@EnableAsync // 4. FONDAMENTALE: Attiva l'elaborazione asincrona per il salvataggio dei messaggi MQTT
+@SpringBootApplication(scanBasePackages = "com.bitpub")
+@EntityScan(basePackages = "com.bitpub")               // Scansione globale delle classi @Entity per il mapping ORM
+@EnableJpaRepositories(basePackages = "com.bitpub")    // Abilitazione dei repository Spring Data JPA in tutto il progetto
+@EnableAsync                                           // Supporto per l'esecuzione di task non bloccanti (@Async)
 public class BitPubCloudApplication {
 
+    /**
+     * Avvia l'applicazione Spring Boot.
+     * 
+     * @param args Argomenti passati da riga di comando.
+     */
     public static void main(String[] args) {
-        // Avvio del framework Spring Boot
         SpringApplication.run(BitPubCloudApplication.class, args);
 
+        // Feedback visuale del corretto avvio di tutti i moduli critici del Cloud
         System.out.println("=================================================");
         System.out.println("   BITPUB CLOUD: SISTEMA ATTIVO E INTEGRATO      ");
-        System.out.println("   - Database: Collegato su localhost:5432 ");
-        System.out.println("   - MQTT: Gateway in ascolto             ");
-        System.out.println("   - Security: Architettura Stateless attiva");
+        System.out.println("   - Database: Collegato su localhost:5432       ");
+        System.out.println("   - MQTT: Gateway in ascolto                    ");
+        System.out.println("   - Security: Architettura Stateless attiva     ");
         System.out.println("=================================================");
     }
 }

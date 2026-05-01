@@ -6,6 +6,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -33,6 +34,11 @@ public class TlsUtility {
      * @return SSLSocketFactory pronta per l'uso con MqttConnectOptions
      */
     public static SSLSocketFactory getSocketFactory(String caCrtPath, String clientCrtPath, String clientKeyPath) throws Exception {
+
+        // Verifica esistenza file per evitare errori generici
+        if (!new File(caCrtPath).exists()) throw new Exception("Certificato CA non trovato in: " + caCrtPath);
+        if (!new File(clientCrtPath).exists()) throw new Exception("Certificato Client non trovato in: " + clientCrtPath);
+        if (!new File(clientKeyPath).exists()) throw new Exception("Chiave Client non trovata in: " + clientKeyPath);
 
         // 1. Carichiamo il certificato della Root CA per fidarci del Broker
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
@@ -83,6 +89,7 @@ public class TlsUtility {
         kmf.init(keyStore, "password".toCharArray());
 
         // 4. Inizializziamo il contesto SSL con TrustManager (per il server) e KeyManager (per noi)
+        // Utilizziamo TLSv1.2 per massima compatibilità con Mosquitto
         SSLContext context = SSLContext.getInstance("TLSv1.2");
         context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
@@ -92,7 +99,7 @@ public class TlsUtility {
     /**
      * Applica la configurazione TLS alle opzioni di connessione MQTT.
      *
-     * <p><b>Fix Bug #3:</b> Il metodo ora rilancia l'eccezione invece di catturarla
+     * <p><b></b> Il metodo ora rilancia l'eccezione invece di catturarla
      * silenziosamente. Prima il codice stampava l'errore ma continuava, causando
      * un tentativo di connect() senza TLS che falliva in modo opaco.</p>
      *
@@ -107,4 +114,4 @@ public class TlsUtility {
         // Non impostiamo username/password: l'autenticazione avviene tramite certificato mTLS.
         // NOTA: NON chiamare setPassword(null) — Paho esegue null.clone() internamente e crasha con NPE.
     }
-}
+}
