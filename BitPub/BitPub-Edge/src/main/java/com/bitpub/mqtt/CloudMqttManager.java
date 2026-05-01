@@ -24,7 +24,7 @@ public class CloudMqttManager {
      * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://localhost:8883").
      * @param nomeLocale     Identificativo testuale del locale per la generazione del ClientID.
      * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
-     * @throws MqttException Se l'URL del broker non è valido o l'istanziazione fallisce.
+     * @throws Exception Se l'URL del broker non è valido o l'istanziazione fallisce.
      */
     public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws Exception {
 
@@ -59,12 +59,19 @@ public class CloudMqttManager {
          * Fix Bug #3: l'eccezione viene ora propagata invece di essere
          * catturata silenziosamente, rendendo visibile ogni problema sui certificati.
          */
-        String certsBasePath = "../BitPub-Security/certs";
+        
+        // ATTENZIONE: Assicurati che questo percorso sia corretto rispetto a dove lanci il JAR/Eseguibile.
+        String certsBasePath = "../BitPub-Security"; 
 
         // applyTlsToOptions ora dichiara throws Exception: se i certificati
         // mancano o sono corrotti, il metodo lancia e stoppiamo subito l'avvio.
-        TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
-        System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
+        try {
+            TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
+            System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
+        } catch (Exception e) {
+            System.err.println("[CRITICAL] Impossibile caricare i certificati di sicurezza: " + e.getMessage());
+            throw e; // Rilanciamo per bloccare l'avvio del sistema
+        }
 
         cloudClient.connect(connOpts);
 
