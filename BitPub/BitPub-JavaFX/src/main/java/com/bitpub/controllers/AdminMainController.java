@@ -35,13 +35,13 @@ public class AdminMainController {
     @FXML private void showDashboard() { loadView("AdminDashboardView.fxml"); }
 
     /** Naviga verso il monitoraggio in tempo reale dei nodi Edge. */
-    @FXML private void showNetworkStatus() { loadView("AdminNetworkStatusView.fxml"); }
+   @FXML private void showNetworkStatus() { loadView("AdminNetworkStatus.fxml"); }
 
     /** Naviga verso la gestione dell'anagrafica e dei ruoli utenti. */
-    @FXML private void showUsers() { loadView("AdminUsersView.fxml"); }
+   @FXML private void showUsers()         { loadView("AdminUsers.fxml"); }
 
     /** Naviga verso il controllo delle sessioni di gioco attive. */
-    @FXML private void showSessions() { loadView("AdminSessionsView.fxml"); }
+   @FXML private void showSessions()      { loadView("AdminSessionView.fxml"); }
 
     /** Naviga verso la consultazione dei log di sistema e audit. */
     @FXML private void showLogs() { loadView("AdminLogsView.fxml"); }
@@ -55,7 +55,7 @@ public class AdminMainController {
     private void loadView(String fxmlFile) {
         try {
             // Risoluzione del percorso risorsa basato sul package com.bitpub.views
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/bitpub/views/" + fxmlFile));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/" + fxmlFile));
             Parent view = loader.load();
 
             // Sostituzione atomica del contenuto dell'area centrale
@@ -81,7 +81,7 @@ public class AdminMainController {
 
         try {
             // 2. Caricamento della vista di Login tramite FXMLLoader
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/bitpub/views/LoginView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/LoginView.fxml"));
             Parent loginRoot = loader.load();
 
             // 3. Recupero dello Stage corrente tramite il riferimento ai nodi attivi

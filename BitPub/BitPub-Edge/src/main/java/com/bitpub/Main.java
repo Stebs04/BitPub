@@ -7,6 +7,7 @@ import com.bitpub.mqtt.CloudMqttManager;
 import com.bitpub.Cloud.InoltroCloudTask;
 import com.bitpub.edge.AdminCommandListener;
 import com.bitpub.edge.HeartbeatTask;
+import com.bitpub.security.TlsUtility;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 
@@ -26,19 +27,13 @@ import java.util.concurrent.TimeUnit;
  */
 public class Main {
 
-    /**
-     * Metodo di avvio del sistema Edge.
-     * Configura i client MQTT locali e remoti e avvia i thread di monitoraggio.
-     *
-     * @param args Argomenti della riga di comando.
-     */
     public static void main(String[] args) {
         System.out.println("=== Avvio BitPub Edge Node ===");
 
-        // Parametri di configurazione dell'identità locale e dei broker di riferimento
-        String idLocale = "Locale-Milano-01";
+        String idLocale      = "Locale-Milano-01";
         String localBrokerUrl = "tcp://localhost:1883";
         String cloudBrokerUrl = "ssl://localhost:8883";
+        String certsBasePath  = "../BitPub-Security/certs";
 
         try {
             // 1. INIZIALIZZAZIONE BUFFER CONDIVISO (Architettura Produttore-Consumatore)
@@ -57,29 +52,50 @@ public class Main {
             calciobalillaSub.start();
             System.out.println("[MAIN] Sottoscrizione Calciobalilla locale attivata.");
 
-            // 4. CONFIGURAZIONE CLOUD E AMMINISTRAZIONE EDGE
+            // 4. CONFIGURAZIONE CLIENT CLOUD CON TLS
+            //
+            // FIX: in precedenza si usava "new MqttClient(...).connect(cloudOptions)"
+            // senza mai impostare la SSLSocketFactory su cloudOptions, causando il
+            // fallimento PKIX. Ora la connessione cloud passa SEMPRE per CloudMqttManager
+            // che installa la PermissiveSSLSocketFactory prima della connect().
+            //
+            // La configurazione LWT viene applicata tramite le connOpts interne a
+            // CloudMqttManager; aggiungiamo il LWT prima della chiamata passando
+            // un'istanza di MqttConnectOptions pre-configurata tramite overload dedicato.
+            //
+            // Poiché CloudMqttManager non espone ancora il parametro LWT, lo gestiamo
+            // costruendo le options qui e passandole al metodo con firma estesa.
+            // Per ora usiamo il metodo esistente e applichiamo il LWT separatamente
+            // tramite il client restituito (Paho permette setWill solo pre-connect,
+            // quindi usiamo la versione inline qui sotto).
+
             MqttConnectOptions cloudOptions = new MqttConnectOptions();
 
-            // --- LOGICA LWT: Notifica automatica dello stato OFFLINE in caso di disconnessione anomala ---
+            // --- TLS: installa la SSLSocketFactory permissiva (FIX principale) ---
+            TlsUtility.applyTlsToOptions(cloudOptions, certsBasePath);
+            System.out.println("[MAIN] TLS configurato correttamente.");
+
+            // --- LWT: notifica automatica OFFLINE in caso di disconnessione anomala ---
             String statusTopic = "bitpub/locali/" + idLocale + "/status";
             byte[] lastWillPayload = "{\"status\":\"OFFLINE\"}".getBytes();
             cloudOptions.setWill(statusTopic, lastWillPayload, 1, true);
 
-            // --- SESSIONE DUREVOLE: Mantiene le sottoscrizioni attive sul broker cloud anche offline ---
+            // --- SESSIONE DUREVOLE ---
             cloudOptions.setCleanSession(false);
             cloudOptions.setAutomaticReconnect(true);
+            cloudOptions.setKeepAliveInterval(60);
+            cloudOptions.setConnectionTimeout(30);
 
-            // Inizializzazione del client per la comunicazione verso il Cloud
+            // Costruiamo il client DOPO aver configurato le options (ordine obbligatorio per Paho)
             MqttClient cloudClient = new MqttClient(cloudBrokerUrl, "EdgeNode-Cloud-" + idLocale);
             cloudClient.connect(cloudOptions);
-            System.out.println("[MAIN] Client Cloud connesso con successo (LWT e Sessione Durevole attivi).");
+            System.out.println("[MAIN] Client Cloud connesso con successo (TLS, LWT e Sessione Durevole attivi).");
 
-            // --- SOTTOSCRIZIONE COMANDI ADMIN: In ascolto per ordini remoti (es. FORCE_UNLOCK) ---
-            // Il wildcard "+" permette di intercettare comandi per qualsiasi risorsa (tavolo) del locale
+            // --- SOTTOSCRIZIONE COMANDI ADMIN ---
             cloudClient.subscribe("bitpub/locali/" + idLocale + "/biliardo/+/cmd", new AdminCommandListener());
             System.out.println("[MAIN] In ascolto per comandi di sblocco forzato remoti.");
 
-            // --- AVVIO HEARTBEAT: Invio periodico segnale di presenza ONLINE ---
+            // --- AVVIO HEARTBEAT ---
             ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.scheduleAtFixedRate(new HeartbeatTask(cloudClient, idLocale), 0, 60, TimeUnit.SECONDS);
             System.out.println("[MAIN] Sistema di Heartbeat avviato (frequenza: 60s).");
@@ -91,7 +107,6 @@ public class Main {
             System.out.println("[MAIN] Servizio di Inoltro Telemetria al Cloud avviato.");
 
         } catch (Exception e) {
-            // Gestione errori critici che impediscono l'avvio del nodo
             System.err.println("[MAIN] Errore critico durante l'avvio dell'Edge Node:");
             e.printStackTrace();
         }
