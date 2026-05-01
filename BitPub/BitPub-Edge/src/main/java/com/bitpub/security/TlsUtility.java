@@ -1,59 +1,113 @@
 package com.bitpub.security;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import javax.net.ssl.*;
-import java.security.cert.X509Certificate;
 
-/**
- * Utility per la configurazione della sicurezza TLS nel progetto BitPub.
- */
+import javax.net.ssl.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Base64;
+
 public class TlsUtility {
 
-    /**
-     * Costruisce un SSLContext permissivo che accetta qualsiasi certificato server.
-     * Necessario per connettersi a broker con certificati self-signed o CA privata.
-     */
-    public static SSLContext buildPermissiveSslContext() throws Exception {
-        TrustManager[] trustAllCerts = new TrustManager[]{
-            new X509ExtendedTrustManager() {
-                @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                @Override public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                @Override public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                @Override public void checkClientTrusted(X509Certificate[] certs, String authType, java.net.Socket socket) {}
-                @Override public void checkServerTrusted(X509Certificate[] certs, String authType, java.net.Socket socket) {}
-                @Override public void checkClientTrusted(X509Certificate[] certs, String authType, SSLEngine engine) {}
-                @Override public void checkServerTrusted(X509Certificate[] certs, String authType, SSLEngine engine) {}
-            }
-        };
+    private static class MtlsSSLSocketFactory extends SSLSocketFactory {
 
-        SSLContext context = SSLContext.getInstance("TLSv1.2");
-        context.init(null, trustAllCerts, new java.security.SecureRandom());
-        return context;
+        private final SSLSocketFactory delegate;
+
+        public MtlsSSLSocketFactory(String certsPath) throws Exception {
+
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+            X509Certificate caCert;
+            try (InputStream caIs = Files.newInputStream(Paths.get(certsPath, "ca.crt"))) {
+                caCert = (X509Certificate) cf.generateCertificate(caIs);
+            }
+
+            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            trustStore.load(null, null);
+            trustStore.setCertificateEntry("ca", caCert);
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                    TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(trustStore);
+
+            X509Certificate clientCert;
+            try (InputStream cliIs = Files.newInputStream(Paths.get(certsPath, "client.crt"))) {
+                clientCert = (X509Certificate) cf.generateCertificate(cliIs);
+            }
+
+            PrivateKey privateKey = loadPkcs8Key(Paths.get(certsPath, "client_pkcs8.key"));
+
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(null, null);
+            keyStore.setKeyEntry("client", privateKey, new char[0],
+                    new Certificate[]{clientCert});
+
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(
+                    KeyManagerFactory.getDefaultAlgorithm());
+            kmf.init(keyStore, new char[0]);
+
+            SSLContext ctx = SSLContext.getInstance("TLSv1.2");
+            ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+            this.delegate = ctx.getSocketFactory();
+        }
+
+        private static PrivateKey loadPkcs8Key(Path keyPath) throws Exception {
+            String pem = Files.readString(keyPath);
+            String b64 = pem
+                    .replace("-----BEGIN PRIVATE KEY-----", "")
+                    .replace("-----END PRIVATE KEY-----", "")
+                    .replaceAll("\\s+", "");
+            byte[] der = Base64.getDecoder().decode(b64);
+            PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(der);
+            try {
+                return KeyFactory.getInstance("RSA").generatePrivate(spec);
+            } catch (InvalidKeySpecException e) {
+                return KeyFactory.getInstance("EC").generatePrivate(spec);
+            }
+        }
+
+        @Override public String[] getDefaultCipherSuites()  { return delegate.getDefaultCipherSuites(); }
+        @Override public String[] getSupportedCipherSuites() { return delegate.getSupportedCipherSuites(); }
+
+        @Override
+        public Socket createSocket() throws IOException { return delegate.createSocket(); }
+        @Override
+        public Socket createSocket(Socket s, String host, int port, boolean autoClose) throws IOException {
+            return delegate.createSocket(s, host, port, autoClose);
+        }
+        @Override
+        public Socket createSocket(String host, int port) throws IOException {
+            return delegate.createSocket(host, port);
+        }
+        @Override
+        public Socket createSocket(String host, int port, InetAddress local, int localPort) throws IOException {
+            return delegate.createSocket(host, port, local, localPort);
+        }
+        @Override
+        public Socket createSocket(InetAddress host, int port) throws IOException {
+            return delegate.createSocket(host, port);
+        }
+        @Override
+        public Socket createSocket(InetAddress addr, int port, InetAddress local, int localPort) throws IOException {
+            return delegate.createSocket(addr, port, local, localPort);
+        }
     }
 
-    /**
-     * Applica la configurazione TLS permissiva alle MqttConnectOptions.
-     *
-     * IMPORTANTE: Questo metodo deve essere chiamato PRIMA della costruzione
-     * di MqttClient, perché Paho legge il SSLContext di default durante
-     * l'istanziazione del client, non solo al momento della connect().
-     *
-     * @param options       Le opzioni di connessione MQTT da configurare.
-     * @param baseCertsPath Percorso base dei certificati (attualmente non usato,
-     *                      riservato per futura implementazione mTLS completo).
-     */
-    public static void applyTlsToOptions(MqttConnectOptions options, String baseCertsPath) throws Exception {
-        // Costruisce il contesto SSL permissivo
-        SSLContext context = buildPermissiveSslContext();
-
-        // FIX BUG PAHO: Forza il contesto come default JVM PRIMA che MqttClient
-        // venga istanziato. Senza questa riga, Paho ignora la SocketFactory impostata
-        // su MqttConnectOptions e usa il TrustManager di default della JVM,
-        // causando il PKIX path building failed.
-        SSLContext.setDefault(context);
-
-        // Imposta esplicitamente anche sulla options per doppia sicurezza
-        options.setSocketFactory(context.getSocketFactory());
-        options.setHttpsHostnameVerificationEnabled(false);
+    public static void applyTlsToOptions(MqttConnectOptions options,
+                                          String baseCertsPath) throws Exception {
+        options.setSocketFactory(new MtlsSSLSocketFactory(baseCertsPath));
+        // Se il broker è raggiunto via IP (non hostname), decommentare:
+        // options.setHttpsHostnameVerificationEnabled(false);
     }
 }

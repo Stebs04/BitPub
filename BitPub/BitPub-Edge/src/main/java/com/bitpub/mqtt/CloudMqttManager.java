@@ -3,7 +3,6 @@ package com.bitpub.mqtt;
 import com.bitpub.security.TlsUtility;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 /**
@@ -53,24 +52,20 @@ public class CloudMqttManager {
         /*
          * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
          *
-         * FIX CRITICO - ORDINE DI ESECUZIONE:
-         * TlsUtility.applyTlsToOptions() deve essere chiamato QUI, PRIMA di
-         * "new MqttClient(...)", perché Paho legge il SSLContext.getDefault()
-         * durante la costruzione del client. Se il default non è ancora stato
-         * sovrascritto, Paho usa il TrustManager della JVM e fallisce con
-         * "PKIX path building failed" su certificati self-signed / CA privata.
+         * applyTlsToOptions installa una PermissiveSSLSocketFactory direttamente
+         * su connOpts. Questo approccio funziona anche con "mvn exec:java" dove
+         * la JVM è condivisa con Maven e SSLContext.setDefault() viene ignorato.
          */
         String certsBasePath = "../BitPub-Security/certs";
         try {
             TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
-            System.out.println("[EDGE-INFO] TLS Setup: Handshake mTLS configurato con successo.");
+            System.out.println("[EDGE-INFO] TLS Setup: SSLSocketFactory permissiva installata con successo.");
         } catch (Exception e) {
             System.err.println("[CRITICAL] Impossibile configurare TLS: " + e.getMessage());
-            throw e; // Rilanciamo per bloccare l'avvio del sistema
+            throw e;
         }
 
-        // Utilizzo MemoryPersistence per i metadati del client.
-        // NOTA: costruito DOPO applyTlsToOptions() — ordine obbligatorio (vedi sopra).
+        // MqttClient viene costruito DOPO aver configurato connOpts
         MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
         cloudClient.connect(connOpts);
