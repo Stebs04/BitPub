@@ -9,6 +9,7 @@ import javafx.scene.layout.VBox;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import com.bitpub.network.AsyncHttpService;
+import com.bitpub.network.SessionManager; // <-- Aggiunto l'import per recuperare il Token
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -164,6 +165,8 @@ public class DashboardController {
         aggiungiLog(listUtenteAttivita, "(Utente) Richiesta Calciobalilla in corso...");
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + "/api/calciobalilla/stats"))
+                // FIX: Aggiunto l'header Authorization con il JWT Token!
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
                 .GET()
                 .build();
         httpService.sendAsync(request, 
@@ -183,7 +186,9 @@ public class DashboardController {
     public void giocaFreccette() {
         aggiungiLog(listUtenteAttivita, "(Utente) Richiesta Freccette in corso...");
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/v1/freccette/partite"))
+                .uri(URI.create(BASE_URL + "/api/statistiche/freccette")) // Assicurati che l'URL coincida con il backend
+                // FIX: Aggiunto l'header Authorization con il JWT Token!
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
                 .GET()
                 .build();
         httpService.sendAsync(request, 
@@ -203,7 +208,9 @@ public class DashboardController {
     public void giocaBiliardo() {
         aggiungiLog(listUtenteAttivita, "(Utente) Richiesta Biliardo in corso...");
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(BASE_URL + "/api/v1/biliardo/eventi/1"))
+                .uri(URI.create(BASE_URL + "/api/biliardo/statistiche")) // Assicurati che l'URL coincida con il backend
+                // FIX: Aggiunto l'header Authorization con il JWT Token!
+                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
                 .GET()
                 .build();
         httpService.sendAsync(request, 
