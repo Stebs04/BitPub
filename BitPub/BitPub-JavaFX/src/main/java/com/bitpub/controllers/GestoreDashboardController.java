@@ -49,7 +49,7 @@ public class GestoreDashboardController {
     @FXML private ProgressIndicator loadingIndicator;
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final RestClient restClient = new RestClient();
+    private final RestClient restClient = RestClient.getInstance();
     private Long localeId; 
 
     /**

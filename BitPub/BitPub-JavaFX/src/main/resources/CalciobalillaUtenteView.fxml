@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox prefHeight="600.0" prefWidth="900.0" spacing="20.0" style="-fx-background-color: #f4f7f6;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.CalciobalillaUtenteController">
+   <padding>
+      <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
+   </padding>
+
+   <!-- Header -->
+   <HBox alignment="CENTER_LEFT" spacing="20.0">
+      <Button mnemonicParsing="false" onAction="#tornaAllaDashboard" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-background-radius: 10;" text="⬅ Torna Indietro">
+         <font><Font name="System Bold" size="14.0" /></font>
+      </Button>
+      <Label text="Area Calciobalilla ⚽" textFill="#27ae60">
+         <font><Font name="System Bold" size="28.0" /></font>
+      </Label>
+   </HBox>
+
+   <!-- Main Content -->
+   <HBox spacing="40.0" VBox.vgrow="ALWAYS">
+      
+      <!-- Sezione Partita Singola -->
+      <VBox prefWidth="400.0" spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+         <Label text="Gioca Partita Rapida" textFill="#2c3e50">
+            <font><Font name="System Bold" size="20.0" /></font>
+         </Label>
+         <Label text="Avvia una simulazione di partita." textFill="#7f8c8d" wrapText="true" />
+         
+         <Button mnemonicParsing="false" onAction="#giocaPartitaSimulata" prefWidth="Infinity" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-background-radius: 8;" text="Inizia Partita Simulata">
+            <font><Font name="System Bold" size="16.0" /></font>
+         </Button>
+
+         <!-- Risultati Simulazione -->
+         <VBox fx:id="boxRisultatiPartita" spacing="10.0" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-background-radius: 8;" visible="false">
+            <Label text="Risultato Finale:" textFill="#2c3e50"><font><Font name="System Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblPunteggio" text="Punteggio: - " textFill="#e74c3c"><font><Font name="System Bold" size="24.0" /></font></Label>
+            <Label fx:id="lblStatistiche" text="Durata: - \nTiri in porta: - \nFalli: -" />
+         </VBox>
+      </VBox>
+
+      <!-- Sezione Torneo -->
+      <VBox prefWidth="400.0" spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);" HBox.hgrow="ALWAYS">
+         <Label text="Iscrizione Torneo (16 Squadre)" textFill="#2c3e50">
+            <font><Font name="System Bold" size="20.0" /></font>
+         </Label>
+         
+         <HBox spacing="10.0">
+            <TextField fx:id="txtNomeSquadra" promptText="Inserisci nome squadra..." style="-fx-background-radius: 5; -fx-border-color: #bdc3c7; -fx-border-radius: 5;" HBox.hgrow="ALWAYS" />
+            <Button mnemonicParsing="false" onAction="#iscrivitiTorneo" style="-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-background-radius: 5;" text="Iscriviti">
+               <font><Font name="System Bold" size="14.0" /></font>
+            </Button>
+         </HBox>
+
+         <!-- Lista Squadre Iscritte -->
+         <VBox fx:id="boxTorneo" spacing="5.0" visible="false" VBox.vgrow="ALWAYS">
+            <Label text="Squadre Iscritte al Torneo:" textFill="#2c3e50">
+               <font><Font name="System Bold" size="14.0" /></font>
+            </Label>
+            <ListView fx:id="listSquadre" style="-fx-background-radius: 5; -fx-border-radius: 5; -fx-border-color: #bdc3c7;" VBox.vgrow="ALWAYS" />
+         </VBox>
+      </VBox>
+
+   </HBox>
+</VBox>
