@@ -40,15 +40,13 @@ public class LocaleController {
      * * @return {@link CollectionModel} contenente i locali arricchiti con link HATEOAS.
      */
     @GetMapping
-    public ResponseEntity<CollectionModel<EntityModel<Locale>>> getAllLocali() {
+    public CollectionModel<EntityModel<Locale>> getAllLocali() {
         List<EntityModel<Locale>> localiModel = localeRepository.findAll().stream()
                 .map(assembler::toModel)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(
-                CollectionModel.of(localiModel,
-                        linkTo(methodOn(LocaleController.class).getAllLocali()).withSelfRel()
-                )
+        return CollectionModel.of(localiModel,
+                linkTo(methodOn(LocaleController.class).getAllLocali()).withSelfRel()
         );
     }
 
@@ -88,7 +86,7 @@ public class LocaleController {
     @PostMapping
     public ResponseEntity<?> creaLocale(@RequestBody Locale nuovo) {
         if (nuovo.getIpAddressEdge() == null || nuovo.getIpAddressEdge().isEmpty()) {
-            return ResponseEntity.badRequest().body("Errore: L'IP del nodo Edge è obbligatorio!");
+            nuovo.setIpAddressEdge("127.0.0.1"); // Assegna IP di default se non fornito
         }
         
         if (localeRepository.existsByName(nuovo.getName())) {

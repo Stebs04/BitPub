@@ -75,7 +75,7 @@ public class AdminDashboardController {
      */
     private void configuraTabella() {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        colNome.setCellValueFactory(new PropertyValueFactory<>("name"));
         colCitta.setCellValueFactory(new PropertyValueFactory<>("citta"));
         colIndirizzo.setCellValueFactory(new PropertyValueFactory<>("indirizzo"));
         localiTable.setItems(listaLocaliObservable);
@@ -115,20 +115,13 @@ public class AdminDashboardController {
      */
     private void processaRispostaServer(String body) {
         try {
-            JsonObject rootObj = JsonParser.parseString(body).getAsJsonObject();
-            List<Locale> localiEstratti = new ArrayList<>();
-
-            if (rootObj.has("_embedded")) {
-                JsonArray localiArray = rootObj.getAsJsonObject("_embedded").getAsJsonArray("localeList");
-                for (JsonElement element : localiArray) {
-                    localiEstratti.add(gson.fromJson(element, Locale.class));
-                }
-            }
+            List<Locale> localiEstratti = com.bitpub.network.HttpResponseParser.parseLocali(body);
 
             Platform.runLater(() -> {
                 // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
                 listaLocaliObservable.setAll(localiEstratti);
                 progressIndicator.setVisible(false);
+                System.out.println("Lista aggiornata con " + localiEstratti.size() + " locali.");
             });
 
         } catch (Exception e) {
@@ -232,6 +225,26 @@ public class AdminDashboardController {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
         if (selezionato != null) {
             System.out.println("Modifica locale ID: " + selezionato.getId());
+            // TODO: Invocazione modale per i dettagli. Nel frattempo diamo un update logico demo
+            selezionato.setName(selezionato.getName() + " - Aggiornato");
+            
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/api/v1/admin/locali/" + selezionato.getId()))
+                    .header("Accept", "application/resources.v1+json")
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(gson.toJson(selezionato)))
+                    .build();
+
+            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(HttpResponse::body)
+                    .thenAccept(body -> {
+                        System.out.println("Risposta Modifica: " + body);
+                        javafx.application.Platform.runLater(this::caricaDati);
+                    })
+                    .exceptionally(e -> {
+                        System.err.println("Errore PUT modifica: " + e.getMessage());
+                        return null;
+                    });
         }
     }
 
