@@ -69,7 +69,21 @@ public class RestClient {
 
         // Luca: Gestione del flusso dati asincrono
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> JsonManager.getInstance().fromJson(response.body(), responseClass));
+                .thenApply(response -> {
+                    // --- NUOVO: DEBUG DELLA RISPOSTA ---
+                    System.out.println("=== DEBUG CHIAMATA GET: " + endpoint + " ===");
+                    System.out.println("Status Code: " + response.statusCode());
+                    System.out.println("Raw JSON: " + response.body());
+                    System.out.println("=========================================");
+                    
+                    // Lanciamo un'eccezione se il server risponde con un errore (es. 401, 403, 500)
+                    if (response.statusCode() >= 400) {
+                        throw new RuntimeException("Errore HTTP dal server: " + response.statusCode());
+                    }
+
+                    // Tenta la conversione (qui è dove probabilmente avviene il crash)
+                    return JsonManager.getInstance().fromJson(response.body(), responseClass);
+                });
     }
 
     /**

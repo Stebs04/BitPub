@@ -11,68 +11,78 @@ import javafx.scene.control.*;
 
 /**
  * Controller per la gestione della vista di Login.
- * Gestisce l'interazione con l'utente per l'autenticazione, interfacciandosi
- * con il server Cloud e coordinando il reindirizzamento post-login basato sui ruoli.
- * 
+ * Si occupa dell'acquisizione delle credenziali utente e della comunicazione
+ * asincrona con i servizi di autenticazione Cloud per l'ottenimento del token JWT.
+ *
  * @author Stefano Bellan 20054330
  * @since 2024
  */
 public class LoginController {
 
-    @FXML private TextField usernameField;   // Collegato al componente fx:id="usernameField"
+    @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
-    @FXML private Label erroreLabel;          // Collegato al componente fx:id="erroreLabel"
+    @FXML private Label erroreLabel;
 
     /**
-     * Innesca la procedura di autenticazione.
-     * Recupera le credenziali dai campi di testo e invia una richiesta POST asincrona al server.
+     * Gestisce la logica di autenticazione dell'utente.
+     * Recupera l'input, valida la presenza dei campi e inoltra la richiesta al server.
+     * In caso di successo, delega il reindirizzamento alla logica centralizzata del Main.
      */
     @FXML
     public void handleLogin() {
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        // Validazione formale dell'input locale
+        // Validazione formale dell'input per minimizzare le chiamate superflue al server
         if (username.isEmpty() || password.isEmpty()) {
             erroreLabel.setText("Inserisci username e password.");
             return;
         }
 
-        // Reset dei messaggi di errore precedenti
-        erroreLabel.setText("");
+        // Feedback visivo immediato durante l'attesa della risposta dal Cloud
+        erroreLabel.setText("Accesso in corso...");
 
-        // Creazione del DTO per la richiesta di autenticazione
+        // Incapsulamento dei dati di accesso nel DTO per la richiesta REST
         AuthRequest request = new AuthRequest(username, password);
 
-        // Chiamata REST asincrona tramite il client centralizzato
+        // Chiamata asincrona POST per validare le credenziali tramite l'endpoint dedicato
         RestClient.getInstance().faiChiamataPost("/api/v1/auth/login", request, AuthResponse.class)
-                .thenAccept(response -> {
-                    if (response != null && response.getToken() != null) {
-                        // 1. Persistenza dei metadati di sessione nel Singleton locale
-                        SessionManager.getInstance().setJwtToken(response.getToken());
-                        SessionManager.getInstance().setUsername(response.getUsername());
-                        
-                        // 2. Memorizzazione del ruolo per la logica di routing centralizzata
-                        SessionManager.getInstance().setUserRole(response.getRole());
-                        
-                        // 3. Esecuzione del redirect sul thread JavaFX Application
-                        Platform.runLater(Main::redirectDopoLogin);
-                    } else {
-                        // Gestione errore credenziali (es. 401 Unauthorized)
-                        Platform.runLater(() ->
-                            erroreLabel.setText("Credenziali errate o utente non autorizzato."));
-                    }
+                .thenAccept(authResponse -> {
+                    Platform.runLater(() -> {
+                        // Se la risposta è valida e contiene un token
+                        if (authResponse != null && authResponse.getToken() != null) {
+
+                            // 1. Salviamo il token nel SessionManager
+                            SessionManager.getInstance().setJwtToken(authResponse.getToken());
+
+                            // ---> NUOVA RIGA DA AGGIUNGERE <---
+                            // Salviamo anche il ruolo dell'utente nel SessionManager!
+                            // (Nota: assumo che in AuthResponse e SessionManager i metodi si chiamino così)
+                            SessionManager.getInstance().setUserRole(authResponse.getRole());
+
+                            // 2. Deleghiamo il compito di capire quale pagina aprire al Main
+                            Main.redirectDopoLogin();
+
+                        } else {
+                            erroreLabel.setText("Credenziali non valide.");
+                        }
+                    });
                 })
-                .exceptionally(ex -> {
-                    // Gestione fallimento connessione o eccezioni di rete
-                    Platform.runLater(() ->
-                        erroreLabel.setText("Errore di rete: impossibile contattare il server."));
+                .exceptionally(e -> {
+                    // Logging dell'eccezione per scopi di monitoraggio e diagnostica
+                    System.err.println("Errore critico durante il processo di login:");
+                    e.printStackTrace();
+
+                    // Notifica all'utente in caso di indisponibilità dei servizi Cloud
+                    Platform.runLater(() -> {
+                        erroreLabel.setText("Impossibile contattare il server.");
+                    });
                     return null;
                 });
     }
 
     /**
-     * Reindirizza l'utente alla schermata di registrazione.
+     * Gestisce la navigazione verso la schermata di creazione di un nuovo account utente.
      */
     @FXML
     private void vaiARegistrazione() {

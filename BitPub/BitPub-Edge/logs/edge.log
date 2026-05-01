@@ -11026,3 +11026,9 @@
 20:44:41.408 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
 20:45:54.230 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
 20:45:54.560 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+20:58:00.419 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
+20:58:00.748 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+20:58:01.461 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Connessione Edge?Cloud stabilita - endpoint: ssl://localhost:8883
+21:31:18.110 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
+21:31:18.447 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+21:31:19.086 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Connessione Edge?Cloud stabilita - endpoint: ssl://localhost:8883
