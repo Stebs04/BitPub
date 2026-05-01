@@ -21,9 +21,9 @@ public class RestClient {
     // --- LOGICA DI STEFANO: Core Engine (Singleton Pattern) ---
     private static RestClient instance;
     private final HttpClient client;
-    
+
     /** URL base dell'API di backend (Spring Boot) */
-    private final String baseUrl = "http://localhost:8080"; 
+    private final String baseUrl = "http://localhost:8080";
 
     // --- LOGICA DI TIMOTHY: Versioning e Headers ---
     /** Header specifico per il Semantic Versioning richiesto dalla Fase 13 */
@@ -50,16 +50,22 @@ public class RestClient {
     /**
      * Metodo per la compatibilità con i controller Gestore e Admin.
      * Timothy: Inserisce il versioning e il token JWT recuperato dal SessionManager.
-     * 
+     *
      * @return Un {@link CompletableFuture} con l'oggetto mappato.
      */
     public <T> CompletableFuture<T> faiChiamataGet(String endpoint, Class<T> responseClass) {
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + endpoint))
                 .header("Accept", ACCEPT_HEADER)
-                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
-                .GET()
-                .build();
+                .GET();
+
+        // Iniezione automatica del Token se presente
+        String token = SessionManager.getInstance().getJwtToken();
+        if (token != null && !token.isEmpty()) {
+            builder.header("Authorization", "Bearer " + token);
+        }
+
+        HttpRequest request = builder.build();
 
         // Luca: Gestione del flusso dati asincrono
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
@@ -72,13 +78,19 @@ public class RestClient {
      */
     public <T> CompletableFuture<T> faiChiamataPost(String endpoint, Object data, Class<T> responseClass) {
         String json = JsonManager.getInstance().toJson(data);
-        HttpRequest request = HttpRequest.newBuilder()
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + endpoint))
                 .header("Content-Type", "application/json")
                 .header("Accept", ACCEPT_HEADER)
-                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(json));
+
+        String token = SessionManager.getInstance().getJwtToken();
+        if (token != null && !token.isEmpty()) {
+            builder.header("Authorization", "Bearer " + token);
+        }
+
+        HttpRequest request = builder.build();
 
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> JsonManager.getInstance().fromJson(response.body(), responseClass));
@@ -105,7 +117,7 @@ public class RestClient {
     private void sendAsyncWithCallback(String method, String endpoint, Object data, Consumer<String> callback) {
         // Stefano: Trasformazione del Payload (se nullo, invia oggetto vuoto)
         String json = (data != null) ? JsonManager.getInstance().toJson(data) : "{}";
-        
+
         // Timothy: Configurazione Headers con supporto al Versioning v1
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + endpoint))
@@ -113,7 +125,7 @@ public class RestClient {
                 .header("Accept", ACCEPT_HEADER);
 
         String token = SessionManager.getInstance().getJwtToken();
-        if (token != null) {
+        if (token != null && !token.isEmpty()) {
             builder.header("Authorization", "Bearer " + token);
         }
 
@@ -128,6 +140,7 @@ public class RestClient {
                     }
                 })
                 .exceptionally(ex -> {
+                    System.err.println("Errore durante la chiamata " + method + ": " + ex.getMessage());
                     ex.printStackTrace();
                     return null;
                 });

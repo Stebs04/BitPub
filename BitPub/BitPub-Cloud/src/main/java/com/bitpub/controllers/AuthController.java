@@ -47,7 +47,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Dati mancanti");
         }
 
-        if (utenteRepository.findByNickname(request.getUsername()).isPresent()) {
+        if (utenteRepository.findByUsername(request.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username già in uso");
         }
 
@@ -61,11 +61,11 @@ public class AuthController {
         utenteRepository.save(nuovoUtente);
 
         // Genera JWT
-        String token = jwtUtil.generateToken(nuovoUtente.getNickname(), nuovoUtente.getRuolo());
+        String token = jwtUtil.generateToken(nuovoUtente.getUsername(), nuovoUtente.getRole());
 
-        AuthResponse response = new AuthResponse(nuovoUtente.getNickname(), token, nuovoUtente.getRuolo());
+        AuthResponse response = new AuthResponse(nuovoUtente.getUsername(), token, nuovoUtente.getRole());
         EntityModel<AuthResponse> model = EntityModel.of(response,
-                linkTo(methodOn(UtenteController.class).getUtenteByNickname(nuovoUtente.getNickname(), null)).withRel("profilo")
+                linkTo(methodOn(UtenteController.class).getUtenteByNickname(nuovoUtente.getUsername(), null)).withRel("profilo")
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -85,7 +85,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Dati mancanti");
         }
 
-        Optional<Utente> utenteOpt = utenteRepository.findByNickname(request.getUsername());
+        Optional<Utente> utenteOpt = utenteRepository.findByUsername(request.getUsername());
         if (utenteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenziali non valide");
         }
@@ -96,11 +96,11 @@ public class AuthController {
         }
 
         // Genera JWT
-        String token = jwtUtil.generateToken(utente.getNickname(), utente.getRuolo());
+        String token = jwtUtil.generateToken(utente.getUsername(), utente.getRole());
 
-        AuthResponse response = new AuthResponse(utente.getNickname(), token, utente.getRuolo());
+        AuthResponse response = new AuthResponse(utente.getUsername(), token, utente.getRole());
         EntityModel<AuthResponse> model = EntityModel.of(response,
-                linkTo(methodOn(UtenteController.class).getUtenteByNickname(utente.getNickname(), null)).withRel("profilo")
+                linkTo(methodOn(UtenteController.class).getUtenteByNickname(utente.getUsername(), null)).withRel("profilo")
         );
 
         return ResponseEntity.ok()

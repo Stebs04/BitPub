@@ -1,12 +1,8 @@
 package com.bitpub.controllers;
 
 import com.bitpub.models.Locale;
-import com.bitpub.network.SessionManager;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.bitpub.models.Utente; // Assicurati di avere questo import!
+import com.bitpub.network.RestClient;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -14,45 +10,29 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Controller per la Dashboard Amministratore.
- * Gestisce l'anagrafica dei locali (CRUD) interfacciandosi con il backend 
+ * Gestisce l'anagrafica dei locali (CRUD) interfacciandosi con il backend
  * tramite API REST conformi allo standard HATEOAS e Semantic Versioning.
  *
  * @author Stefano Bellan
- * @version 1.0
- * @since 1.0
  */
 public class AdminDashboardController {
-
-    /** URL base per le risorse dei locali */
-    private static final String API_BASE_URL = "http://localhost:8080/api/locali";
-    
-    /** * MediaType specifico richiesto dall'ApiVersionFilter del Cloud.
-     * L'uso di application/json causerebbe un errore 406 Not Acceptable.
-     */
-    private static final String MEDIA_TYPE_V1 = "application/resources.v1+json";
 
     @FXML private TableView<Locale> localiTable;
     @FXML private TableColumn<Locale, Long> colId;
     @FXML private TableColumn<Locale, String> colNome;
     @FXML private TableColumn<Locale, String> colCitta;
     @FXML private TableColumn<Locale, String> colIndirizzo;
-    
+
     @FXML private Button btnModifica;
     @FXML private Button btnElimina;
     @FXML private ProgressIndicator progressIndicator;
 
     private final ObservableList<Locale> listaLocaliObservable = FXCollections.observableArrayList();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
-    private final Gson gson = new Gson();
 
     /**
      * Inizializza la vista configurando il data-binding della tabella e i listener di selezione.
@@ -89,16 +69,20 @@ public class AdminDashboardController {
     public void caricaDati() {
         progressIndicator.setVisible(true);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_BASE_URL))
-                .header("Accept", MEDIA_TYPE_V1)
-                .header("Authorization", "Bearer " + SessionManager.getInstance().getJwtToken())
-                .GET()
-                .build();
-
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(this::processaRispostaServer)
+        // Uso del RestClient centralizzato per la chiamata GET
+        RestClient.getInstance().faiChiamataGet("/api/v1/locali", Locale[].class)
+                .thenAccept(localiArray -> {
+                    Platform.runLater(() -> {
+                        if (localiArray != null) {
+                            // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
+                            listaLocaliObservable.setAll(Arrays.asList(localiArray));
+                            System.out.println("Lista aggiornata con " + localiArray.length + " locali.");
+                        } else {
+                            mostraNotifica("Errore Dati", "Formato risposta non valido o vuoto.", Alert.AlertType.WARNING);
+                        }
+                        progressIndicator.setVisible(false);
+                    });
+                })
                 .exceptionally(e -> {
                     // Sincronizzazione con il JavaFX Application Thread per la manipolazione sicura dei nodi grafici
                     Platform.runLater(() -> {
@@ -110,34 +94,39 @@ public class AdminDashboardController {
     }
 
     /**
-     * Parsifica la risposta JSON HATEOAS e aggiorna la lista osservabile.
-     * @param body Il corpo della risposta JSON ricevuto dal server.
-     */
-    private void processaRispostaServer(String body) {
-        try {
-            List<Locale> localiEstratti = com.bitpub.network.HttpResponseParser.parseLocali(body);
-
-            Platform.runLater(() -> {
-                // Aggiornamento atomico della lista per riflettere i cambiamenti nella TableView
-                listaLocaliObservable.setAll(localiEstratti);
-                progressIndicator.setVisible(false);
-                System.out.println("Lista aggiornata con " + localiEstratti.size() + " locali.");
-            });
-
-        } catch (Exception e) {
-            Platform.runLater(() -> {
-                progressIndicator.setVisible(false);
-                mostraNotifica("Errore Dati", "Formato risposta non valido.", Alert.AlertType.WARNING);
-            });
-        }
-    }
-
-    /**
      * Gestisce l'apertura della procedura per la creazione di un nuovo locale.
      * Metodo collegato all'onAction del file FXML.
      */
     @FXML
     public void handleNuovoLocale() {
+        progressIndicator.setVisible(true);
+
+        // 1. Scarichiamo la lista degli utenti (idealmente filtrando per GESTORE se l'API lo supporta)
+        // Se non supporta filtri, scarichiamo tutti e filtriamo in Java. Supponiamo che l'API supporti ?role=GESTORE
+        RestClient.getInstance().faiChiamataGet("/api/v1/users?role=GESTORE", Utente[].class)
+                .thenAccept(utentiArray -> {
+                    Platform.runLater(() -> {
+                        progressIndicator.setVisible(false);
+                        List<Utente> gestoriDisponibili = utentiArray != null ? Arrays.asList(utentiArray) : List.of();
+                        mostraDialogCreazione(gestoriDisponibili);
+                    });
+                })
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> {
+                        progressIndicator.setVisible(false);
+                        mostraNotifica("Errore di rete", "Impossibile recuperare la lista dei gestori.", Alert.AlertType.ERROR);
+                        // Procediamo comunque con una lista vuota in caso di errore
+                        mostraDialogCreazione(List.of());
+                    });
+                    return null;
+                });
+    }
+
+    /**
+     * Metodo privato di supporto per costruire e mostrare il Dialog di creazione.
+     * Separato da handleNuovoLocale per gestire la natura asincrona della chiamata API.
+     */
+    private void mostraDialogCreazione(List<Utente> gestoriDisponibili) {
         // Creazione di un Dialog personalizzato
         Dialog<Locale> dialog = new Dialog<>();
         dialog.setTitle("Nuovo Locale");
@@ -161,6 +150,37 @@ public class AdminDashboardController {
         TextField ipEdgeInput = new TextField();
         ipEdgeInput.setPromptText("IP Edge");
 
+        // --- NUOVO: ComboBox per la selezione del Gestore ---
+        ComboBox<Utente> gestoreCombo = new ComboBox<>();
+        gestoreCombo.setItems(FXCollections.observableArrayList(gestoriDisponibili));
+        gestoreCombo.setPromptText("Seleziona Gestore...");
+
+        // Definiamo come l'oggetto Utente deve essere visualizzato nella tendina (Mostriamo l'Username)
+        gestoreCombo.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Utente utente, boolean empty) {
+                super.updateItem(utente, empty);
+                if (empty || utente == null) {
+                    setText(null);
+                } else {
+                    setText(utente.getUsername());
+                }
+            }
+        });
+
+        // Questo serve per visualizzare l'elemento selezionato a tendina chiusa
+        gestoreCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Utente utente, boolean empty) {
+                super.updateItem(utente, empty);
+                if (empty || utente == null) {
+                    setText(null);
+                } else {
+                    setText(utente.getUsername());
+                }
+            }
+        });
+
         grid.add(new Label("Nome:"), 0, 0);
         grid.add(nomeInput, 1, 0);
         grid.add(new Label("Indirizzo:"), 0, 1);
@@ -169,6 +189,8 @@ public class AdminDashboardController {
         grid.add(cittaInput, 1, 2);
         grid.add(new Label("IP Edge:"), 0, 3);
         grid.add(ipEdgeInput, 1, 3);
+        grid.add(new Label("Gestore:"), 0, 4); // Aggiunta la Label
+        grid.add(gestoreCombo, 1, 4);          // Aggiunta la ComboBox
 
         dialog.getDialogPane().setContent(grid);
 
@@ -180,6 +202,13 @@ public class AdminDashboardController {
                 loc.setIndirizzo(indirizzoInput.getText());
                 loc.setCitta(cittaInput.getText());
                 loc.setIpAddressEdge(ipEdgeInput.getText());
+
+                // --- NUOVO: Assegnazione del gestore ID ---
+                Utente gestoreSelezionato = gestoreCombo.getValue();
+                if (gestoreSelezionato != null) {
+                    loc.setGestoreId(gestoreSelezionato.getId());
+                }
+
                 return loc;
             }
             return null;
@@ -187,33 +216,28 @@ public class AdminDashboardController {
 
         // Mostra il dialog e aspetta il risultato
         dialog.showAndWait().ifPresent(nuovoLocale -> {
-            com.bitpub.network.AsyncHttpService httpService = new com.bitpub.network.AsyncHttpService();
-            String jsonPayload = gson.toJson(nuovoLocale);
-
             progressIndicator.setVisible(true);
 
-            String tokenUtenteLoggato = SessionManager.getInstance().getJwtToken();
-            
-            httpService.creaLocaleAsincrono(jsonPayload, tokenUtenteLoggato, "http://localhost:8080")
-                .thenAccept(response -> {
-                    Platform.runLater(() -> {
-                        progressIndicator.setVisible(false);
-                        if (response.statusCode() == 201) {
-                            mostraNotifica("Successo", "Locale creato correttamente!", Alert.AlertType.INFORMATION);
-                            caricaDati(); // Ricarica la lista aggiornata
-                        } else {
-                            mostraNotifica("Errore (" + response.statusCode() + ")", 
-                                "Impossibile creare: " + response.body(), Alert.AlertType.ERROR);
-                        }
+            // Chiamata POST centralizzata tramite RestClient
+            RestClient.getInstance().faiChiamataPost("/api/v1/locali", nuovoLocale, Locale.class)
+                    .thenAccept(responseLocale -> {
+                        Platform.runLater(() -> {
+                            progressIndicator.setVisible(false);
+                            if (responseLocale != null) {
+                                mostraNotifica("Successo", "Locale creato correttamente!", Alert.AlertType.INFORMATION);
+                                caricaDati(); // Ricarica la lista aggiornata
+                            } else {
+                                mostraNotifica("Errore", "Impossibile creare il locale (controlla i log).", Alert.AlertType.ERROR);
+                            }
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> {
+                            progressIndicator.setVisible(false);
+                            mostraNotifica("Errore di rete", ex.getMessage(), Alert.AlertType.ERROR);
+                        });
+                        return null;
                     });
-                })
-                .exceptionally(ex -> {
-                    Platform.runLater(() -> {
-                        progressIndicator.setVisible(false);
-                        mostraNotifica("Errore di rete", ex.getMessage(), Alert.AlertType.ERROR);
-                    });
-                    return null;
-                });
         });
     }
 
@@ -222,42 +246,6 @@ public class AdminDashboardController {
      */
     @FXML
     public void handleModifica() {
-        Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato != null) {
-            System.out.println("Modifica locale ID: " + selezionato.getId());
-            // TODO: Invocazione modale per i dettagli. Nel frattempo diamo un update logico demo
-            selezionato.setName(selezionato.getName() + " - Aggiornato");
-            
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("http://localhost:8080/api/v1/admin/locali/" + selezionato.getId()))
-                    .header("Accept", "application/resources.v1+json")
-                    .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofString(gson.toJson(selezionato)))
-                    .build();
-
-            httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                    .thenApply(HttpResponse::body)
-                    .thenAccept(body -> {
-                        System.out.println("Risposta Modifica: " + body);
-                        javafx.application.Platform.runLater(this::caricaDati);
-                    })
-                    .exceptionally(e -> {
-                        System.err.println("Errore PUT modifica: " + e.getMessage());
-                        return null;
-                    });
-        }
-    }
-
-    @FXML
-    public void popupNuovoLocale() {
-        handleNuovoLocale();
-    }
-
-    /**
-     * Gestisce l'aggiornamento (PUT) di un locale.
-     */
-    @FXML
-    public void handleAggiornaLocale() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
         if (selezionato == null) {
             mostraNotifica("Errore", "Seleziona un locale da aggiornare", Alert.AlertType.WARNING);
@@ -273,7 +261,7 @@ public class AdminDashboardController {
 
         TextField campoNome = new TextField(selezionato.getName());
         TextField campoCitta = new TextField(selezionato.getCitta());
-        
+
         javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -294,23 +282,14 @@ public class AdminDashboardController {
 
         dialog.showAndWait().ifPresent(localeAggiornato -> {
             progressIndicator.setVisible(true);
-            String json = String.format("{\"name\":\"%s\", \"citta\":\"%s\"}", 
-                    localeAggiornato.getName(), localeAggiornato.getCitta());
-            String endpoint = "/api/locali/" + selezionato.getId();
+            String endpoint = "/api/v1/locali/" + selezionato.getId();
 
-            com.bitpub.network.AsyncHttpService httpService = new com.bitpub.network.AsyncHttpService();
-            httpService.putAsync(endpoint, json, SessionManager.getInstance().getJwtToken())
-                .thenAccept(response -> {
-                    Platform.runLater(() -> {
-                        progressIndicator.setVisible(false);
-                        if (response.statusCode() == 200 || response.statusCode() == 204) {
-                            mostraNotifica("Successo", "Locale aggiornato!", Alert.AlertType.INFORMATION);
-                            caricaDati(); // Ricarica la tabella
-                        } else {
-                            mostraNotifica("Errore", "Errore " + response.statusCode() + ": " + response.body(), Alert.AlertType.ERROR);
-                        }
-                    });
-                });
+            // Chiamata PUT centralizzata tramite RestClient
+            RestClient.getInstance().putAsync(endpoint, localeAggiornato, responseStr -> {
+                progressIndicator.setVisible(false);
+                mostraNotifica("Successo", "Locale aggiornato!", Alert.AlertType.INFORMATION);
+                caricaDati(); // Ricarica la tabella
+            });
         });
     }
 
@@ -321,6 +300,7 @@ public class AdminDashboardController {
     public void handleElimina() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
         if (selezionato != null) {
+            // Nota: Se desideri eliminare anche su DB, puoi aggiungere RestClient.deleteAsync(...) qui
             listaLocaliObservable.remove(selezionato);
             mostraNotifica("Successo", "Locale rimosso dalla vista.", Alert.AlertType.INFORMATION);
         }

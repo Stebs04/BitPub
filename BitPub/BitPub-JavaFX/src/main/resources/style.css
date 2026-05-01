@@ -1,0 +1,83 @@
+/* Imposta il font principale e il colore di sfondo dell'intera applicazione */
+.root {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-background-color: #f4f6f7;
+    -fx-background-color: #ecf0f1;
+}
+
+/* Rende trasparente lo sfondo della ScrollPane, così si vede il colore della root */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Rimuove i bordi fastidiosi dalla ScrollPane */
+.scroll-pane:focused {
+    -fx-background-insets: 0;
+}
+
+/* Stile per i pulsanti (es. il pulsante "Aggiorna Stato") */
+.button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 15px;
+    -fx-background-radius: 5px;
+    -fx-cursor: hand;
+}
+
+/* Effetto quando passi sopra il pulsante con il mouse */
+.button:hover {
+    -fx-background-color: #2980b9;
+}
+
+/* Effetto quando clicchi il pulsante */
+.button:pressed {
+    -fx-background-color: #1c6ea4;
+}
+
+/* Colore di sfondo per l'intera vista */
+.root {
+    -fx-background-color: #ecf0f1;
+}
+
+/* Effetto al passaggio del mouse sopra le card */
+.venues-container .vbox:hover {
+    -fx-cursor: hand;
+    -fx-opacity: 0.9;
+}
+
+/* Stile per il pulsante Aggiorna */
+.button {
+    -fx-background-radius: 20;
+    -fx-padding: 8 20;
+    -fx-transition: 0.3s;
+}
+
+.sidebar {
+    -fx-background-color: #1e293b; /* Blu molto scuro */
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cbd5e1;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10 15;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: #334155;
+    -fx-text-fill: white;
+}
+
+.logout-button {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}

@@ -1,96 +1,116 @@
 package com.bitpub.controllers;
 
-import com.bitpub.Main;
 import com.bitpub.models.AuthRequest;
 import com.bitpub.models.AuthResponse;
+import com.bitpub.network.RestClient;
 import com.bitpub.network.SessionManager;
-import com.google.gson.Gson;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.stage.Stage;
 
 /**
- * Controller per la gestione dell'autenticazione utente.
- * Gestisce l'interfaccia di login e il reindirizzamento dinamico basato sui ruoli.
+ * Controller per la gestione dell'autenticazione degli amministratori.
+ * Gestisce l'invio delle credenziali al server Cloud e il caricamento del layout principale.
  *
- * @author Stefano Bellan
+ * @author Stefano Bellan 20054330
+ * @since 2024
  */
 public class LoginController {
 
-    @FXML private TextField usernameField;
+    @FXML private TextField emailField;
     @FXML private PasswordField passwordField;
-    @FXML private Label erroreLabel;
+    @FXML private Button loginButton;
+    @FXML private ProgressIndicator loader;
 
-    private static final String API_URL = "http://localhost:8080/api/v1/auth/login";
-    private final HttpClient httpClient;
-    private final Gson gson;
-
-    public LoginController() {
-        this.httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_2)
-                .build();
-        this.gson = new Gson();
-    }
-
+    /**
+     * Gestisce l'evento di login. Valida l'input e avvia la richiesta asincrona al server.
+     */
     @FXML
-    public void handleLogin(ActionEvent event) {
-        String username = usernameField.getText();
+    public void handleLogin() {
+        String email = emailField.getText();
         String password = passwordField.getText();
 
-        if (username.isBlank() || password.isBlank()) {
-            erroreLabel.setText("Inserisci username e password");
+        // Validazione formale dell'input locale
+        if (email.isEmpty() || password.isEmpty()) {
+            mostraErrore("Campi mancanti", "Inserisci email e password.");
             return;
         }
 
-        AuthRequest authRequest = new AuthRequest();
-        authRequest.setUsername(username.trim());
-        authRequest.setPassword(password);
-        String jsonBody = gson.toJson(authRequest);
+        // Feedback visivo: attivazione loader e disabilitazione pulsante
+        loader.setVisible(true);
+        loginButton.setDisable(true);
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(API_URL))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/resources.v1+json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
+        // Creazione del DTO per la richiesta di autenticazione
+        AuthRequest request = new AuthRequest(email, password);
 
-        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        // Chiamata asincrona al server Cloud tramite RestClient Singleton
+        RestClient.getInstance().faiChiamataPost("/api/v1/auth/login", request, AuthResponse.class)
                 .thenAccept(response -> {
-                    Platform.runLater(() -> {
-                        if (response.statusCode() == 200) {
-                            AuthResponse authResponse = gson.fromJson(response.body(), AuthResponse.class);
-                            
-                            // Salvataggio della sessione nel SessionManager globale
-                            SessionManager.getInstance().setSession(
-                                    authResponse.getUsername(),
-                                    authResponse.getToken(),
-                                    authResponse.getRuolo(),
-                                    null
-                            );
-                            
-                            // DELEGA AL MAIN: Smistamento basato sul ruolo (Admin, Gestore o Utente)
-                            Main.redirectDopoLogin();
-                        } else {
-                            erroreLabel.setText("Credenziali errate.");
-                        }
-                    });
+                    if (response != null && response.getToken() != null) {
+                        // 1. Salvataggio persistente del token JWT e del nome utente nella sessione
+                        SessionManager.getInstance().setJwtToken(response.getToken());
+                        SessionManager.getInstance().setUsername(response.getUsername());
+
+                        // 2. Reindirizzamento alla Dashboard nel thread grafico
+                        Platform.runLater(this::apriDashboard);
+                    } else {
+                        // Gestione fallimento autenticazione (es. 401 Unauthorized)
+                        Platform.runLater(() -> {
+                            loader.setVisible(false);
+                            loginButton.setDisable(false);
+                            mostraErrore("Login Fallito", "Credenziali errate o utente non autorizzato.");
+                        });
+                    }
                 })
                 .exceptionally(ex -> {
-                    Platform.runLater(() -> erroreLabel.setText("Connessione fallita."));
+                    // Gestione errori di rete o timeout del server
+                    Platform.runLater(() -> {
+                        loader.setVisible(false);
+                        loginButton.setDisable(false);
+                        mostraErrore("Errore di Rete", "Impossibile contattare il server.");
+                    });
                     return null;
                 });
     }
 
-    @FXML
-    public void vaiARegistrazione(ActionEvent event) {
-        Main.navigaVerso("/RegistrazioneView.fxml", "BitPub - Registrazione");
+    /**
+     * Carica il layout principale dell'area amministrativa (AdminMainLayout.fxml).
+     * Sostituisce la scena attuale sullo stage principale.
+     */
+    private void apriDashboard() {
+        try {
+            // Caricamento del layout radice con Sidebar e area di contenuto dinamica
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/com/bitpub/views/AdminMainLayout.fxml"));
+            Parent root = loader.load();
+
+            // Ottenimento dello stage corrente e switch della scena
+            Stage stage = (Stage) loginButton.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("BitPub Admin Panel - " + SessionManager.getInstance().getUsername());
+            stage.centerOnScreen();
+
+        } catch (Exception e) {
+            // Log dell'eccezione in caso di file FXML mancante o errato
+            e.printStackTrace();
+            mostraErrore("Errore Caricamento", "Impossibile aprire la Dashboard.");
+        }
+    }
+
+    /**
+     * Utility per la visualizzazione di finestre di dialogo (Alert) di errore.
+     *
+     * @param titolo Il titolo della finestra.
+     * @param msg Il contenuto del messaggio di errore.
+     */
+    private void mostraErrore(String titolo, String msg) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(titolo);
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        alert.showAndWait();
     }
 }
