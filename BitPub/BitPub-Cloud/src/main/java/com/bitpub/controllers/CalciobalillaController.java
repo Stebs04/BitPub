@@ -28,6 +28,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  */
 @RestController
 @RequestMapping(value = "/api/calciobalilla")
+@CrossOrigin(origins = "*") // Risolve eventuali conflitti di permessi legati alle policy CORS
 public class CalciobalillaController {
 
     @Autowired
