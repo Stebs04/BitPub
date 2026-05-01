@@ -36,27 +36,40 @@ public class SecurityConfig {
                 )
 
                 // 3. Regole di autorizzazione per le rotte (Endpoints).
+                // Usiamo hasAnyAuthority invece di hasAnyRole per evitare problemi con il prefisso "ROLE_"
                 .authorizeHttpRequests(auth -> auth
+                        // --- Sblocco richieste di pre-flight (OPTIONS) spesso causa di falsi errori 403 ---
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        
                         .requestMatchers("/api/v1/auth/**", "/error").permitAll() // Auth pubblica
                         
-                        // --- GESTIONE LOCALI (Admin) ---
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/locali").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/locali/**").hasRole("ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/locali").hasAnyRole("ADMIN", "GESTORE", "UTENTE")
+                        // --- GESTIONE LOCALI DASHBOARD ADMIN (Aggiunta regola per controller admin) ---
+                        // Permettiamo l'accesso all'endpoint specifico per gli amministratori
+                        .requestMatchers("/api/v1/admin/locali", "/api/v1/admin/locali/**").hasAnyAuthority("ADMIN", "ROLE_ADMIN")
+                        
+                        // --- GESTIONE LOCALI BASE (Gestore e Utente Base) ---
+                        // Copriamo i percorsi base e i loro sotto-percorsi usando "/**"
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/locali", "/api/locali/**").hasAnyAuthority("ADMIN", "GESTORE", "ROLE_ADMIN", "ROLE_GESTORE")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/locali", "/api/locali/**").hasAnyAuthority("ADMIN", "GESTORE", "ROLE_ADMIN", "ROLE_GESTORE")
+                        // Qui permettiamo all'UTENTE_BASE di fare chiamate GET per leggere i locali
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/locali", "/api/locali/**").hasAnyAuthority("ADMIN", "GESTORE", "UTENTE_BASE", "utente_base", "ROLE_ADMIN", "ROLE_GESTORE", "ROLE_UTENTE_BASE", "ROLE_utente_base")
                         
                         // --- GESTIONE TORNEI (Gestore) ---
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tornei").hasRole("GESTORE")
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/tornei/**").hasRole("GESTORE")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tornei", "/api/tornei/**").hasAnyAuthority("GESTORE", "ROLE_GESTORE")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/tornei", "/api/tornei/**").hasAnyAuthority("GESTORE", "ROLE_GESTORE")
                         
-                        // --- STATISTICHE TAVOLI (Fix per l'Errore 403 in foto) ---
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/calciobalilla/stats").hasAnyRole("GESTORE", "ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/biliardo/stats").hasAnyRole("GESTORE", "ADMIN")
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/freccette/stats").hasAnyRole("GESTORE", "ADMIN")
+                        // --- STATISTICHE TAVOLI E PARTITE ---
+                        // Permettiamo la visualizzazione delle statistiche anche agli utenti base
+                        // Rimosso il vincolo esplicito di HttpMethod per prevenire blocchi imprevisti ed esteso il pattern match
+                        .requestMatchers("/api/calciobalilla", "/api/calciobalilla/**").hasAnyAuthority("GESTORE", "ADMIN", "UTENTE_BASE", "utente_base", "ROLE_GESTORE", "ROLE_ADMIN", "ROLE_UTENTE_BASE", "ROLE_utente_base")
+                        .requestMatchers("/api/biliardo", "/api/biliardo/**").hasAnyAuthority("GESTORE", "ADMIN", "UTENTE_BASE", "utente_base", "ROLE_GESTORE", "ROLE_ADMIN", "ROLE_UTENTE_BASE", "ROLE_utente_base")
+                        .requestMatchers("/api/statistiche/freccette", "/api/statistiche/freccette/**").hasAnyAuthority("GESTORE", "ADMIN", "UTENTE_BASE", "utente_base", "ROLE_GESTORE", "ROLE_ADMIN", "ROLE_UTENTE_BASE", "ROLE_utente_base")
                         
                         // --- UTENTI ---
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/utenti/**").hasRole("UTENTE") // Un utente modifica il proprio profilo
+                        // Un utente base può modificare il proprio profilo
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/utenti/**").hasAnyAuthority("UTENTE_BASE", "utente_base", "ROLE_UTENTE_BASE", "ROLE_utente_base") 
                         
-                        // Per le altre API originali le proteggiamo richiedendo autenticazione
+                        // Per le altre API originali le proteggiamo richiedendo autenticazione generica
                         .anyRequest().authenticated()
                 )
                 

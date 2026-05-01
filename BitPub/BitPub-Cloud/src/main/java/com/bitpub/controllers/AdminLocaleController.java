@@ -19,11 +19,12 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * Controller per la Dashboard ADMIN.
  * Gestisce i locali visibili solo agli amministratori.
  *
- * @author BitPub Team
+ * @author Stefano Bellan 20054330
  * @version 1.0
  */
 @RestController
 @RequestMapping(value = "/api/v1/admin/locali", produces = "application/resources.v1+json")
+@CrossOrigin(origins = "*") // FIX: Abilita CORS per permettere al client JavaFX di leggere i dati
 public class AdminLocaleController {
 
     @Autowired
