@@ -1,6 +1,8 @@
 package com.bitpub.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.bitpub.models.Partita;
 
 /**
  * Utility per la gestione del formato JSON.
@@ -12,10 +14,12 @@ public class JsonManager {
 
     // Il costruttore deve essere privato per il Singleton
     private JsonManager() {
-        this.gson = new Gson();
+        this.gson = new GsonBuilder()
+                .excludeFieldsWithoutExposeAnnotation()
+                .registerTypeAdapter(Partita.class, new PartitaDeserializer())
+                .create();
     }
 
-    // Questo è il metodo che manca e causa l'errore nel RestClient
     public static synchronized JsonManager getInstance() {
         if (instance == null) {
             instance = new JsonManager();
@@ -29,5 +33,9 @@ public class JsonManager {
     
     public <T> T fromJson(String json, Class<T> classOfT) { 
         return gson.fromJson(json, classOfT); 
+    }
+
+    public static Gson getGson() {
+        return getInstance().gson;
     }
 }

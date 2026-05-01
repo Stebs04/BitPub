@@ -29,20 +29,16 @@
       
       <!-- Sezione Partita Singola -->
       <VBox prefWidth="400.0" spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-         <Label text="Gioca Partita Rapida" textFill="#2c3e50">
+         <Label text="Monitor Locale (Latenza 0)" textFill="#2c3e50">
             <font><Font name="System Bold" size="20.0" /></font>
          </Label>
-         <Label text="Avvia una simulazione di partita." textFill="#7f8c8d" wrapText="true" />
-         
-         <Button mnemonicParsing="false" onAction="#giocaPartitaSimulata" prefWidth="Infinity" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-background-radius: 8;" text="Inizia Partita Simulata">
-            <font><Font name="System Bold" size="16.0" /></font>
-         </Button>
+         <Label text="Visualizza in tempo reale i dati fisici catturati dal tavolo via LAN." textFill="#7f8c8d" wrapText="true" />
 
-         <!-- Risultati Simulazione -->
-         <VBox fx:id="boxRisultatiPartita" spacing="10.0" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-background-radius: 8;" visible="false">
-            <Label text="Risultato Finale:" textFill="#2c3e50"><font><Font name="System Bold" size="14.0" /></font></Label>
-            <Label fx:id="lblPunteggio" text="Punteggio: - " textFill="#e74c3c"><font><Font name="System Bold" size="24.0" /></font></Label>
-            <Label fx:id="lblStatistiche" text="Durata: - \nTiri in porta: - \nFalli: -" />
+         <!-- Risultati Simulazione (Real-time MQTT locale) -->
+         <VBox fx:id="boxRisultatiPartita" spacing="10.0" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-background-radius: 8;" visible="true">
+            <Label text="Tabellone Elettronico Locale:" textFill="#2c3e50"><font><Font name="System Bold" size="14.0" /></font></Label>
+            <Label fx:id="lblPunteggio" text="Punteggio: 0 - 0 " textFill="#e74c3c"><font><Font name="System Bold" size="24.0" /></font></Label>
+            <Label fx:id="lblStatistiche" text="In attesa di eventi MQTT locali..." />
          </VBox>
       </VBox>
 

@@ -21,45 +21,47 @@ public class SecurityConfig {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
         http
-            // 1. Disabilitiamo il CSRF (Cross-Site Request Forgery).
-            // Nelle architetture Stateless basate su JWT, il token stesso protegge da questa vulnerabilità.
-            .csrf(csrf -> csrf.disable())
+                // 1. Disabilitiamo il CSRF (Cross-Site Request Forgery).
+                // È una protezione necessaria per le app basate sui Cookie,
+                // ma inutile e problematica per le API REST Stateless.
+                .csrf(csrf -> csrf.disable())
 
-            // 2. Configurazione CORS (Cross-Origin Resource Sharing).
-            // Essenziale per permettere al Frontend (es. Angular/React) di comunicare con il Backend.
-            .cors(cors -> cors.configure(http))
+                // 2. IL CUORE DEL TUO COMPITO: Architettura 100% Stateless.
+                // Diciamo a Spring di non creare MAI una sessione HTTP (niente JSESSIONID).
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
-            // 3. Politica di gestione della Sessione.
-            // Confermiamo l'approccio 100% Stateless: Spring Security non creerà mai una sessione server-side.
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-
-            // 4. Definizione del perimetro di accesso (RBAC - Role Based Access Control).
-            .authorizeHttpRequests(auth -> auth
-                // Rotte pubbliche: accesso libero per autenticazione e registrazione.
-                .requestMatchers("/api/v1/auth/**").permitAll()
-
-                // Servizi di Gioco: Accessibili a tutti i livelli di utenza registrata.
-                // Usiamo hasAnyAuthority per mappare esattamente i permessi senza prefissi nascosti.
-                .requestMatchers("/api/v1/calciobalilla/**").hasAnyAuthority("UTENTE_BASE", "GESTORE", "ADMIN")
-                .requestMatchers("/api/v1/tornei/**").hasAnyAuthority("UTENTE_BASE", "GESTORE", "ADMIN")
-                .requestMatchers("/api/v1/biliardo/**").hasAnyAuthority("UTENTE_BASE", "GESTORE", "ADMIN")
-                .requestMatchers("/api/v1/freccette/**").hasAnyAuthority("UTENTE_BASE", "GESTORE", "ADMIN")
-
-                // Rotte Amministrative: Riservate esclusivamente ai ruoli specifici.
-                .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
-                .requestMatchers("/api/v1/gestore/**").hasAuthority("GESTORE")
-
-                // Chiusura di sicurezza: ogni altra rotta non esplicitata richiede autenticazione.
-                .anyRequest().authenticated()
-            )
-
-            // 5. Chain dei filtri personalizzata.
-            // Inseriamo il controllo del JWT prima del filtro di autenticazione standard di Spring.
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // 3. Regole di autorizzazione per le rotte (Endpoints).
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/auth/**", "/error").permitAll() // Auth pubblica
+                        
+                        // --- GESTIONE LOCALI (Admin) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/locali").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/locali/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/locali").hasAnyRole("ADMIN", "GESTORE", "UTENTE")
+                        
+                        // --- GESTIONE TORNEI (Gestore) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tornei").hasRole("GESTORE")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/tornei/**").hasRole("GESTORE")
+                        
+                        // --- STATISTICHE TAVOLI (Fix per l'Errore 403 in foto) ---
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/calciobalilla/stats").hasAnyRole("GESTORE", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/biliardo/stats").hasAnyRole("GESTORE", "ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/freccette/stats").hasAnyRole("GESTORE", "ADMIN")
+                        
+                        // --- UTENTI ---
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/utenti/**").hasRole("UTENTE") // Un utente modifica il proprio profilo
+                        
+                        // Per le altre API originali le proteggiamo richiedendo autenticazione
+                        .anyRequest().authenticated()
+                )
+                
+                // 4. Aggiunta del filtro JWT custom prima del filtro di autenticazione standard
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
