@@ -43,6 +43,12 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/locali").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/locali/**").hasRole("ADMIN")
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/locali").hasAnyRole("ADMIN", "GESTORE", "UTENTE")
+                        // Solo l'Admin può vedere i log e lo stato della rete
+                        .requestMatchers("/api/v1/system/**").hasRole("ADMIN")
+                        // Solo l'Admin può forzare la chiusura delle sessioni
+                        .requestMatchers("/api/v1/admin/sessions/**").hasRole("ADMIN")
+                        // Gestione utenti (Ricerca e Sospensione)
+                        .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
                         
                         // --- GESTIONE TORNEI (Gestore) ---
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/tornei").hasRole("GESTORE")

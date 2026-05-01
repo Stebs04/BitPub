@@ -10907,3 +10907,72 @@
 17:20:27.015 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
 17:20:27.015 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
 17:20:27.015 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:29.065 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.mqtt.BiliardoSubscriber - Evento ricevuto - tipo: Biliardo, sorgente: bitpub/locali/pub_centrale/biliardo/biliardo_1/imbucate, timestamp: 1777648829065
+17:20:29.065 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:29.065 [MQTT Call: Edge-Biliardo-Locale-Milano-01] INFO  com.bitpub.mqtt.BiliardoSubscriber - Evento elaborato con successo - id: (JSON Biliardo) {"tipoEvento":"IMBUCATA","giocatore":"Timothy","pallaImbucata":1,"timestamp":1777648829064}
+17:20:29.092 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:29.093 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:29.093 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:29.140 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648829140
+17:20:29.140 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:29.140 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:29.202 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:29.202 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:29.202 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:31.274 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648831274
+17:20:31.275 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:31.275 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:31.376 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:31.376 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:31.376 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:32.549 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.mqtt.BiliardoSubscriber - Evento ricevuto - tipo: Biliardo, sorgente: bitpub/locali/pub_centrale/biliardo/biliardo_1/imbucate, timestamp: 1777648832549
+17:20:32.550 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:32.550 [MQTT Call: Edge-Biliardo-Locale-Milano-01] INFO  com.bitpub.mqtt.BiliardoSubscriber - Evento elaborato con successo - id: (JSON Biliardo) {"tipoEvento":"IMBUCATA","giocatore":"Stefano","pallaImbucata":6,"timestamp":1777648832549}
+17:20:32.580 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:32.580 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:32.580 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:34.778 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648834778
+17:20:34.779 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:34.779 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:34.879 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:34.879 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:34.880 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:36.912 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.mqtt.BiliardoSubscriber - Evento ricevuto - tipo: Biliardo, sorgente: bitpub/locali/pub_centrale/biliardo/biliardo_1/imbucate, timestamp: 1777648836912
+17:20:36.913 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:36.913 [MQTT Call: Edge-Biliardo-Locale-Milano-01] INFO  com.bitpub.mqtt.BiliardoSubscriber - Evento elaborato con successo - id: (JSON Biliardo) {"tipoEvento":"IMBUCATA","giocatore":"Timothy","pallaImbucata":12,"timestamp":1777648836912}
+17:20:36.957 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:36.957 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:36.957 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:38.820 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648838820
+17:20:38.820 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:38.820 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:38.917 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:38.917 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:38.918 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:40.078 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.mqtt.BiliardoSubscriber - Evento ricevuto - tipo: Biliardo, sorgente: bitpub/locali/pub_centrale/biliardo/biliardo_1/imbucate, timestamp: 1777648840078
+17:20:40.079 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:40.079 [MQTT Call: Edge-Biliardo-Locale-Milano-01] INFO  com.bitpub.mqtt.BiliardoSubscriber - Evento elaborato con successo - id: (JSON Biliardo) {"tipoEvento":"IMBUCATA","giocatore":"Luca","pallaImbucata":3,"timestamp":1777648840078}
+17:20:40.113 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:40.113 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:40.113 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:41.517 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648841517
+17:20:41.518 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:41.518 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:41.535 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:41.535 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:41.535 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:43.580 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.mqtt.BiliardoSubscriber - Evento ricevuto - tipo: Biliardo, sorgente: bitpub/locali/pub_centrale/biliardo/biliardo_1/imbucate, timestamp: 1777648843580
+17:20:43.581 [MQTT Call: Edge-Biliardo-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:43.581 [MQTT Call: Edge-Biliardo-Locale-Milano-01] INFO  com.bitpub.mqtt.BiliardoSubscriber - Evento elaborato con successo - id: (JSON Biliardo) {"tipoEvento":"IMBUCATA","giocatore":"Luca","pallaImbucata":12,"timestamp":1777648843580}
+17:20:43.608 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:43.608 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:43.608 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:20:44.732 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG c.b.m.LocalCalciobalillaSubscriber - Evento ricevuto - tipo: Calciobalilla, sorgente: bitpub/locali/pub_centrale/calciobalilla/calciobalilla_1/eventi, timestamp: 1777648844732
+17:20:44.732 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] DEBUG com.bitpub.buffer.MessageBuffer - Evento inserito nel buffer - dimensione attuale: 1/50
+17:20:44.732 [MQTT Call: Edge-Calciobalilla-Locale-Milano-01] INFO  c.b.m.LocalCalciobalillaSubscriber - Evento elaborato con successo - id: (JSON)
+17:20:44.802 [Thread-17] DEBUG com.bitpub.buffer.MessageBuffer - Stato buffer - size: 0, capacita: 50, pendenti: 0
+17:20:44.802 [Thread-17] DEBUG com.bitpub.Cloud.InoltroCloudTask - Log inviato al cloud! Rimanenti 0
+17:20:44.802 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Flush buffer completato - 1 eventi inviati al Cloud
+17:57:52.105 [com.bitpub.Main.main()] INFO  com.bitpub.mqtt.BiliardoSubscriber - Sottoscrizione avvenuta ai biliardo per topic bitpub/locali/+/biliardo/+/imbucate
+17:57:52.440 [com.bitpub.Main.main()] INFO  c.b.m.LocalCalciobalillaSubscriber - Connessione stabilita sui simulatori calciobalilla !!
+17:57:53.021 [Thread-17] INFO  com.bitpub.Cloud.InoltroCloudTask - Connessione Edge?Cloud stabilita - endpoint: ssl://localhost:8883

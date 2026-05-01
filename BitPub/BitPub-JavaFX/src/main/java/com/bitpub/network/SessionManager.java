@@ -1,92 +1,100 @@
 package com.bitpub.network;
 
-import com.bitpub.models.Utente;
-
 /**
- * Singleton per gestire il token JWT, il ruolo dell'utente e il locale assegnato
- * nella sessione corrente. Il salvataggio avviene solo in memoria per garantire
- * la sicurezza (State-Less sul disco).
+ * Gestisce la sessione utente all'interno dell'applicazione seguendo il pattern Singleton.
+ * Memorizza il token JWT, il ruolo e lo username dell'utente per gestire l'autorizzazione e la navigazione.
  *
- * @author Stefano Bellan
+ * @author Stefano Bellan 20054330
  */
 public class SessionManager {
 
+    /** Istanza unica della classe (Singleton) */
     private static SessionManager instance;
 
-    private String token;
-    private String role;
-    private String currentLocaleId; // Mantenuto internamente come stringa per flessibilità di parsing
+    /** Token JSON Web per l'autenticazione delle richieste */
+    private String jwtToken;
 
+    /** Ruolo dell'utente loggato (es. ADMIN, GESTORE, UTENTE) */
+    private String userRole;
+
+    /** Nome visualizzato dell'utente (username) per l'interfaccia grafica */
+    private String username;
+
+    /** ID del locale associato */
+    private Long currentLocaleId;
+
+    /**
+     * Costruttore privato per impedire l'istanziazione esterna (Pattern Singleton).
+     */
     private SessionManager() {
+        // Inizializzazione protetta
     }
 
     /**
-     * Restituisce l'istanza unica del SessionManager (Thread-Safe).
-     * @return L'istanza singleton.
+     * Restituisce l'istanza unica del SessionManager.
+     *
+     * @return L'istanza Singleton di {@link SessionManager}
      */
-    public static synchronized SessionManager getInstance() {
+    public static SessionManager getInstance() {
         if (instance == null) {
             instance = new SessionManager();
         }
         return instance;
     }
 
+    // --- Gestione Token JWT ---
+
+    public String getJwtToken() {
+        return jwtToken;
+    }
+
+    public void setJwtToken(String jwtToken) {
+        this.jwtToken = jwtToken;
+    }
+
+    // --- Gestione Ruolo Utente ---
+
     /**
-     * Inizializza i dati della sessione a seguito di un login con successo.
-     * Metodo utilizzato dal LoginController.
-     *
-     * @param token    Token JWT fornito dal backend.
-     * @param role     Ruolo assegnato (ADMIN, GESTORE, etc.).
-     * @param username Nome utente (non memorizzato in questa versione se non necessario).
-     * @param localeId ID del locale associato.
+     * Recupera il ruolo dell'utente attualmente memorizzato.
+     * @return Il ruolo come {@link String} (es. "ADMIN"), o null se non impostato.
      */
-    public void setSession(String token, String role, String username, String localeId) {
-        this.token = token;
-        this.role = role;
-        this.currentLocaleId = localeId;
+    public String getUserRole() {
+        return userRole;
     }
 
     /**
-     * Restituisce il token JWT per l'autenticazione delle chiamate API.
+     * Memorizza il ruolo dell'utente dopo il login.
+     * @param userRole Il ruolo dell'utente ricevuto dal server.
      */
-    public String getJwtToken() { 
-        return token; 
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 
-    /**
-     * Restituisce il ruolo dell'utente nella sessione corrente.
-     */
-    public String getCurrentRole() { 
-        return role; 
+    // --- Gestione Nome Utente (Username) ---
+
+    public String getUsername() {
+        return username;
     }
 
-    /**
-     * Restituisce l'ID del locale come Long, facilitando l'uso nei controller e nei filtri.
-     * @return L'ID numerico o null se non presente/valido.
-     */
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public Long getCurrentLocaleId() {
-        try {
-            if (currentLocaleId == null || currentLocaleId.isEmpty()) return null;
-            return Long.parseLong(currentLocaleId);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return currentLocaleId;
+    }
+
+    public void setCurrentLocaleId(Long currentLocaleId) {
+        this.currentLocaleId = currentLocaleId;
     }
 
     /**
-     * Rimuove tutti i dati della sessione corrente (Logout).
+     * Termina la sessione corrente pulendo token, ruolo e username.
      */
-    public void clearSession() {
-        this.token = null;
-        this.role = null;
+    public void logout() {
+        this.jwtToken = null;
+        this.userRole = null;
+        this.username = null;
         this.currentLocaleId = null;
-    }
-
-    /**
-     * Verifica se è presente un token di sessione valido.
-     * @return true se l'utente è autenticato.
-     */
-    public boolean isAuthenticated() {
-        return token != null && !token.isEmpty();
     }
 }

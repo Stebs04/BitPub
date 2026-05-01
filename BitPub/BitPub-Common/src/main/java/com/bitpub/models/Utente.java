@@ -1,241 +1,180 @@
 package com.bitpub.models;
 
-//Importazione di bcrypt per hashing della password
 import org.springframework.security.crypto.bcrypt.BCrypt;
-// Permette di marcare esplicitamente quali campi includere nel JSON
 import com.google.gson.annotations.Expose;
-
 import jakarta.persistence.*;
 
+/**
+ * Rappresenta un Utente all'interno del dominio applicativo BitPub.
+ * Questa entità gestisce le informazioni anagrafiche, le credenziali di accesso
+ * cifrate e il bilancio economico del profilo.
+ *
+ * @author Stefano Bellan 20054330
+ * @since 2024
+ */
 @Entity
 @Table(name = "utenti")
+public class Utente extends ResourceModel {
 
-/**
- * Rappresenta un Utente all'interno del dominio applicativo.
- * Questa classe modello contiene le informazioni di base per l'autenticazione
- * e la gestione delle autorizzazioni.
- * @author: Stefano Bellan 20054330
- */
-public class Utente {
-
+    /** Identificativo univoco generato automaticamente dal sistema di persistenza. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    /** L'identificativo univoco dell'utente, tipicamente generato dal database. */
     @Expose
     private Long id;
 
-    @Column(nullable = false, unique = true) // Nickname univoco
-    /** Il nome utente scelto per la visualizzazione e/o l'accesso. */
+    /** Nome utente univoco utilizzato per l'identificazione nel sistema. */
+    @Column(nullable = false, unique = true)
     @Expose
-    private String nickname;
+    private String username;
 
+    /** Ruolo associato all'utente per la gestione dei permessi (es. ADMIN, GESTORE, UTENTE). */
     @Column(nullable = false)
-    /** Il livello di privilegio assegnato all'utente (es. ADMIN, USER). */
     @Expose
-    private String ruolo;
+    private String role;
 
-    /** Il nome anagrafico dell'utente. */
+    /** Nome anagrafico del titolare del profilo. */
     @Expose
     private String nome;
 
-    /** Il cognome anagrafico dell'utente. */
+    /** Cognome anagrafico del titolare del profilo. */
     @Expose
     private String cognome;
 
-    /** L'età dell'utente, espressa in anni. */
+    /** Età dell'utente registrata per fini statistici o legali. */
     private int anni;
 
-    @Column(unique = true) // Email univoca
-    /** L'indirizzo e-mail dell'utente, utilizzato per comunicazioni e recupero account. */
+    /** Indirizzo e-mail univoco associato all'account. */
+    @Column(unique = true)
+    @Expose
     private String email;
 
+    /** Hash della password generato tramite algoritmo BCrypt. Non esposto nelle API JSON. */
     @Column(nullable = false)
-    /** La credenziale di accesso. */
     private String password;
 
+    /** Credito residuo disponibile per l'utilizzo dei servizi. */
+    @Column(nullable = false)
+    @Expose
+    private Double credito = 0.0;
+
+    /** Flag di stato dell'account per inibire l'accesso (Attivo/Sospeso). */
+    @Column(nullable = false)
+    @Expose
+    private Boolean attivo = true;
+
     /**
-     * Costruisce un nuovo oggetto Utente.
-     * Effettua una validazione di base per assicurarsi che nickname e ruolo non siano nulli o vuoti.
+     * Costruttore completo per la creazione di un nuovo utente.
+     * Implementa la cifratura immediata della password e la validazione dei campi obbligatori.
      *
-     * @param nickname il nome utente da assegnare
-     * @param ruolo il ruolo associato all'utente
-     * @param nome il nome dell'utente
-     * @param cognome il cognome dell'utente
-     * @param email l'indirizzo email dell'utente
-     * @param password la password dell'utente
+     * @param username Identificativo scelto dall'utente.
+     * @param role     Livello di accesso assegnato.
+     * @param nome     Nome anagrafico.
+     * @param cognome  Cognome anagrafico.
+     * @param email    Indirizzo e-mail di contatto.
+     * @param password Password in chiaro da sottoporre a hashing.
      */
-    public Utente(String nickname, String ruolo, String nome, String cognome, String email, String password) {
-        // Verifica che i campi obbligatori (nickname e ruolo) non siano nulli o composti solo da spazi
-        if (nickname == null || nickname.isBlank() || ruolo == null || ruolo.isBlank()) {
-            // Lancia un'eccezione se i requisiti minimi di validazione non sono rispettati
-            throw new IllegalArgumentException("Campi nickname e ruolo mancanti!!!");
+    public Utente(String username, String role, String nome, String cognome, String email, String password) {
+        if (username == null || username.isBlank() || role == null || role.isBlank()) {
+            throw new IllegalArgumentException("Campi username e role sono obbligatori.");
         }
 
-        // Assegna i valori validati alle variabili di istanza della classe
-        this.nickname = nickname;
-        this.ruolo = ruolo;
+        this.username = username;
+        this.role = role;
         this.nome = nome;
         this.cognome = cognome;
         this.email = email;
+        this.credito = 0.0;
+        this.attivo = true;
 
-        // Genera un "salt" casuale e cifra la password in chiaro usando l'algoritmo BCrypt
+        // Cifratura della password tramite salt dinamico
         this.password = BCrypt.hashpw(password, BCrypt.gensalt());
     }
 
     /**
-     * Costruttore senza argomenti (No-Args).
-     * Necessario per le librerie di framework (come GSON e JPA) che creano
-     * l'istanza tramite riflessione prima di popolarne i campi.
+     * Costruttore predefinito richiesto dai framework di persistenza (JPA) e serializzazione (GSON).
      */
-    public Utente(){
+    public Utente() {}
 
-    }
+    /** @return Il nome utente. */
+    public String getUsername() { return username; }
+
+    /** @param username Il nuovo nome utente da impostare. */
+    public void setUsername(String username) { this.username = username; }
+
+    /** @return Il ruolo dell'utente. */
+    public String getRole() { return role; }
+
+    /** @param role Il nuovo ruolo da assegnare. */
+    public void setRole(String role) { this.role = role; }
+
+    /** @return L'ID univoco dell'entità. */
+    public Long getId() { return id; }
+
+    /** @param id L'identificativo da assegnare. */
+    public void setId(Long id) { this.id = id; }
+
+    /** @return L'indirizzo e-mail dell'utente. */
+    public String getEmail() { return email; }
+
+    /** @param email La nuova e-mail da associare. */
+    public void setEmail(String email) { this.email = email; }
+
+    /** @return L'hash della password memorizzato. */
+    public String getPassword() { return password; }
 
     /**
-     * Restituisce il nickname dell'utente.
-     * @return il nickname attuale
-     */
-    public String getNickname() {
-        return nickname;
-    }
-
-    /**
-     * Imposta un nuovo nickname per l'utente.
-     * @param nickname il nuovo nickname da impostare
-     */
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-
-    /**
-     * Restituisce il ruolo dell'utente.
-     * @return il ruolo attuale
-     */
-    public String getRuolo() {
-        return ruolo;
-    }
-
-    /**
-     * Imposta un nuovo ruolo per l'utente.
-     * @param ruolo il nuovo ruolo da assegnare
-     */
-    public void setRuolo(String ruolo) {
-        this.ruolo = ruolo;
-    }
-
-    /**
-     * Restituisce l'identificativo univoco dell'utente.
-     * @return l'id attuale, oppure null se l'entità non è ancora stata persistita
-     */
-    public Long getId() {
-        return id;
-    }
-
-    /**
-     * Imposta l'identificativo univoco dell'utente.
-     * @param id l'identificativo da assegnare
-     */
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    /**
-     * Restituisce l'indirizzo e-mail associato all'utente.
-     * @return l'email attuale
-     */
-    public String getEmail() {
-        return email;
-    }
-
-    /**
-     * Imposta un nuovo indirizzo e-mail per l'utente.
-     * @param email il nuovo indirizzo e-mail da salvare
-     */
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    /**
-     * Restituisce la password associata all'utente.
-     * @return la password attuale (generalmente memorizzata come hash)
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * Aggiorna la password dell'utente applicando l'hashing di sicurezza.
-     * Prende la stringa in chiaro, la cifra e salva il risultato nel campo di istanza.
-     *
-     * @param password la nuova password in chiaro da sottoporre a hashing
+     * Aggiorna la password applicando l'hashing BCrypt.
+     * @param password La nuova password in chiaro.
      */
     public void setPassword(String password) {
-        // Genera un nuovo salt casuale e trasforma la password in chiaro in un hash BCrypt
-        // Il risultato salvato in this.password sarà una stringa sicura non reversibile
         this.password = BCrypt.hashpw(password, BCrypt.gensalt());
     }
 
     /**
-     * Verifica se una password fornita in chiaro corrisponde all'hash salvato.
-     * Include un controllo preliminare per evitare errori con valori nulli o vuoti.
+     * Confronta una password in chiaro con l'hash presente nel database.
      *
-     * @param passwordInChiaro la password da verificare (es. quella digitata nel login)
-     * @return true se la password è corretta, false se è errata, nulla o vuota
+     * @param passwordInChiaro La password fornita in fase di login.
+     * @return true se la password coincide, false altrimenti.
      */
     public boolean checkPassword(String passwordInChiaro) {
-        // Controllo preventivo: se la password passata è nulla o composta solo da spazi, non è valida
         if (passwordInChiaro == null || passwordInChiaro.isBlank()) {
-            // Ritorna false immediatamente senza tentare il confronto con l'hash
             return false;
         }
-
-        // Usa BCrypt per confrontare la password in chiaro con l'hash memorizzato in this.password
-        // Il metodo checkpw estrae il salt dall'hash esistente per ricalcolare il confronto
         return BCrypt.checkpw(passwordInChiaro, this.password);
     }
 
-    /**
-     * Restituisce il cognome anagrafico dell'utente.
-     * @return il cognome
-     */
-    public String getCognome() {
-        return cognome;
-    }
+    /** @return Il cognome dell'utente. */
+    public String getCognome() { return cognome; }
+    public void setCognome(String cognome) { this.cognome = cognome; }
 
-    public void setCognome(String cognome) {
-        this.cognome = cognome;
-    }
+    /** @return Il nome dell'utente. */
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
 
-    /**
-     * Restituisce il nome anagrafico dell'utente.
-     * @return il nome
-     */
-    public String getNome() {
-        return nome;
-    }
+    /** @return L'età registrata. */
+    public int getAnni() { return anni; }
+    public void setAnni(int anni) { this.anni = anni; }
 
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
+    /** @return Il credito disponibile. */
+    public Double getCredito() { return credito; }
+    public void setCredito(Double credito) { this.credito = credito; }
+
+    /** @return Lo stato di attività dell'account. */
+    public Boolean isAttivo() { return attivo; }
+    public void setAttivo(Boolean attivo) { this.attivo = attivo; }
 
     /**
-     * Restituisce l'età dell'utente.
-     * @return gli anni
+     * Restituisce una stringa descrittiva dello stato attuale (es. "ATTIVO" o "SOSPESO").
+     * Utilizzato primariamente per il binding nelle colonne delle TableView JavaFX.
+     *
+     * @return Lo stato testuale dell'account.
      */
-    public int getAnni() {
-        return anni;
+    public String getStato() {
+        return (attivo != null && attivo) ? "ATTIVO" : "SOSPESO";
     }
 
-    /**
-     * Restituisce una rappresentazione testuale dell'oggetto.
-     * @return una stringa contenente lo stato corrente dei campi dell'utente
-     */
     @Override
     public String toString() {
-        return "Utente{" +
-                "id=" + id +
-                ", nickname='" + nickname + '\'' +
-                ", ruolo='" + ruolo + '\'' +
-                '}';
+        return "Utente{" + "id=" + id + ", username='" + username + '\'' + ", role='" + role + '\'' + '}';
     }
 }

@@ -23,7 +23,7 @@ public class AdminInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         // Verifica se esiste già un utente con ruolo ADMIN
-        if (utenteRepository.findByRuolo("ADMIN").isEmpty()) {
+        if (utenteRepository.findByRole("ADMIN").isEmpty()) {
             System.out.println("Nessun ADMIN trovato. Creazione dell'ADMIN di default...");
             
             // Password comunicata: BitPub@Admin2024!

@@ -45,7 +45,7 @@ public class UtenteController {
             @PathVariable("nickname") String nickname,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        return utenteRepository.findByNickname(nickname)
+        return utenteRepository.findByUsername(nickname)
                 .map(utente -> ResponseEntity.ok(assembler.toModel(utente)))
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -77,7 +77,7 @@ public class UtenteController {
             @PathVariable("ruolo") String ruolo,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        List<Utente> utenti = utenteRepository.findByRuolo(ruolo);
+        List<Utente> utenti = utenteRepository.findByRole(ruolo);
         List<EntityModel<Utente>> risorse = utenti.stream()
                 .map(assembler::toModel)
                 .collect(Collectors.toList());
@@ -97,7 +97,7 @@ public class UtenteController {
             @RequestParam("keyword") String keyword,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
-        List<Utente> risultati = utenteRepository.cercaPerNomeOCognome(keyword);
+        List<Utente> risultati = utenteRepository.cercaPerNomeCognomeOUsername(keyword);
         
         List<EntityModel<Utente>> risorse = risultati.stream()
                 .map(assembler::toModel)
