@@ -118,6 +118,16 @@ public class RestClient {
     }
 
     /**
+     * Esegue una DELETE asincrona con callback.
+     *
+     * @param endpoint Percorso relativo dell'API (es. "/api/v1/locali/5").
+     * @param callback Azione da eseguire sul thread JavaFX al completamento.
+     */
+    public void deleteAsync(String endpoint, Consumer<String> callback) {
+        sendAsyncWithCallback("DELETE", endpoint, null, callback);
+    }
+
+    /**
      * Esegue una PUT asincrona con callback (ottimizzata per il modulo Calciobalilla).
      */
     public void putAsync(String endpoint, Object data, Consumer<String> callback) {
