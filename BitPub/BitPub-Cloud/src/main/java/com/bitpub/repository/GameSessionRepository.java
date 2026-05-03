@@ -40,4 +40,9 @@ public interface GameSessionRepository extends JpaRepository<GameSessionEntity, 
      * @return un Optional contenente l'entità se il match è valido
      */
     Optional<GameSessionEntity> findByIdAndUserId(Long id, Long userId);
+
+    /**
+     * Fallback: cerca una sessione attiva per tableId (usato quando sessionId non è nel payload MQTT).
+     */
+    Optional<GameSessionEntity> findByTableIdAndStatus(int tableId, String status);
 }

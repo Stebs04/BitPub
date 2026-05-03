@@ -89,7 +89,8 @@ public class FoosballSessionController {
         auditLogRepository.save(log);
 
       
-        cloudMqttGateway.publishUnlockBalls(tableId);
+        // Propaga sessionId all'Edge affinché ogni evento score contenga l'ID corretto
+        cloudMqttGateway.publishUnlockBalls(tableId, newSession.getId());
 
         // Costruzione risposta HATEOAS
         GameSessionDTO dto = new GameSessionDTO(newSession);
