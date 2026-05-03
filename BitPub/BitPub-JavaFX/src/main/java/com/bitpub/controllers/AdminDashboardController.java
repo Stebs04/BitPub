@@ -296,16 +296,37 @@ public class AdminDashboardController {
     }
 
     /**
-     * Gestisce l'eliminazione logica o fisica del locale selezionato.
+     * Gestisce l'eliminazione del locale selezionato inviando una richiesta DELETE al backend.
+     * La rimozione dalla lista locale avviene solo dopo la conferma del server,
+     * così un successivo "Aggiorna" non riporta il dato eliminato.
      */
     @FXML
     public void handleElimina() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato != null) {
-            // Nota: Se desideri eliminare anche su DB, puoi aggiungere RestClient.deleteAsync(...) qui
-            listaLocaliObservable.remove(selezionato);
-            mostraNotifica("Successo", "Locale rimosso dalla vista.", Alert.AlertType.INFORMATION);
+        if (selezionato == null) {
+            mostraNotifica("Nessuna selezione", "Seleziona un locale da eliminare.", Alert.AlertType.WARNING);
+            return;
         }
+
+        // Dialogo di conferma prima di procedere con l'eliminazione permanente
+        Alert conferma = new Alert(Alert.AlertType.CONFIRMATION);
+        conferma.setTitle("Elimina Locale");
+        conferma.setHeaderText("Eliminazione permanente");
+        conferma.setContentText("Sei sicuro di voler eliminare \"" + selezionato.getName() + "\"? L'operazione è irreversibile.");
+        conferma.showAndWait().ifPresent(risposta -> {
+            if (risposta == ButtonType.OK) {
+                progressIndicator.setVisible(true);
+                String endpoint = "/api/v1/locali/" + selezionato.getId();
+
+                // Chiamata DELETE asincrona al backend tramite RestClient
+                RestClient.getInstance().deleteAsync(endpoint, response -> {
+                    // Rimozione dalla lista solo dopo la conferma del server
+                    listaLocaliObservable.remove(selezionato);
+                    progressIndicator.setVisible(false);
+                    mostraNotifica("Successo", "Locale eliminato correttamente.", Alert.AlertType.INFORMATION);
+                });
+            }
+        });
     }
 
     /**
