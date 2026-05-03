@@ -1,8 +1,9 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.cloud.security.CloudTlsUtility;
+import com.bitpub.models.PartitaCalciobalilla;
 import com.bitpub.repository.GameSessionEntity;
 import com.bitpub.repository.GameSessionRepository;
+import com.bitpub.repository.PartitaCalciobalillaRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import org.eclipse.paho.client.mqttv3.*;
@@ -16,27 +17,53 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Gateway di comunicazione MQTT Cloud-Side bidirezionale.
+ *
+ * <p>Ascolta due canali:</p>
+ * <ul>
+ *   <li>{@code bitpub/edge/+/score} – eventi dall'Edge Node (FoosballEvent JSON)</li>
+ *   <li>{@code bitpub/locali/+/calciobalilla/+/eventi} – eventi dal modulo BitPub-Simulators
+ *       (PartitaCalciobalilla JSON con campi goalRossi, goalBlu, totaleRullate, orarioFine)</li>
+ * </ul>
+ *
+ * <p>Quando una partita termina (status FINISHED/FORCE_STOPPED su Edge, oppure
+ * orarioFine != null su Simulators), il risultato viene persisto in {@code partita_calciobalilla}.</p>
  */
 @Component
 public class CloudMqttGateway implements MqttCallback {
 
-    // Configurazione endpoint TLS come prima
-    private static final String BROKER_URL = "ssl://localhost:8883";
+    private static final String BROKER_URL = "tcp://localhost:1883";
     private final String CLIENT_ID = "BitPub-Cloud-Gateway-" + java.util.UUID.randomUUID().toString();
-    private static final String CERTS_BASE_PATH = "../BitPub-Security/certs";
+
+    private static final int MAX_GOALS = 10;
 
     private MqttClient client;
     private final Gson gson = new Gson();
 
-    // Mappa Thread-Safe per tracciare l'heartbeat dei vari Edge Node (es. chiave "1")
+    /** Heartbeat: timestamp dell'ultimo ping per ogni Edge Node. */
     private final Map<String, Instant> edgeLastSeen = new ConcurrentHashMap<>();
+
+    /**
+     * Tiene traccia degli ID sessione Edge già salvati in {@code partita_calciobalilla}
+     * per evitare inserimenti doppi nel caso in cui arrivino due eventi FINISHED consecutivi.
+     */
+    private final Set<Long> savedEdgeSessions = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Tiene traccia dei topic Simulators per cui la partita corrente è già stata salvata.
+     * Viene resettato quando il simulatore inizia una nuova partita (score torna a 0-0).
+     */
+    private final Map<String, Boolean> simulatorMatchSaved = new ConcurrentHashMap<>();
 
     @Autowired
     private GameSessionRepository gameSessionRepository;
+
+    @Autowired
+    private PartitaCalciobalillaRepository partitaCalciobalillaRepository;
 
     public Map<String, Instant> getEdgeLastSeen() {
         return edgeLastSeen;
@@ -48,83 +75,232 @@ public class CloudMqttGateway implements MqttCallback {
             client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
 
             MqttConnectOptions options = new MqttConnectOptions();
-            options.setCleanSession(false);
+            options.setCleanSession(true);
             options.setAutomaticReconnect(true);
-
-            // Mantiene il supporto TLS custom pre-esistente
-            CloudTlsUtility.applyTlsToOptions(options, CERTS_BASE_PATH);
 
             client.setCallback(this);
             client.connect(options);
 
-            // Sottoscrizioni richieste dal prompt con QoS 1
             client.subscribe("bitpub/edge/heartbeat", 1);
             client.subscribe("bitpub/edge/+/score", 1);
+            // Ascolto anche gli eventi del modulo BitPub-Simulators per salvarli a fine match
+            client.subscribe("bitpub/locali/+/calciobalilla/+/eventi", 0);
 
-            System.out.println("[CLOUD GATEWAY] Connesso e in ascolto su heartbeat e score...");
+            System.out.println("[CLOUD GATEWAY] Connesso a " + BROKER_URL
+                    + " — in ascolto su edge/score, edge/heartbeat e locali/calciobalilla/eventi");
         } catch (MqttException e) {
             System.err.println("[CLOUD GATEWAY] Errore critico durante l'avvio: " + e.getMessage());
+            e.printStackTrace();
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // messageArrived
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void messageArrived(String topic, MqttMessage message) {
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-        System.out.println("[MQTT IN] Topic: " + topic + " | Payload: " + payload);
+        System.out.println("[MQTT IN] " + topic + " | " + payload);
 
         if (topic.equals("bitpub/edge/heartbeat")) {
-            // Aggiorna l'orario di ultimo ping per l'Edge
-            try {
-                JsonObject json = gson.fromJson(payload, JsonObject.class);
-                if (json.has("nodeId")) {
-                    String nodeId = json.get("nodeId").getAsString();
-                    edgeLastSeen.put(nodeId, Instant.now());
-                }
-            } catch (Exception e) {
-                System.err.println("Errore parsing heartbeat: " + e.getMessage());
-            }
+            handleHeartbeat(payload);
 
         } else if (topic.matches("bitpub/edge/.+/score")) {
-            // Ricezione punteggio e salvataggio DB
-            try {
-                JsonObject json = gson.fromJson(payload, JsonObject.class);
-                Long sessionId = json.get("sessionId").getAsLong();
-                int scoreBlue = json.get("scoreBlue").getAsInt();
-                int scoreRed = json.get("scoreRed").getAsInt();
+            handleEdgeScore(payload);
 
-                Optional<GameSessionEntity> sessionOpt = gameSessionRepository.findById(sessionId);
-                if (sessionOpt.isPresent()) {
-                    GameSessionEntity session = sessionOpt.get();
-                    if ("IN_PROGRESS".equals(session.getStatus())) {
-                        session.setScoreBlue(scoreBlue);
-                        session.setScoreRed(scoreRed);
-                        
-                        // Controllo vittoria fittizio (es. primo che arriva a 10 vince)
-                        if (scoreBlue >= 10 || scoreRed >= 10) {
-                            session.setStatus("FINISHED");
-                            session.setFinishedAt(LocalDateTime.now());
-                            System.out.println("[GAME] Partita terminata!");
-                        }
-                        gameSessionRepository.save(session);
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("Errore parsing o salvataggio score: " + e.getMessage());
-            }
+        } else if (topic.matches("bitpub/locali/.+/calciobalilla/.+/eventi")) {
+            handleSimulatorsEvent(topic, payload);
         }
     }
 
+    // ── Handler: heartbeat ───────────────────────────────────────────────────
+
+    private void handleHeartbeat(String payload) {
+        try {
+            JsonObject json = gson.fromJson(payload, JsonObject.class);
+            if (json.has("nodeId")) {
+                edgeLastSeen.put(json.get("nodeId").getAsString(), Instant.now());
+            }
+        } catch (Exception e) {
+            System.err.println("[CLOUD GATEWAY] Errore parsing heartbeat: " + e.getMessage());
+        }
+    }
+
+    // ── Handler: Edge score events ───────────────────────────────────────────
+
     /**
-     * Pubblica il comando per sbloccare le palline del calciobalilla (Start Partita)
+     * Processa gli eventi di punteggio pubblicati dall'Edge Node.
+     * Aggiorna {@code game_session} e, a fine partita, salva in {@code partita_calciobalilla}.
      */
-    public void publishUnlockBalls(Integer tableId) {
+    private void handleEdgeScore(String payload) {
+        try {
+            JsonObject json = gson.fromJson(payload, JsonObject.class);
+
+            int    scoreBlue = json.has("scoreBlue") ? json.get("scoreBlue").getAsInt() : 0;
+            int    scoreRed  = json.has("scoreRed")  ? json.get("scoreRed").getAsInt()  : 0;
+            String status    = json.has("status")    ? json.get("status").getAsString()  : "IN_PROGRESS";
+
+            // ── Trova la sessione ──────────────────────────────────────────
+            Optional<GameSessionEntity> sessionOpt = Optional.empty();
+            Long sessionId = null;
+
+            if (json.has("sessionId") && !json.get("sessionId").isJsonNull()) {
+                sessionId = json.get("sessionId").getAsLong();
+                sessionOpt = gameSessionRepository.findById(sessionId);
+            } else if (json.has("tableId") && !json.get("tableId").isJsonNull()) {
+                int tableId = json.get("tableId").getAsInt();
+                sessionOpt = gameSessionRepository.findByTableIdAndStatus(tableId, "IN_PROGRESS");
+                if (sessionOpt.isPresent()) {
+                    sessionId = sessionOpt.get().getId();
+                }
+            }
+
+            if (sessionOpt.isEmpty()) {
+                System.err.println("[CLOUD GATEWAY] Nessuna sessione trovata per l'evento Edge score.");
+                return;
+            }
+
+            GameSessionEntity session = sessionOpt.get();
+
+            // ── Aggiorna game_session ─────────────────────────────────────
+            if ("IN_PROGRESS".equals(session.getStatus())) {
+                session.setScoreBlue(scoreBlue);
+                session.setScoreRed(scoreRed);
+
+                boolean isFinished = "FINISHED".equals(status) || "FORCE_STOPPED".equals(status);
+                if (isFinished) {
+                    session.setStatus(status);
+                    session.setFinishedAt(LocalDateTime.now());
+                }
+                gameSessionRepository.save(session);
+                System.out.println("[CLOUD GATEWAY] game_session aggiornata — Blu:" + scoreBlue
+                        + " Rossi:" + scoreRed + " [" + status + "]");
+
+                // ── Salva in partita_calciobalilla a fine partita ─────────
+                if (isFinished && sessionId != null && !savedEdgeSessions.contains(sessionId)) {
+                    savedEdgeSessions.add(sessionId);
+                    salvaPartitaCalciobalilla(
+                            scoreBlue, scoreRed,
+                            scoreBlue + scoreRed,
+                            0,  // totaleRullate non disponibile dal FoosballEvent
+                            0,  // durataMediaPallinaSecondi non disponibile
+                            session.getStartedAt(),
+                            session.getFinishedAt()
+                    );
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("[CLOUD GATEWAY] Errore gestione edge/score: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // ── Handler: BitPub-Simulators events ────────────────────────────────────
+
+    /**
+     * Processa gli eventi pubblicati dal modulo {@code BitPub-Simulators}
+     * ({@code PartitaCalciobalilla} JSON serializzato con GSON @Expose).
+     *
+     * <p>La fine di una partita è riconoscibile da:<br>
+     * - {@code orarioFine} presente e non-null nel payload (campo @Expose impostato
+     *   solo dopo la vittoria di una squadra), oppure<br>
+     * - uno dei due punteggi ha raggiunto MAX_GOALS.</p>
+     */
+    private void handleSimulatorsEvent(String topic, String payload) {
+        try {
+            JsonObject json = gson.fromJson(payload, JsonObject.class);
+
+            int goalBlu    = json.has("goalBlu")    ? json.get("goalBlu").getAsInt()    : 0;
+            int goalRossi  = json.has("goalRossi")  ? json.get("goalRossi").getAsInt()  : 0;
+            int totGol     = json.has("totaleGol")  ? json.get("totaleGol").getAsInt()  : goalBlu + goalRossi;
+            int rullate    = json.has("totaleRullate")           ? json.get("totaleRullate").getAsInt()           : 0;
+            int durata     = json.has("durataMediaPallinaSecondi") ? json.get("durataMediaPallinaSecondi").getAsInt() : 0;
+
+            boolean orarioFinePresente = json.has("orarioFine")
+                    && !json.get("orarioFine").isJsonNull();
+            boolean punteggioVittoria  = goalBlu >= MAX_GOALS || goalRossi >= MAX_GOALS;
+
+            // Nuova partita → reset del flag "già salvata"
+            if (goalBlu == 0 && goalRossi == 0) {
+                simulatorMatchSaved.remove(topic);
+            }
+
+            // Fine partita → salva (una sola volta per match)
+            if ((orarioFinePresente || punteggioVittoria) && !simulatorMatchSaved.getOrDefault(topic, false)) {
+                simulatorMatchSaved.put(topic, true);
+
+                salvaPartitaCalciobalilla(
+                        goalBlu, goalRossi,
+                        totGol,
+                        rullate,
+                        durata,
+                        null,           // orarioInizio non disponibile in modo affidabile
+                        LocalDateTime.now()
+                );
+            }
+
+        } catch (Exception e) {
+            System.err.println("[CLOUD GATEWAY] Errore gestione Simulators event: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // ── Persistenza ──────────────────────────────────────────────────────────
+
+    /**
+     * Crea e salva un record in {@code partita_calciobalilla}.
+     *
+     * @param goalBlu                   Gol della squadra blu
+     * @param goalRossi                 Gol della squadra rossa
+     * @param totaleGol                 Totale gol nella partita
+     * @param totaleRullate             Totale rullate/falli rilevati
+     * @param durataMediaPallinaSecondi Durata media pallina in secondi
+     * @param orarioInizio              Timestamp di inizio (può essere null)
+     * @param orarioFine                Timestamp di fine
+     */
+    private void salvaPartitaCalciobalilla(int goalBlu, int goalRossi,
+                                           int totaleGol, int totaleRullate,
+                                           int durataMediaPallinaSecondi,
+                                           LocalDateTime orarioInizio,
+                                           LocalDateTime orarioFine) {
+        try {
+            PartitaCalciobalilla partita = new PartitaCalciobalilla(
+                    totaleGol, totaleRullate, durataMediaPallinaSecondi,
+                    goalRossi, goalBlu
+            );
+            partita.setOrarioInizio(orarioInizio != null ? orarioInizio : orarioFine);
+            partita.setOrarioFine(orarioFine);
+            partita.setLocaleId(1L); // Locale fisso; da estendere se multi-locale
+
+            partitaCalciobalillaRepository.save(partita);
+
+            System.out.println("[CLOUD GATEWAY] ✅ partita_calciobalilla salvata — "
+                    + "Blu:" + goalBlu + " Rossi:" + goalRossi
+                    + " Gol totali:" + totaleGol
+                    + " Rullate:" + totaleRullate);
+        } catch (Exception e) {
+            System.err.println("[CLOUD GATEWAY] Errore salvataggio partita_calciobalilla: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    // ── Comandi verso Edge ────────────────────────────────────────────────────
+
+    /**
+     * Pubblica il comando per sbloccare le palline (Start Partita).
+     * Propaga il sessionId affinché l'Edge possa includerlo in ogni evento score.
+     */
+    public void publishUnlockBalls(Integer tableId, Long sessionId) {
         JsonObject json = new JsonObject();
         json.addProperty("tableId", tableId);
+        json.addProperty("sessionId", sessionId);
         publishMessage("bitpub/cloud/foosball/start", json.toString(), 1);
     }
 
     /**
-     * Pubblica il comando per forzare la chiusura di un tavolo (Admin Force Stop)
+     * Pubblica il comando per forzare la chiusura di un tavolo (Admin Force Stop).
      */
     public void publishForceStop(Integer tableId) {
         JsonObject json = new JsonObject();
@@ -138,12 +314,12 @@ public class CloudMqttGateway implements MqttCallback {
                 MqttMessage msg = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
                 msg.setQos(qos);
                 client.publish(topic, msg);
-                System.out.println("[MQTT OUT] Topic: " + topic + " | Payload: " + payload);
+                System.out.println("[MQTT OUT] " + topic + " | " + payload);
             } catch (MqttException e) {
-                System.err.println("Errore publish MQTT: " + e.getMessage());
+                System.err.println("[CLOUD GATEWAY] Errore publish: " + e.getMessage());
             }
         } else {
-            System.err.println("Impossibile inviare messaggio MQTT: client non connesso.");
+            System.err.println("[CLOUD GATEWAY] Impossibile inviare: client MQTT non connesso.");
         }
     }
 
@@ -153,7 +329,5 @@ public class CloudMqttGateway implements MqttCallback {
     }
 
     @Override
-    public void deliveryComplete(IMqttDeliveryToken token) {
-        // Nessuna azione speciale richiesta per la conferma di consegna base
-    }
+    public void deliveryComplete(IMqttDeliveryToken token) { /* noop */ }
 }

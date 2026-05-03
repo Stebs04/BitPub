@@ -17,9 +17,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class EdgeMqttClient implements MqttCallback {
 
-    private static final String BROKER_URL = "ssl://localhost:8883";
+    private static final String BROKER_URL = "tcp://localhost:1883";
     private static final String CLIENT_ID = "BitPub-Edge-Node-1";
-    private static final String CERTS_BASE_PATH = "../BitPub-Security/certs";
 
     private MqttClient client;
     private final GameTableStateManager stateManager;
@@ -41,9 +40,7 @@ public class EdgeMqttClient implements MqttCallback {
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
             options.setAutomaticReconnect(true);
-
-            // TODO: Decommenta questa linea se hai già configurato TlsUtility in questo modulo
-            com.bitpub.security.TlsUtility.applyTlsToOptions(options, CERTS_BASE_PATH);
+            // Plain TCP, nessuna TLS in sviluppo locale
 
             client.setCallback(this);
             client.connect(options);
@@ -57,8 +54,9 @@ public class EdgeMqttClient implements MqttCallback {
 
         } catch (MqttException e) {
             System.err.println("[EDGE NODE] Errore connessione MQTT: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
-            System.err.println("[EDGE NODE] Errore TLS o generico: " + e.getMessage());
+            System.err.println("[EDGE NODE] Errore generico durante la connessione: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -130,11 +128,15 @@ public class EdgeMqttClient implements MqttCallback {
                         System.out.println("[EDGE NODE] Avviso: il Tavolo " + tableId + " risulta già occupato.");
                         return;
                     }
+                    // Estrae il sessionId propagato dal Cloud
+                    Long sessionId = json.has("sessionId") ? json.get("sessionId").getAsLong() : null;
+                    System.out.println("[EDGE NODE] Avvio simulatore per tavolo " + tableId + ", sessionId=" + sessionId);
+
                     // 1. Aggiorna stato
                     stateManager.setOccupied(tableId);
                     
-                    // 2. Avvia nuovo thread stocastico passando la coda condivisa
-                    activeSimulator = new SimCalciobalilla(tableId, eventQueue);
+                    // 2. Avvia nuovo thread stocastico passando la coda condivisa e il sessionId
+                    activeSimulator = new SimCalciobalilla(tableId, sessionId, eventQueue);
                     simulatorThread = new Thread(activeSimulator);
                     simulatorThread.start();
                 } 
