@@ -6,52 +6,58 @@ import java.util.List;
 
 /**
  * Entità che rappresenta un Torneo organizzato in un locale.
- * * @author Luca Franzon
+ * @author Luca Franzon
  * @version 1.0
  */
 @Entity
 @Table(name = "tornei")
-public class Torneo extends ResourceModel { // Estende ResourceModel per supporto HATEOAS
+public class Torneo extends ResourceModel { // Estende ResourceModel per supporto HATEOAS[cite: 8]
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Impostiamo nullable = false per impedire al DB di salvare valori nulli[cite: 8]
+    @Column(nullable = false)
     private String nome;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_gioco", nullable = false)
     private TipoGioco tipoGioco;
 
+    @Column(name = "locale_id", nullable = false)
     private Long localeId;
 
-    // Uniformato a LocalDate per coerenza con il costruttore e JavaFX DatePicker
+    // Specifichiamo il nome esatto della colonna nel DB per evitare incomprensioni[cite: 8]
+    @Column(name = "data_inizio")
     private LocalDate dataInizio;
-    
+
+    @Column(name = "data_fine")
     private LocalDate dataFine;
-    
+
     private String premio;
 
+    @Column(name = "max_partecipanti")
     private Integer maxPartecipanti;
 
     @Enumerated(EnumType.STRING)
     private ModalitaTorneo modalita;
 
-    // Usiamo @Transient se per ora non vogliamo creare le tabelle di join nel database,
-    // altrimenti andranno sostituite con @OneToMany o @ManyToMany
-    @Transient 
+    // Usiamo @Transient perché non vogliamo creare le tabelle di join nel database per ora[cite: 8]
+    @Transient
     private List<Partita> partite;
 
     @Transient
     private List<Utente> iscritti;
 
-    // Enum interni per consistenza dati
+    // Enum interni per consistenza dati[cite: 8]
     public enum TipoGioco { CALCIOBALILLA, FRECCETTE, BILIARDO }
     public enum ModalitaTorneo { INDIVIDUALE, SQUADRE }
 
-    // Costruttore vuoto (richiesto da JPA e Gson)
+    // Costruttore vuoto (assolutamente richiesto da JPA e Gson)[cite: 8]
     public Torneo() {}
 
-    // Costruttore con parametri aggiornato
+    // Costruttore con parametri aggiornato[cite: 8]
     public Torneo(String nome, TipoGioco tipoGioco, Long localeId, LocalDate dataInizio, Integer maxPartecipanti, ModalitaTorneo modalita) {
         this.nome = nome;
         this.tipoGioco = tipoGioco;
@@ -61,7 +67,7 @@ public class Torneo extends ResourceModel { // Estende ResourceModel per support
         this.modalita = modalita;
     }
 
-    // --- GETTER E SETTER ---
+    // --- GETTER E SETTER COMPLETI ---
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
