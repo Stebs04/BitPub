@@ -25,7 +25,7 @@ public class MqttAdminGateway implements MqttCallback {
     private final String brokerUrl = "tcp://localhost:1883";
 
     /** Identificativo univoco del client per il broker. */
-    private final String clientId = "BitPub-Cloud-Admin";
+    private final String clientId = "BitPub-Cloud-Admin-" + java.util.UUID.randomUUID().toString();
 
     /** Repository per la persistenza dello stato operativo delle sedi. */
     @Autowired

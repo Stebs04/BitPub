@@ -104,7 +104,7 @@ public class Main extends Application {
                     cambiaScena("/GestoreDashboardView.fxml", "BitPub - Dashboard Gestore", 1024, 768);
                 } else {
                     // Default: Dashboard standard per utenti base
-                    cambiaScena("/DashboardUtenteView.fxml", "BitPub - La tua Dashboard", 1024, 768);
+                    cambiaScena("/DashboardView.fxml", "BitPub - La tua Dashboard", 1024, 768);
                 }
             } catch (IOException e) {
                 System.err.println("Errore nel caricamento della dashboard per il ruolo " + ruolo + ": " + e.getMessage());
