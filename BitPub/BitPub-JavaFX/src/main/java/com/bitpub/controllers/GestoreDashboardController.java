@@ -48,6 +48,12 @@ public class GestoreDashboardController {
 
     @FXML private ProgressIndicator loadingIndicator;
 
+    @FXML private BarChart<String, Number> barChartPartite;
+
+    @FXML private CategoryAxis xAxis;
+
+    @FXML private NumberAxis yAxis;
+
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final RestClient restClient = RestClient.getInstance();
     private Long localeId; 
@@ -98,8 +104,17 @@ public class GestoreDashboardController {
     public void initialize() {
         setupTables();
         setupForm();
-        
-        this.localeId = SessionManager.getInstance().getCurrentLocaleId();
+
+        // RECUPERO L'ID DALLA SESSIONE
+        Long idDallaSessione = SessionManager.getInstance().getCurrentLocaleId();
+
+        // CONTROLLO DI SICUREZZA PER IL TEST
+        if (idDallaSessione == null) {
+            System.out.println("⚠️ ATTENZIONE: Nessun ID Locale in sessione. Imposto ID fittizio = 3L per i test.");
+            this.localeId = 3L;
+        } else {
+            this.localeId = idDallaSessione;
+        }
 
         // Polling ogni 10 secondi per garantire dati "freschi" sulla dashboard senza sovraccaricare il server
         scheduler.scheduleAtFixedRate(this::pollData, 0, 10, TimeUnit.SECONDS);
@@ -188,10 +203,26 @@ public class GestoreDashboardController {
     /**
      * Raccoglie i dati dal form e lancia la chiamata di rete asincrona per la creazione di un torneo.
      */
+    /**
+     * Raccoglie i dati dal form, fa una validazione di base e lancia
+     * la chiamata di rete asincrona per la creazione di un torneo.
+     */
     @FXML
     public void handleCreaTorneo() {
+        // 1. VALIDAZIONE: Controlliamo che l'utente abbia inserito tutti i dati essenziali
+        if (txtNomeTorneo.getText() == null || txtNomeTorneo.getText().trim().isEmpty() ||
+                choiceTipoGioco.getValue() == null ||
+                choiceModalita.getValue() == null ||
+                dateInizio.getValue() == null) {
+
+            // Se manca qualcosa, mostriamo un avviso e blocchiamo l'invio
+            showAlert(Alert.AlertType.WARNING, "Dati Mancanti", "Per favore, compila tutti i campi prima di creare il torneo!");
+            return;
+        }
+
+        // 2. Prepariamo i dati da inviare
         Torneo nuovoTorneo = new Torneo();
-        nuovoTorneo.setNome(txtNomeTorneo.getText());
+        nuovoTorneo.setNome(txtNomeTorneo.getText().trim());
         nuovoTorneo.setTipoGioco(choiceTipoGioco.getValue());
         nuovoTorneo.setDataInizio(dateInizio.getValue());
         nuovoTorneo.setMaxPartecipanti(spinnerPartecipanti.getValue());
@@ -199,20 +230,32 @@ public class GestoreDashboardController {
         nuovoTorneo.setLocaleId(localeId);
 
         loadingIndicator.setVisible(true);
-        restClient.faiChiamataPost("/gestore/tornei", nuovoTorneo, String.class)
-            .handle((res, ex) -> {
-                // Riporto l'esecuzione sul thread della vista per visualizzare l'Alert
-                Platform.runLater(() -> {
-                    loadingIndicator.setVisible(false);
-                    if (ex == null && res != null) {
-                        showAlert(Alert.AlertType.INFORMATION, "Successo", "Torneo creato correttamente!");
-                        resetForm();
-                    } else {
-                        showAlert(Alert.AlertType.ERROR, "Errore", "Impossibile creare il torneo.");
-                    }
+
+        // 3. Inviamo i dati al Cloud Server tramite API REST
+        restClient.faiChiamataPost("/api/tornei", nuovoTorneo, Torneo.class)
+                .handle((res, ex) -> {
+                    // Riporto l'esecuzione sul thread della vista (regola d'oro di JavaFX!)
+                    Platform.runLater(() -> {
+                        loadingIndicator.setVisible(false);
+
+                        if (ex == null && res != null) {
+                            showAlert(Alert.AlertType.INFORMATION, "Successo", "Torneo creato correttamente!");
+                            resetForm();
+                        } else {
+                            // --- DEBUG: STAMPIAMO IL VERO ERRORE NELLA CONSOLE ---
+                            System.out.println("!!! ERRORE DURANTE LA CREAZIONE DEL TORNEO !!!");
+                            if (ex != null) {
+                                ex.printStackTrace(); // Stampa l'errore tecnico nel terminale
+                            } else {
+                                System.out.println("Il server non ha restituito nessuna risposta (res è null). Probabilmente c'è un errore 400 o 500.");
+                            }
+                            // -----------------------------------------------------
+
+                            showAlert(Alert.AlertType.ERROR, "Errore di Rete", "Impossibile creare il torneo. Controlla la console per i dettagli.");
+                        }
+                    });
+                    return null;
                 });
-                return null;
-            });
     }
 
     private void resetForm() {
