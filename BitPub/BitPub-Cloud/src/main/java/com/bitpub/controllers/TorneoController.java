@@ -99,19 +99,26 @@ public class TorneoController {
      * @return ResponseEntity con messaggio di conferma (200 OK) o errore (500 Server Error).
      */
     @PostMapping
-    public ResponseEntity<String> creaTorneo(
+    public ResponseEntity<?> creaTorneo(
             @RequestBody Torneo nuovoTorneo,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         log.info("Ricevuta richiesta POST su /api/tornei - Creazione nuovo torneo");
 
+        // AGGIUNTA PER IL DEBUG: Stampiamo i dati ricevuti per vedere se sono nulli!
+        System.out.println("--- DEBUG DATI RICEVUTI ---");
+        System.out.println("Nome: " + nuovoTorneo.getNome());
+        System.out.println("Tipo Gioco: " + nuovoTorneo.getTipoGioco());
+        System.out.println("Max Partecipanti: " + nuovoTorneo.getMaxPartecipanti());
+        System.out.println("---------------------------");
+
         try {
-            torneoRepository.save(nuovoTorneo);
+            Torneo torneoSalvato = torneoRepository.save(nuovoTorneo);
             log.info("Torneo salvato con successo nel database PostgreSQL!");
-            return ResponseEntity.ok("Torneo creato.");
+            return ResponseEntity.ok(torneoSalvato);
         } catch (Exception e) {
             log.error("Errore durante la creazione del torneo", e);
-            return ResponseEntity.internalServerError().body("Errore interno");
+            return ResponseEntity.internalServerError().body(java.util.Map.of("errore", "Errore interno"));
         }
     }
 
