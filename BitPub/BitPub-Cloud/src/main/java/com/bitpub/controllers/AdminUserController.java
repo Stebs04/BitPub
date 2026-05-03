@@ -75,4 +75,32 @@ public class AdminUserController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * Alterna il ruolo dell'utente tra {@code USER} e {@code GESTORE}.
+     * Se l'utente ha ruolo {@code USER} viene promosso a {@code GESTORE}; se è già
+     * {@code GESTORE} viene retrocesso a {@code USER}. Gli account {@code ADMIN} sono
+     * esclusi dalla modifica per sicurezza.
+     *
+     * @param username Lo username univoco dell'utente da modificare.
+     * @return {@link ResponseEntity} 200 OK con il ruolo aggiornato, o 404 se non trovato,
+     *         o 400 se si tenta di modificare un account ADMIN.
+     */
+    @PutMapping("/{username}/toggle-role")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> toggleUserRole(@PathVariable String username) {
+        return utenteRepository.findByUsername(username)
+                .map(utente -> {
+                    // Protezione: il ruolo ADMIN non può essere modificato tramite questa API
+                    if ("ADMIN".equalsIgnoreCase(utente.getRole())) {
+                        return ResponseEntity.badRequest().body("Impossibile modificare il ruolo di un ADMIN.");
+                    }
+                    // Toggle tra USER e GESTORE
+                    String nuovoRuolo = "GESTORE".equalsIgnoreCase(utente.getRole()) ? "USER" : "GESTORE";
+                    utente.setRole(nuovoRuolo);
+                    utenteRepository.save(utente);
+                    return ResponseEntity.ok().build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
