@@ -109,6 +109,7 @@ public class CloudTlsUtility {
             String keyPath = baseCertsPath + "/client.key";
 
             options.setSocketFactory(getSocketFactory(caPath, crtPath, keyPath));
+            options.setHttpsHostnameVerificationEnabled(false);
             // Non impostiamo username/password: l'autenticazione avviene tramite certificato mTLS.
             // NOTA: NON chiamare setPassword(null) — Paho esegue null.clone() internamente e crasha con NPE.
 

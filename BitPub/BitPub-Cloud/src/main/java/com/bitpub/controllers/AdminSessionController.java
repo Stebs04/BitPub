@@ -1,57 +1,117 @@
 package com.bitpub.controllers;
 
-import com.bitpub.models.GameSession;
+import com.bitpub.dto.GameSessionDTO;
+import com.bitpub.mqtt.CloudMqttGateway;
+import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.repository.AuditLogRepository;
+import com.bitpub.repository.GameSessionEntity;
+import com.bitpub.repository.GameSessionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-/**
- * Controller REST per il monitoraggio delle sessioni di gioco attive.
- * Le sessioni sono gestite in tempo reale dall'Edge tramite MQTT e non
- * vengono persistite nel database Cloud; questo controller espone l'endpoint
- * atteso dal client JavaFX restituendo la lista delle sessioni note al momento
- * della richiesta (implementazione base: lista vuota, estendibile con un
- * registro in-memory o Redis in futuro).
- *
- * @author Stefano Bellan 20054330
- * @since 2024
- */
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 @RestController
-@RequestMapping("/api/v1/admin/sessions")
+@RequestMapping("/api/v1/admin")
+@PreAuthorize("hasRole('ADMIN')")
 @CrossOrigin(origins = "*")
 public class AdminSessionController {
 
+    @Autowired
+    private GameSessionRepository gameSessionRepository;
+
+   
+     @Autowired
+     private CloudMqttGateway cloudMqttGateway;
+
+    
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+    
+
     /**
-     * Restituisce l'elenco delle sessioni di gioco attualmente attive.
-     * In questa implementazione base la lista è vuota perché le sessioni
-     * live risiedono nell'Edge; l'endpoint è esposto per compatibilità
-     * con il client JavaFX ed è pronto per future integrazioni con un
-     * registro distribuito (es. Redis, WebSocket broker).
-     *
-     * @return {@link ResponseEntity} con la lista (eventualmente vuota) delle {@link GameSession}.
+     * Ritorna la lista di tutte le GameSessionEntity con status=IN_PROGRESS
+     * restituendo un CollectionModel HATEOAS.
      */
-    @GetMapping("/active")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<GameSession>> getActiveSessions() {
-        // TODO: integrare con un registro in-memory o Redis quando le sessioni
-        // verranno centralizzate lato Cloud.
-        return ResponseEntity.ok(List.of());
+    @GetMapping("/sessions/active")
+    public ResponseEntity<CollectionModel<EntityModel<GameSessionDTO>>> getActiveSessions() {
+        List<GameSessionEntity> activeSessions = gameSessionRepository.findAllByStatus("IN_PROGRESS");
+
+        List<EntityModel<GameSessionDTO>> sessionModels = activeSessions.stream().map(session -> {
+            GameSessionDTO dto = new GameSessionDTO(session);
+            EntityModel<GameSessionDTO> model = EntityModel.of(dto);
+            // Aggiungiamo il link per forzare la chiusura a ogni singola risorsa
+            model.add(linkTo(methodOn(AdminSessionController.class).forceStopSession(session.getId())).withRel("force-stop"));
+            return model;
+        }).collect(Collectors.toList());
+
+        CollectionModel<EntityModel<GameSessionDTO>> collectionModel = CollectionModel.of(sessionModels);
+        collectionModel.add(linkTo(methodOn(AdminSessionController.class).getActiveSessions()).withSelfRel());
+
+        return ResponseEntity.ok(collectionModel);
     }
 
     /**
-     * Forza la chiusura di una sessione identificata dal suo ID.
-     * Questo endpoint è il target dell'operazione "Sblocco Forzato" nel pannello Admin.
-     *
-     * @param sessionId Identificativo univoco della sessione da terminare.
-     * @return {@link ResponseEntity} 200 OK al completamento.
+     * Aggiorna lo stato di una sessione bloccata, pubblica il comando MQTT
+     * per sbloccare l'hardware e salva l'operazione nell'audit_log.
      */
-    @PostMapping("/stop/{sessionId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> stopSession(@PathVariable String sessionId) {
-        // TODO: inviare un comando MQTT all'Edge per terminare la sessione specificata.
-        System.out.println("[ADMIN] Richiesta di stop forzato per la sessione: " + sessionId);
-        return ResponseEntity.ok().build();
+    @PostMapping("/sessions/{id}/force-stop")
+    public ResponseEntity<?> forceStopSession(@PathVariable Long id) {
+        GameSessionEntity session = gameSessionRepository.findById(id).orElse(null);
+        if (session == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (!"IN_PROGRESS".equals(session.getStatus())) {
+            return ResponseEntity.badRequest().body("La sessione non è in corso e non può essere forzata.");
+        }
+
+        // Aggiornamento stato DB
+        session.setStatus("FORCE_STOPPED");
+        session.setFinishedAt(LocalDateTime.now());
+        gameSessionRepository.save(session);
+
+        
+        cloudMqttGateway.publishForceStop(session.getTableId());
+
+        AuditLogEntity log = new AuditLogEntity();
+        log.setLevel("WARN");
+        log.setSource("Cloud-Admin");
+        log.setAction("SESSION_FORCE_STOPPED");
+        log.setMessage("Sessione " + id + " interrotta forzatamente da Admin");
+        auditLogRepository.save(log);
+
+        GameSessionDTO dto = new GameSessionDTO(session);
+        return ResponseEntity.ok(EntityModel.of(dto));
+    }
+
+    /**
+     * Recupera lo stato in memoria aggiornato dal listener MQTT.
+     */
+    @GetMapping("/system/edge-status")
+    public ResponseEntity<?> getEdgeStatus() {
+      
+        Map<String, Instant> edgeLastSeen = cloudMqttGateway.getEdgeLastSeen();
+        Instant lastSeen = edgeLastSeen.get("1");
+        boolean isOnline = lastSeen != null && Duration.between(lastSeen, Instant.now()).getSeconds() < 30;
+        String status = isOnline ? "ONLINE" : "OFFLINE";
+        String lastSeenStr = lastSeen != null ? lastSeen.toString() : "MAI VISTO";
+
+        return ResponseEntity.ok(Map.of(
+                "status", status,
+                "lastSeen", lastSeenStr
+        ));
     }
 }
