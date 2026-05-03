@@ -16,6 +16,28 @@ import java.util.stream.Collectors;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
+import com.bitpub.models.PartitaCalciobalilla;
+import com.bitpub.models.Utente;
+import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.repository.AuditLogRepository;
+import com.bitpub.repository.PartitaCalciobalillaRepository;
+import com.bitpub.repository.UtenteRepository;
+import com.bitpub.services.PersistenceService;
+import com.bitpub.mqtt.CloudMqttGateway;
+import com.bitpub.utils.MqttCalciobalillaTopics;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Optional;
+
 /**
  * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
  * <p>
@@ -30,7 +52,6 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @RequestMapping(value = "/api/calciobalilla")
 @CrossOrigin(origins = "*") // Risolve eventuali conflitti di permessi legati alle policy CORS
 public class CalciobalillaController {
-
     @Autowired
     private PartitaCalciobalillaRepository repository;
 

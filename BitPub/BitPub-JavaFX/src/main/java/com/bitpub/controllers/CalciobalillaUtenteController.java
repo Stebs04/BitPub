@@ -114,9 +114,9 @@ public class CalciobalillaUtenteController implements MqttCallback {
     @FXML
     void tornaAllaDashboard(ActionEvent event) {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource("/DashboardUtenteView.fxml"));
+            Parent root = FXMLLoader.load(getClass().getResource("/DashboardView.fxml"));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root, 900, 600));
+            stage.setScene(new Scene(root, 1024, 768)); // Adjust to main dashboard size
         } catch (IOException e) { e.printStackTrace(); }
     }
 }
