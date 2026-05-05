@@ -35,7 +35,7 @@ public class DashboardController {
     @FXML
     private Button btnLogout;
 
-    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
+    private final Gson gson = new Gson();
 
     @FXML
     public void initialize() {
@@ -76,9 +76,7 @@ public class DashboardController {
                 }
                 
                 // Naviga al tabellone del Calciobalilla
-                Platform.runLater(() -> {
-                    cambiaScena(event, "/CalciobalillaUtenteView.fxml");
-                });
+                Platform.runLater(() -> cambiaScena(event, "/FoosballScoreboard.fxml"));
             } catch (Exception e) {
                 if (e.getMessage() != null && e.getMessage().contains("409")) {
                     try {
@@ -93,7 +91,7 @@ public class DashboardController {
                             SessionContext.setCurrentSessionStatusUrl(currentStatusUrl);
                         }
                         
-                        Platform.runLater(() -> cambiaScena(event, "/CalciobalillaUtenteView.fxml"));
+                        Platform.runLater(() -> cambiaScena(event, "/FoosballScoreboard.fxml"));
                     } catch (Exception ex) {
                         Platform.runLater(() -> mostraAlert("Attenzione", "Impossibile recuperare la partita in corso: " + ex.getMessage()));
                     }

@@ -66,7 +66,7 @@ public class CalciobalillaUtenteController implements MqttCallback {
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
         try {
-            PartitaCalciobalilla evento = com.bitpub.utils.JsonManager.getInstance().fromJson(payload, PartitaCalciobalilla.class);
+            PartitaCalciobalilla evento = new Gson().fromJson(payload, PartitaCalciobalilla.class);
             // ⚡ View in Tempo Reale pilotata direttamente tramite Platform.runLater
             Platform.runLater(() -> {
                 boxRisultatiPartita.setVisible(true);

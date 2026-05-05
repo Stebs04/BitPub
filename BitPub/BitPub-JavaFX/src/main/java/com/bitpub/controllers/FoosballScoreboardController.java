@@ -70,7 +70,7 @@ public class FoosballScoreboardController implements MqttCallback {
     private MqttClient mqttClient;
     private Thread     pollingThread;
     private volatile boolean running = true;
-    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
+    private final Gson gson = new Gson();
 
     private volatile int prevScoreBlue = 0;
     private volatile int prevScoreRed  = 0;

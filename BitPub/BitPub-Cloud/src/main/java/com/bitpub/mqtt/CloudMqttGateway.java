@@ -42,7 +42,7 @@ public class CloudMqttGateway implements MqttCallback {
     private static final int MAX_GOALS = 10;
 
     private MqttClient client;
-    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
+    private final Gson gson = new Gson();
 
     /** Heartbeat: timestamp dell'ultimo ping per ogni Edge Node. */
     private final Map<String, Instant> edgeLastSeen = new ConcurrentHashMap<>();
