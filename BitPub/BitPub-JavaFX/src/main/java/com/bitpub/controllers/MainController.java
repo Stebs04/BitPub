@@ -53,7 +53,35 @@ public class MainController {
     @FXML
     public void mostraCalciobalilla() {
         impostaBottoneAttivo(btnCalciobalilla);
+        avviaMainSimulatori();
         caricaVista("CalciobalillaGestione.fxml", "Gestione Calciobalilla", "⚽");
+    }
+
+    private void avviaMainSimulatori() {
+        new Thread(() -> {
+            try {
+                // Otteni il path di esecuzione di BitPub-Simulators
+                String basePath = System.getProperty("user.dir"); 
+                // Visto che siamo in BitPub-JavaFX, risaliamo alla root del parent se necessario
+                String simulatorePath = basePath.replace("BitPub-JavaFX", "BitPub-Simulators");
+                if (simulatorePath.equals(basePath)) {
+                    simulatorePath += "/../BitPub-Simulators"; // fallback 
+                }
+
+                System.out.println("[MainController] Avvio mvn exec:java in " + simulatorePath);
+
+                ProcessBuilder pb = new ProcessBuilder("mvn.cmd", "exec:java", "-Dexec.mainClass=com.bitpub.Main");
+                pb.directory(new java.io.File(simulatorePath).getCanonicalFile());
+                pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+                Process p = pb.start();
+                System.out.println("[MainController] Processo Simulatore (Calciobalilla) avviato con successo.");
+                // p.waitFor(); // Commentato o eseguibile in back
+            } catch (Exception e) {
+                System.err.println("[MainController] Errore nell'avvio del simulatore Calciobalilla: " + e.getMessage());
+            }
+        }).start();
     }
 
     /**
