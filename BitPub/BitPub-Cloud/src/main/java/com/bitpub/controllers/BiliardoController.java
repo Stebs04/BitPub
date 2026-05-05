@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @RestController
 public class BiliardoController {
 
-    private final Gson gson = new Gson();
+    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
 
     /**
      * Recupera un evento specifico legato al biliardo.

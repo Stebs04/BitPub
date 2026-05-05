@@ -42,6 +42,14 @@
                     <mainClass>com.bitpub.Main</mainClass>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <classifier>exec</classifier>
+                    <mainClass>com.bitpub.Main</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

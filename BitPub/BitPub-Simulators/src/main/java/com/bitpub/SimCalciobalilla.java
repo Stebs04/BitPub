@@ -43,8 +43,8 @@ public class SimCalciobalilla implements Runnable {
         this.idDispositivo = idDispositivo;
         this.edgeBrokerUrl = "tcp://" + edgeBrokerIp + ":1883";
 
-        // Configurazione per esporre in formato JSON solo i campi contrassegnati con @Expose
-        this.gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+        // Usiamo JsonManager per la corretta serializzazione delle date (LocalDateTime)
+        this.gson = com.bitpub.utils.JsonManager.getGson();
         this.random = new Random();
     }
 
