@@ -37,7 +37,7 @@ public class AdminSessionsController {
 
     @FXML private Label lblEdgeStatus;
 
-    private final Gson gson = new Gson();
+    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
     private ScheduledExecutorService scheduler;
 
     @FXML

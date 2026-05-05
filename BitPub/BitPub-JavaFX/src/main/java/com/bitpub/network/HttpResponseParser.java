@@ -18,7 +18,7 @@ import java.util.List;
 public final class HttpResponseParser {
 
     /** Global Gson instance used for deserialization; thread-safe for reading/parsing. */
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = com.bitpub.utils.JsonManager.getGson();
 
     private HttpResponseParser() {
         // Prevent instantiation of utility class
