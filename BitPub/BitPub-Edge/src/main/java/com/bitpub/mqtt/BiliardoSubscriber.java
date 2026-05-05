@@ -40,8 +40,15 @@ public class BiliardoSubscriber {
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     String payload = new String(message.getPayload());
                     
-                    try{
-                        logger.debug("Evento ricevuto - tipo: Biliardo, sorgente: {}, timestamp: {}", topic, System.currentTimeMillis());
+                    try {
+                        // Strict Filter: Process ONLY `source=DEVICE` with valid hardware signatures.
+                        com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+                        if (!json.has("source") || !"DEVICE".equals(json.get("source").getAsString()) || !json.has("hardwareSignature") || json.get("hardwareSignature").getAsString().isEmpty()) {
+                            logger.warn("Evento scartato (no hardware validation): {}", payload);
+                            return;
+                        }
+
+                        logger.debug("Evento ricevuto e validato - tipo: Biliardo, sorgente: {}, timestamp: {}", topic, System.currentTimeMillis());
                         
                         // Inserisce il messaggio nel buffer condiviso (thread-safe tramite LinkedBlockingQueue)
                         buffer.push(payload);

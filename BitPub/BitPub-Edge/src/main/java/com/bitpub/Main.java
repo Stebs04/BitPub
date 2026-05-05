@@ -37,7 +37,8 @@ public class Main {
                         
                         MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
                         message.setQos(1);
-                        mqttClient.getClient().publish("bitpub/locali/1/edge/heartbeat", message);
+                        // mqttClient.getClient().publish("bitpub/locali/1/edge/heartbeat", message); // Muted: zero internal event generation
+                        System.out.println("[Edge] Segnale di presenza generato ma non inviato (Passive Edge).");
                         
                     } catch (Exception e) {
                         System.err.println("Errore invio heartbeat: " + e.getMessage());

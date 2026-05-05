@@ -159,6 +159,6 @@ public class SimFreccette implements Runnable {
     private void inviaMessaggioMqtt(MqttClient client, String topic, String payload) throws MqttException {
         MqttMessage message = new MqttMessage(payload.getBytes());
         message.setQos(1); // QoS 1: Assicura che il messaggio venga consegnato almeno una volta
-        client.publish(topic, message);
+        // client.publish(topic, message); // Muted Simulator
     }
 }

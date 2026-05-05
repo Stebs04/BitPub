@@ -23,37 +23,66 @@ public class Main {
     public static void main(String[] args) {
         System.out.println("--- Avvio dei Simulatori IoT BitPub ---");
 
-        // Configurazione centralizzata dei parametri di rete e localizzazione
-        String idLocale = "pub_centrale";
-        String ipEdgeNodo = "127.0.0.1"; // Indirizzo del broker MQTT locale (Edge)
+        String ipEdgeNodo = "127.0.0.1";
+        
+        try {
+            org.eclipse.paho.client.mqttv3.MqttClient client = new org.eclipse.paho.client.mqttv3.MqttClient("tcp://" + ipEdgeNodo + ":1883", "MainSimulatorController");
+            client.connect();
+            
+            System.out.println("In attesa di comandi di avvio dalla View...");
+            
+            client.setCallback(new org.eclipse.paho.client.mqttv3.MqttCallback() {
+                private Thread threadCalciobalilla;
+                private Thread threadFreccette;
+                private Thread threadBiliardo;
 
-        // 1. CONFIGURAZIONE SIMULATORE FRECCETTE
-        String idFreccette = "freccette_A";
-        SimFreccette mioBersaglio = new SimFreccette(idLocale, idFreccette, ipEdgeNodo);
-        Thread threadFreccette = new Thread(mioBersaglio);
+                @Override
+                public void connectionLost(Throwable cause) {
+                    System.out.println("Connessione persa al broker MQTT.");
+                }
 
-        // 2. CONFIGURAZIONE SIMULATORE CALCIOBALILLA
-        String idCalciobalilla = "calciobalilla_1";
-        SimCalciobalilla mioTavolo = new SimCalciobalilla(idLocale, idCalciobalilla, ipEdgeNodo);
-        Thread threadCalciobalilla = new Thread(mioTavolo);
+                @Override
+                public void messageArrived(String topic, org.eclipse.paho.client.mqttv3.MqttMessage message) {
+                    String msg = new String(message.getPayload());
+                    String idLocale = "pub_centrale";
+                    
+                    if (topic.contains("calciobalilla") || msg.toLowerCase().contains("calciobalilla")) {
+                        if (threadCalciobalilla == null || !threadCalciobalilla.isAlive()) {
+                            System.out.println("Avviando simulatore Calciobalilla...");
+                            SimCalciobalilla sim = new SimCalciobalilla(idLocale, "calciobalilla_1", ipEdgeNodo);
+                            threadCalciobalilla = new Thread(sim);
+                            threadCalciobalilla.start();
+                        }
+                    } else if (topic.contains("freccette") || msg.toLowerCase().contains("freccette")) {
+                        if (threadFreccette == null || !threadFreccette.isAlive()) {
+                            System.out.println("Avviando simulatore Freccette...");
+                            SimFreccette sim = new SimFreccette(idLocale, "freccette_A", ipEdgeNodo);
+                            threadFreccette = new Thread(sim);
+                            threadFreccette.start();
+                        }
+                    } else if (topic.contains("biliardo") || msg.toLowerCase().contains("biliardo")) {
+                        if (threadBiliardo == null || !threadBiliardo.isAlive()) {
+                            System.out.println("Avviando simulatore Biliardo...");
+                            SimBiliardo sim = new SimBiliardo(idLocale, "biliardo_1", ipEdgeNodo);
+                            threadBiliardo = new Thread(sim);
+                            threadBiliardo.start();
+                        }
+                    }
+                }
 
-        // 3. CONFIGURAZIONE SIMULATORE BILIARDO
-        String idBiliardo = "biliardo_1";
-        SimBiliardo mioTavoloBiliardo = new SimBiliardo(idLocale, idBiliardo, ipEdgeNodo);
-        Thread threadBiliardo = new Thread(mioTavoloBiliardo);
+                @Override
+                public void deliveryComplete(org.eclipse.paho.client.mqttv3.IMqttDeliveryToken token) {}
+            });
 
-        /**
-         * ESECUZIONE CONCORRENTE:
-         * Ogni simulatore implementa l'interfaccia Runnable. L'avvio tramite Thread
-         * permette ai dispositivi di generare eventi in parallelo senza bloccarsi a vicenda.
-         */
-        threadFreccette.start();
-        threadCalciobalilla.start();
-        threadBiliardo.start();
+            // Sottoscrizione ai topic di avvio
+            client.subscribe("bitpub/cloud/foosball/start");
+            client.subscribe("bitpub/cloud/calciobalilla/start");
+            client.subscribe("bitpub/cloud/freccette/start");
+            client.subscribe("bitpub/cloud/biliardo/start");
+            client.subscribe("bitpub/simulators/start");
 
-        // Log di conferma per l'operatore di sistema
-        System.out.println("Sistema avviato: Freccette (" + idFreccette +
-                "), Calciobalilla (" + idCalciobalilla +
-                ") e Biliardo (" + idBiliardo + ") sono online.");
+        } catch (org.eclipse.paho.client.mqttv3.MqttException e) {
+            e.printStackTrace();
+        }
     }
 }
