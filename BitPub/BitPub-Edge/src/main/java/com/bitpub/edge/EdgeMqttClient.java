@@ -7,7 +7,8 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.charset.StandardCharsets;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * FILE 15 (Update): EdgeMqttClient
@@ -22,9 +23,12 @@ public class EdgeMqttClient implements MqttCallback {
     private MqttClient client;
     private final GameTableStateManager stateManager;
     
+    // Coda bloccante thread-safe per accogliere gli eventi dal Simulatore
+    private final BlockingQueue<FoosballEvent> eventQueue = new LinkedBlockingQueue<>();
+    private Thread simulatorThread;
+    private SimCalciobalilla activeSimulator;
 
-
-    private final Gson gson = com.bitpub.utils.JsonManager.getGson();
+    private final Gson gson = new Gson();
 
     public EdgeMqttClient(GameTableStateManager stateManager) {
         this.stateManager = stateManager;
@@ -44,9 +48,9 @@ public class EdgeMqttClient implements MqttCallback {
 
             client.subscribe("bitpub/cloud/foosball/start", 1);
             client.subscribe("bitpub/cloud/foosball/force-stop", 1);
-            
-            // Iscrizione agli eventi del simulatore
-            client.subscribe("bitpub/locali/+/calciobalilla/+/eventi", 1);
+
+            // Avviamo il thread consumatore che leggerà dalla coda e pubblicherà via MQTT
+            startEventPublisher();
 
         } catch (MqttException e) {
             System.err.println("[EDGE NODE] Errore connessione MQTT: " + e.getMessage());
@@ -60,7 +64,9 @@ public class EdgeMqttClient implements MqttCallback {
     public void disconnect() {
         if (client != null && client.isConnected()) {
             try {
-
+                if (simulatorThread != null) {
+                    simulatorThread.interrupt();
+                }
                 client.disconnect();
                 System.out.println("[EDGE NODE] Disconnesso dal broker.");
             } catch (MqttException e) {
@@ -73,7 +79,39 @@ public class EdgeMqttClient implements MqttCallback {
         return client;
     }
 
-
+    /**
+     * Pattern Produttore-Consumatore: Un thread in background estrae di continuo gli eventi
+     * inseriti in coda da SimCalciobalilla e li pubblica verso il Cloud in modo asincrono.
+     */
+    private void startEventPublisher() {
+        Thread publisherThread = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    FoosballEvent event = eventQueue.take(); // Bloccante: attende finché non c'è un evento
+                    
+                    if (client != null && client.isConnected()) {
+                        String payload = gson.toJson(event);
+                        MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
+                        message.setQos(1);
+                        client.publish("bitpub/edge/" + event.getTableId() + "/score", message);
+                        System.out.println("[EDGE NODE] -> MQTT OUT: " + payload);
+                        
+                        // Libera il tavolo se il simulatore ha inviato un evento finale
+                        if ("FINISHED".equals(event.getStatus()) || "FORCE_STOPPED".equals(event.getStatus())) {
+                            stateManager.setFree(event.getTableId());
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    System.out.println("[EDGE NODE] Publisher thread interrotto.");
+                    Thread.currentThread().interrupt();
+                } catch (MqttException e) {
+                    System.err.println("[EDGE NODE] Errore pubblicazione evento: " + e.getMessage());
+                }
+            }
+        });
+        publisherThread.setDaemon(true);
+        publisherThread.start();
+    }
 
     @Override
     public void messageArrived(String topic, MqttMessage message) {
@@ -82,67 +120,38 @@ public class EdgeMqttClient implements MqttCallback {
 
         try {
             JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
+            Integer tableId = json.has("tableId") ? json.get("tableId").getAsInt() : null;
 
-            if (topic.contains("/calciobalilla/") && topic.endsWith("/eventi")) {
-                // Estrazione dati dal simulatore
-                String[] parts = topic.split("/");
-                int tableId = 1; // Default
-                if (parts.length >= 5) {
-                    try {
-                        tableId = Integer.parseInt(parts[4]);
-                    } catch (NumberFormatException ignored) {}
-                }
-
-                int goalBlu = json.has("goalBlu") ? json.get("goalBlu").getAsInt() : 0;
-                int goalRossi = json.has("goalRossi") ? json.get("goalRossi").getAsInt() : 0;
-                int rullate = json.has("totaleRullate") ? json.get("totaleRullate").getAsInt() : 0;
-                int durata = json.has("durataMediaPallinaSecondi") ? json.get("durataMediaPallinaSecondi").getAsInt() : 0;
-                
-                String status = "IN_PROGRESS";
-                String winner = null;
-                if (json.has("orarioFine") && !json.get("orarioFine").isJsonNull()) {
-                    status = "FINISHED";
-                    winner = goalBlu > goalRossi ? "BLUE" : "RED";
-                } else if (goalBlu >= 10 || goalRossi >= 10) {
-                    status = "FINISHED";
-                    winner = goalBlu >= 10 ? "BLUE" : "RED";
-                }
-
-                // Inoltro al cloud come FoosballEvent
-                FoosballEvent event = new FoosballEvent(
-                        tableId, null, "GOAL", goalBlu, goalRossi, status, winner, rullate, durata
-                );
-                
-                String forwardPayload = gson.toJson(event);
-                MqttMessage forwardMessage = new MqttMessage(forwardPayload.getBytes(StandardCharsets.UTF_8));
-                forwardMessage.setQos(1);
-                client.publish("bitpub/edge/" + tableId + "/score", forwardMessage);
-                System.out.println("[EDGE NODE] -> MQTT OUT (forwarded): " + forwardPayload);
-
-                if ("FINISHED".equals(status) || "FORCE_STOPPED".equals(status)) {
-                    stateManager.setFree(tableId);
-                }
-            } else {
-                Integer tableId = json.has("tableId") ? json.get("tableId").getAsInt() : null;
-                if (tableId != null && tableId == 1) {
-                    if (topic.equals("bitpub/cloud/foosball/start")) {
-                        if (!stateManager.isOccupied(tableId)) {
-                            stateManager.setOccupied(tableId);
-                        }
-                    } else if (topic.equals("bitpub/cloud/foosball/force-stop")) {
-                        stateManager.setFree(tableId);
-                        FoosballEvent event = new FoosballEvent(
-                                tableId, null, "FORCE_STOPPED", 0, 0, "FORCE_STOPPED", null, 0, 0
-                        );
-                        String forwardPayload = gson.toJson(event);
-                        MqttMessage forwardMessage = new MqttMessage(forwardPayload.getBytes(StandardCharsets.UTF_8));
-                        forwardMessage.setQos(1);
-                        client.publish("bitpub/edge/" + tableId + "/score", forwardMessage);
+            if (tableId != null && tableId == 1) {
+                if (topic.equals("bitpub/cloud/foosball/start")) {
+                    if (stateManager.isOccupied(tableId)) {
+                        System.out.println("[EDGE NODE] Avviso: il Tavolo " + tableId + " risulta già occupato.");
+                        return;
                     }
+                    // Estrae il sessionId propagato dal Cloud
+                    Long sessionId = json.has("sessionId") ? json.get("sessionId").getAsLong() : null;
+                    System.out.println("[EDGE NODE] Avvio simulatore per tavolo " + tableId + ", sessionId=" + sessionId);
+
+                    // 1. Aggiorna stato
+                    stateManager.setOccupied(tableId);
+                    
+                    // 2. Avvia nuovo thread stocastico passando la coda condivisa e il sessionId
+                    activeSimulator = new SimCalciobalilla(tableId, sessionId, eventQueue);
+                    simulatorThread = new Thread(activeSimulator);
+                    simulatorThread.start();
+                } 
+                else if (topic.equals("bitpub/cloud/foosball/force-stop")) {
+                    System.out.println("[EDGE NODE] Comando d'emergenza: FORCE-STOP per tavolo " + tableId);
+                    // 1. Interrompe il thread del simulatore
+                    if (simulatorThread != null && simulatorThread.isAlive()) {
+                        simulatorThread.interrupt();
+                    }
+                    // 2. Aggiorna stato (anche se lo farà il publisher, forziamo qui per sicurezza)
+                    stateManager.setFree(tableId);
                 }
             }
         } catch (Exception e) {
-            System.err.println("[EDGE NODE] Errore parsing/forwarding: " + e.getMessage());
+            System.err.println("[EDGE NODE] Errore parsing comando MQTT: " + e.getMessage());
         }
     }
 

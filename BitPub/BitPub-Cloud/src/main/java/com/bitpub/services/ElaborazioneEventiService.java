@@ -49,7 +49,7 @@ public class ElaborazioneEventiService {
             // Aggiungerete poi gli if per calciobalilla e freccette
             else if (topic.contains("calciobalilla")) {
                 log.debug("Rilevato evento Calciobalilla tramite MQTT. Avvio conversione JSON...");
-                PartitaCalciobalilla entity = com.bitpub.utils.JsonManager.getInstance().fromJson(payloadJson, PartitaCalciobalilla.class);
+                PartitaCalciobalilla entity = new Gson().fromJson(payloadJson, PartitaCalciobalilla.class);
                 calciobalillaRepo.save(entity);
                 log.info("Evento Calciobalilla processato e salvato su PostgreSQL tramite layer Spring Data JPA!");
             }

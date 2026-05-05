@@ -4,7 +4,6 @@ import com.google.gson.*;
 import com.bitpub.models.Partita;
 import java.lang.reflect.Type;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -17,7 +16,6 @@ public class JsonManager {
 
     // Formattatore standard ISO (es: 2026-05-03) per compatibilità con Spring Boot
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final DateTimeFormatter DATETIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private JsonManager() {
         this.gson = new GsonBuilder()
@@ -34,21 +32,6 @@ public class JsonManager {
                     @Override
                     public LocalDate deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
                         return LocalDate.parse(json.getAsString(), DATE_FORMATTER);
-                    }
-                })
-                .registerTypeAdapter(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
-                    @Override
-                    public JsonElement serialize(LocalDateTime src, Type typeOfSrc, JsonSerializationContext context) {
-                        return new JsonPrimitive(src.format(DATETIME_FORMATTER));
-                    }
-                })
-                .registerTypeAdapter(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
-                    @Override
-                    public LocalDateTime deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-                        if (json.isJsonObject() && json.getAsJsonObject().entrySet().isEmpty()) {
-                            return null; // Handle "{}" gracefully
-                        }
-                        return LocalDateTime.parse(json.getAsString(), DATETIME_FORMATTER);
                     }
                 })
 
