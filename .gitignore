@@ -63,3 +63,6 @@ BitPub-Security/certs/
 
 # Log files
 BitPub-Cloud/logs/
+
+BitPub-Cloud-Admin-*
+

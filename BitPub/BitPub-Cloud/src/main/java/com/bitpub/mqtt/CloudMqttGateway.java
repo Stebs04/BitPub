@@ -103,6 +103,18 @@ public class CloudMqttGateway implements MqttCallback {
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
         System.out.println("[MQTT IN] " + topic + " | " + payload);
 
+        try {
+            // Strict Filter: Process ONLY `source=DEVICE` with valid hardware signatures.
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+            if (!json.has("source") || !"DEVICE".equals(json.get("source").getAsString()) || !json.has("hardwareSignature") || json.get("hardwareSignature").getAsString().isEmpty()) {
+                System.out.println("[MQTT IN] Evento scartato (no hardware validation): " + payload);
+                return;
+            }
+        } catch (Exception e) {
+            System.out.println("[MQTT IN] Evento scartato (formato non valido o non JSON): " + payload);
+            return;
+        }
+
         if (topic.equals("bitpub/edge/heartbeat")) {
             handleHeartbeat(payload);
 

@@ -45,8 +45,8 @@ public class HeartbeatTask implements Runnable {
                 // QoS 1: Garantisce la consegna del ping al broker almeno una volta
                 message.setQos(1);
 
-                mqttClient.publish(statusTopic, message);
-                System.out.println("[Edge] Segnale di presenza (ONLINE) inviato correttamente al Cloud.");
+                // mqttClient.publish(statusTopic, message); // Muted: zero internal event generation
+                System.out.println("[Edge] Segnale di presenza (ONLINE) generato ma non inviato (Passive Edge).");
             }
         } catch (Exception e) {
             // Log dell'errore per la diagnostica locale in caso di fallimento della rete

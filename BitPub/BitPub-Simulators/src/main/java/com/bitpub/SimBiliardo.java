@@ -90,7 +90,7 @@ public class SimBiliardo implements Runnable {
                 MqttMessage message = new MqttMessage(payloadJson.getBytes());
                 message.setQos(0); // QoS 0: "At most once" (Fire and forget) per i sensori
 
-                client.publish(topicImbucate, message);
+                // client.publish(topicImbucate, message); // Muted Simulator
                 System.out.println("[SimBiliardo] " + giocatoreCorrente + " ha imbucato la palla " + palla + ". JSON inviato: " + payloadJson);
             }
 
