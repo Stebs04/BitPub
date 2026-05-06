@@ -153,6 +153,6 @@ public class SimCalciobalilla implements Runnable {
         String payloadJson = gson.toJson(partita);
         MqttMessage message = new MqttMessage(payloadJson.getBytes());
         message.setQos(0);
-        client.publish(topic, message);
+        // client.publish(topic, message); // Muted Simulator
     }
 }

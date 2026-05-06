@@ -46,8 +46,15 @@ public class LocalCalciobalillaSubscriber implements MqttCallback {
         // Conversione payload garantendo il charset UTF-8 per evitare problemi cross-platform
         String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
 
-        try{
-            logger.debug("Evento ricevuto - tipo: Calciobalilla, sorgente: {}, timestamp: {}", topic, System.currentTimeMillis());
+        try {
+            // Strict Filter: Process ONLY `source=DEVICE` with valid hardware signatures.
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(payload).getAsJsonObject();
+            if (!json.has("source") || !"DEVICE".equals(json.get("source").getAsString()) || !json.has("hardwareSignature") || json.get("hardwareSignature").getAsString().isEmpty()) {
+                logger.warn("Evento scartato (no hardware validation): {}", payload);
+                return;
+            }
+
+            logger.debug("Evento ricevuto e validato - tipo: Calciobalilla, sorgente: {}, timestamp: {}", topic, System.currentTimeMillis());
             // Inserimento nel buffer per l'elaborazione disaccoppiata (produttore-consumatore)
             messageBuffer.push(payload);
             logger.info("Evento elaborato con successo - id: (JSON)", payload);

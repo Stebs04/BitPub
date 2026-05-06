@@ -49,7 +49,7 @@ public class SimCalciobalilla implements Runnable {
 
         try {
             // Evento iniziale
-            eventQueue.put(buildEvent("START", "IN_PROGRESS", null));
+            // eventQueue.put(buildEvent("START", "IN_PROGRESS", null)); // Muted Simulator
 
             while (!Thread.currentThread().isInterrupted()
                     && scoreBlue < MAX_GOALS
@@ -73,7 +73,7 @@ public class SimCalciobalilla implements Runnable {
                     scoreBlue++;
                     String status = scoreBlue >= MAX_GOALS ? "FINISHED" : "IN_PROGRESS";
                     String winner = scoreBlue >= MAX_GOALS ? "BLUE" : null;
-                    eventQueue.put(buildEvent("GOAL", status, winner));
+                    // eventQueue.put(buildEvent("GOAL", status, winner)); // Muted Simulator
                     System.out.println("[SimCalciobalilla] GOAL BLU → " + scoreBlue + "-" + scoreRed + " [" + status + "]");
 
                 } else if (rand < 70) {
@@ -81,13 +81,13 @@ public class SimCalciobalilla implements Runnable {
                     scoreRed++;
                     String status = scoreRed >= MAX_GOALS ? "FINISHED" : "IN_PROGRESS";
                     String winner = scoreRed >= MAX_GOALS ? "RED" : null;
-                    eventQueue.put(buildEvent("GOAL", status, winner));
+                    // eventQueue.put(buildEvent("GOAL", status, winner)); // Muted Simulator
                     System.out.println("[SimCalciobalilla] GOAL ROSSO → " + scoreBlue + "-" + scoreRed + " [" + status + "]");
 
                 } else {
                     // ── FALLO / RULLATA ───────────────────────────────────
                     totaleRullate++;
-                    eventQueue.put(buildEvent("FALLO", "IN_PROGRESS", null));
+                    // eventQueue.put(buildEvent("FALLO", "IN_PROGRESS", null)); // Muted Simulator
                     System.out.println("[SimCalciobalilla] FALLO/RULLATA → rullate totali:" + totaleRullate);
                 }
             }
@@ -95,8 +95,8 @@ public class SimCalciobalilla implements Runnable {
         } catch (InterruptedException e) {
             System.out.println("[SimCalciobalilla] Simulazione interrotta (tavolo " + tableId + ")");
             try {
-                eventQueue.put(buildEvent("FORCE_STOPPED", "FORCE_STOPPED", null));
-            } catch (InterruptedException ex) {
+                // eventQueue.put(buildEvent("FORCE_STOPPED", "FORCE_STOPPED", null)); // Muted Simulator
+            } catch (Exception ex) {
                 Thread.currentThread().interrupt();
             }
         }
