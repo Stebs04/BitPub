@@ -1,105 +1,98 @@
 package com.bitpub.controllers;
 
-import javafx.scene.layout.StackPane;
+import com.bitpub.Main;
+import com.bitpub.network.RestClient;
+import com.bitpub.network.SessionManager;
+import javafx.application.Platform;
+import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import javafx.scene.layout.StackPane;
 import java.io.IOException;
-import com.bitpub.network.SessionManager;
-import javafx.fxml.FXML;
-import javafx.scene.control.*;
 
 /**
- * Controller principale per il layout amministrativo dell'applicazione BitPub.
- * Agisce come contenitore (Shell) per la navigazione dinamica, gestendo lo switch
- * delle sotto-viste e il ciclo di vita della sessione utente.
+ * Controller di orchestrazione (Shell) per l'interfaccia di amministrazione.
+ * Implementa il pattern Single Page Application (SPA) sul framework JavaFX: definisce 
+ * uno scheletro fisso per la navigazione e un'area dinamica in cui le diverse sezioni 
+ * operative vengono montate e smontate a runtime. Questo garantisce transizioni fluide 
+ * senza la necessità di ricaricare l'intera finestra o gestire scene multiple sovrapposte.
  *
  * @author Stefano Bellan 20054330
- * @since 2024
  */
 public class AdminMainController {
 
-    /** Area di destinazione per l'iniezione dinamica delle viste FXML. */
+    // Area di ancoraggio delegata all'iniezione dei frammenti di interfaccia (moduli FXML)
     @FXML private StackPane contentArea;
 
+    // Riferimento centralizzato all'infrastruttura di rete, predisposto per chiamate asincrone
+    private final RestClient restClient = RestClient.getInstance();
+
     /**
-     * Inizializza il controller impostando la Dashboard come schermata predefinita.
+     * Entry point della shell amministrativa.
+     * All'avvio dell'involucro principale, forza il montaggio immediato del modulo Dashboard 
+     * per evitare all'utente la visualizzazione di un'area contenutistica vuota.
      */
     @FXML
     public void initialize() {
-        // Caricamento della vista home per l'area amministrativa
-        loadView("AdminDashboardView.fxml");
+        showDashboard();
     }
 
-    /** Naviga verso il pannello riepilogativo delle statistiche. */
-    @FXML private void showDashboard() { loadView("AdminDashboardView.fxml"); }
+    // =========================================================================
+    // NAVIGAZIONE MODULI (Iniezione Dinamica)
+    // =========================================================================
 
-    /** Naviga verso il monitoraggio in tempo reale dei nodi Edge. */
-   @FXML private void showNetworkStatus() { loadView("AdminNetworkStatus.fxml"); }
-
-    /** Naviga verso la gestione dell'anagrafica e dei ruoli utenti. */
-   @FXML private void showUsers()         { loadView("AdminUsers.fxml"); }
-
-    /** Naviga verso il controllo delle sessioni di gioco attive. */
-   @FXML private void showSessions()      { loadView("AdminSessionView.fxml"); }
-
-    /** Naviga verso la consultazione dei log di sistema e audit. */
-    @FXML private void showLogs() { loadView("AdminLogsView.fxml"); }
+    // Handler collegati direttamente ai pulsanti del menu di navigazione laterale
+    @FXML private void showDashboard() { loadView("/AdminDashboardView.fxml"); }
+    @FXML private void showNetworkStatus() { loadView("/AdminNetworkStatus.fxml"); }
+    @FXML private void showUsers() { loadView("/AdminUsers.fxml"); }
+    @FXML private void showSessions() { loadView("/AdminSessionView.fxml"); }
+    @FXML private void showLogs() { loadView("/AdminLogsView.fxml"); }
 
     /**
-     * Esegue lo switch fisico dei nodi grafici all'interno dello StackPane centrale.
-     * Utilizza FXMLLoader per caricare le risorse dal classpath.
+     * Centralizza la logica di sostituzione dell'interfaccia (swapping).
+     * Pulisce l'albero visivo precedente ed elabora il nuovo file FXML fornito in input.
+     * Isola l'intera operazione sul thread dedicato all'interfaccia utente, scongiurando 
+     * collisioni o malfunzionamenti grafici legati all'accesso concorrente al DOM.
      *
-     * @param fxmlFile Il nome del file FXML situato nel package delle viste.
+     * @param fxmlPath Il percorso assoluto o relativo al classpath del file di layout da renderizzare
      */
-    private void loadView(String fxmlFile) {
-        try {
-            // Risoluzione del percorso risorsa basato sul package com.bitpub.views
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/" + fxmlFile));
-            Parent view = loader.load();
-
-            // Sostituzione atomica del contenuto dell'area centrale
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(view);
-        } catch (IOException e) {
-            // Logging tecnico dell'errore di caricamento per la diagnostica
-            System.err.println("Errore critico nel caricamento della vista " + fxmlFile + ": " + e.getMessage());
-            e.printStackTrace();
-        }
+    private void loadView(String fxmlPath) {
+        Platform.runLater(() -> {
+            try {
+                // Svuota preventivamente l'albero per facilitare il garbage collector ed evitare sovrapposizioni
+                contentArea.getChildren().clear();
+                
+                FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
+                Parent view = loader.load();
+                
+                // Aggancia la radice del nuovo modulo appena processato all'area visibile
+                contentArea.getChildren().add(view);
+                
+                System.out.println("[AdminMain] Modulo caricato: " + fxmlPath);
+            } catch (IOException e) {
+                // Registrazione dell'anomalia di caricamento su console standard error per facilitare il debug
+                System.err.println("[AdminMain] Errore caricamento vista: " + fxmlPath);
+                e.printStackTrace();
+            }
+        });
     }
 
     /**
-     * Gestisce la terminazione della sessione amministrativa.
-     * Invalida il token JWT nel Singleton di sessione e ripristina lo Stage alla vista di Login.
+     * Intercetta la richiesta di fine sessione da parte dell'operatore.
+     * Provvede alla distruzione forzata del contesto di sicurezza locale, obliterando
+     * token e identificativi dell'utente in transito, e redirige il controllo 
+     * alla classe principale che si occuperà di ristabilire la schermata di login.
      */
     @FXML
     private void handleLogout() {
-        System.out.println("[ADMIN] Avvio procedura di logout e pulizia della sessione...");
-
-        // 1. Invalida le credenziali e i dati memorizzati nel SessionManager
+        // Obliterazione del contesto di sicurezza autorizzativo locale
         SessionManager.getInstance().logout();
-
-        try {
-            // 2. Caricamento della vista di Login tramite FXMLLoader
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/LoginView.fxml"));
-            Parent loginRoot = loader.load();
-
-            // 3. Recupero dello Stage corrente tramite il riferimento ai nodi attivi
-            Stage stage = (Stage) contentArea.getScene().getWindow();
-            Scene loginScene = new Scene(loginRoot);
-
-            // 4. Ripristino dei metadati dello Stage per la visualizzazione del Login
-            stage.setScene(loginScene);
-            stage.setTitle("BitPub - Login");
-            stage.centerOnScreen();
-
-            System.out.println("[ADMIN] Sessione terminata. Ritorno alla schermata di Login completato.");
-
-        } catch (IOException e) {
-            // Gestione dell'eccezione in caso di problemi nel caricamento del file di Login
-            System.err.println("Errore fatale durante il reindirizzamento al Login: " + e.getMessage());
-            e.printStackTrace();
-        }
+        
+        // La notifica al backend cloud potrebbe avvenire seguendo un link HATEOAS di logout;
+        // allo stato attuale si forza una de-autenticazione locale e un reload della UI principale
+        Platform.runLater(() -> {
+            System.out.println("[AdminMain] Logout eseguito, ritorno al Login.");
+            Main.eseguiLogout();
+        });
     }
 }

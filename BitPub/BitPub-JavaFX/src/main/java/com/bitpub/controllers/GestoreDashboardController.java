@@ -4,7 +4,10 @@ import com.bitpub.models.*;
 import com.bitpub.models.Torneo.TipoGioco;
 import com.bitpub.models.Torneo.ModalitaTorneo;
 import com.bitpub.network.RestClient;
-import com.bitpub.network.SessionManager;
+import com.bitpub.network.RispostaHateoas;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -12,54 +15,57 @@ import javafx.fxml.FXML;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.util.Duration;
 
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Controller per la Dashboard del Gestore.
- * Gestisce il monitoraggio real-time, le statistiche e la creazione di tornei.
+ * Controller responsabile della gestione della dashboard dedicata al ruolo Gestore.
+ * Implementa un approccio architetturale basato su client passivo e reattivo,
+ * delegando la scoperta degli endpoint al backend tramite il paradigma HATEOAS.
+ * Sfrutta le Timeline di JavaFX per garantire un polling dei dati sicuro
+ * rispetto al thread dell'interfaccia grafica, evitando colli di bottiglia e memory leak.
  *
- * @author Stefano Bellan
- * @version 1.0
- * @since 1.0
+ * @author Stefano Bellan 20054330
  */
 public class GestoreDashboardController {
 
+    // Componenti UI per la visualizzazione dello stato delle macchine fisiche
     @FXML private TableView<Macchina> macchineTable;
     @FXML private TableColumn<Macchina, String> colMacchinaNome, colMacchinaTipo, colMacchinaStato;
     
+    // Componenti UI per la visualizzazione delle partite correntemente in esecuzione
     @FXML private TableView<Partita> partiteTable;
     @FXML private TableColumn<Partita, String> colPartitaTipo, colPartitaGiocatori, colPartitaInizio;
 
+    // Componenti UI per la sezione statistica della dashboard
     @FXML private PieChart tipoGiocoChart;
     @FXML private Label lblPartiteOggi, lblDurataMedia;
     @FXML private Tab tabStatistiche;
 
+    // Componenti UI dedicati al form di creazione di un nuovo torneo
     @FXML private TextField txtNomeTorneo;
     @FXML private ChoiceBox<TipoGioco> choiceTipoGioco;
     @FXML private DatePicker dateInizio;
     @FXML private Spinner<Integer> spinnerPartecipanti;
     @FXML private ChoiceBox<ModalitaTorneo> choiceModalita;
 
+    // Elementi di feedback visivo e grafici avanzati
     @FXML private ProgressIndicator loadingIndicator;
-
     @FXML private BarChart<String, Number> barChartPartite;
-
     @FXML private CategoryAxis xAxis;
-
     @FXML private NumberAxis yAxis;
 
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    // Gestore del ciclo di aggiornamento periodico e client di rete singleton
+    private Timeline pollingTimeline;
     private final RestClient restClient = RestClient.getInstance();
-    private Long localeId; 
 
     /**
-     * Definizione DTO interna per la deserializzazione dei dati delle macchine.
+     * DTO interno utilizzato per rappresentare in memoria lo stato e le informazioni
+     * di una singola macchina di gioco, semplificando il binding con la TableView.
      */
     public static class Macchina {
         private String nome;
@@ -77,7 +83,9 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Definizione DTO interna per la deserializzazione delle statistiche.
+     * DTO utilizzato per mappare il payload JSON delle statistiche aggregate
+     * fornito dal backend. Contiene al suo interno la struttura per la scomposizione
+     * dei dati in base al tipo di gioco.
      */
     public static class StatisticheDTO {
         private long totalePartiteOggi;
@@ -98,27 +106,24 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Inizializza i componenti grafici della view e avvia il polling dei dati.
+     * Metodo di callback invocato dal framework JavaFX al termine del caricamento del file FXML.
+     * Si occupa di inizializzare i binding dei componenti, configurare il sistema di polling
+     * e registrare i listener per il caricamento pigro dei dati.
      */
     @FXML
     public void initialize() {
         setupTables();
         setupForm();
 
-        // RECUPERO L'ID DALLA SESSIONE
-        Long idDallaSessione = SessionManager.getInstance().getCurrentLocaleId();
+        pollingTimeline = new Timeline(new KeyFrame(Duration.seconds(10), event -> pollData()));
+        pollingTimeline.setCycleCount(Animation.INDEFINITE);
+        pollingTimeline.play();
 
-        // CONTROLLO DI SICUREZZA PER IL TEST
-        if (idDallaSessione == null) {
-            System.out.println("⚠️ ATTENZIONE: Nessun ID Locale in sessione. Imposto ID fittizio = 3L per i test.");
-            this.localeId = 3L;
-        } else {
-            this.localeId = idDallaSessione;
-        }
+        // Forza la prima estrazione dei dati in modo da popolare la dashboard istantaneamente
+        pollData();
 
-        // Polling ogni 10 secondi per garantire dati "freschi" sulla dashboard senza sovraccaricare il server
-        scheduler.scheduleAtFixedRate(this::pollData, 0, 10, TimeUnit.SECONDS);
-
+        // Listener che implementa il lazy loading delle statistiche, effettuando chiamate di rete
+        // solo nel momento in cui l'operatore seleziona effettivamente la scheda dedicata
         tabStatistiche.setOnSelectionChanged(event -> {
             if (tabStatistiche.isSelected()) {
                 loadStatistics();
@@ -126,6 +131,11 @@ public class GestoreDashboardController {
         });
     }
 
+    /**
+     * Configura il mapping tra le proprietà dei DTO e le rispettive colonne delle tabelle.
+     * Impiega PropertyValueFactory per un binding riflettivo diretto o lambda expression
+     * laddove sia necessaria una trasformazione del dato (es. rendering dello stato booleano).
+     */
     private void setupTables() {
         colMacchinaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
         colMacchinaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
@@ -137,6 +147,10 @@ public class GestoreDashboardController {
         colPartitaInizio.setCellValueFactory(new PropertyValueFactory<>("timestampInizio"));
     }
 
+    /**
+     * Inizializza i componenti del form per la creazione di un torneo definendo
+     * i domini di valori ammessi (enum), i limiti degli spinner e le date di default.
+     */
     private void setupForm() {
         choiceTipoGioco.setItems(FXCollections.observableArrayList(TipoGioco.values()));
         choiceModalita.setItems(FXCollections.observableArrayList(ModalitaTorneo.values()));
@@ -145,46 +159,71 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Esegue il polling asincrono di macchine e partite interrogando le API di backend.
+     * Gestisce il recupero asincrono dei dati per alimentare le viste principali della dashboard.
+     * Implementa la navigazione HATEOAS interrogando prima l'endpoint radice per scoprire
+     * gli URI delle risorse, e successivamente parallelizza le chiamate di dettaglio.
      */
     private void pollData() {
-        restClient.faiChiamataGet("/gestore/locali/" + localeId + "/macchine", String[].class)
-            .thenAccept(seriali -> {
-                if (seriali != null) {
-                    List<Macchina> lista = Arrays.stream(seriali)
+        // DISCOVERY: Interroga la root API per identificare i percorsi esposti dinamicamente
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                // Estrazione dei link specifici per il profilo gestore
+                String macchineUrl = root.getLinks().get("gestore-macchine").getHref();
+                String partiteUrl = root.getLinks().get("gestore-partite-attive").getHref();
+
+                // Lancia le richieste di fetch per macchine e partite in modo concorrente
+                // per minimizzare il tempo totale di attesa I/O
+                CompletableFuture<String[]> fMacchine = restClient.getAsync(macchineUrl, String[].class);
+                CompletableFuture<Partita[]> fPartite = restClient.getAsync(partiteUrl, Partita[].class);
+
+                // Aggrega i risultati dei due future in un'unica struttura dati appena entrambi terminano
+                return fMacchine.thenCombine(fPartite, (macchine, partite) -> {
+                    List<Macchina> listaMacchine = Arrays.stream(macchine)
                         .map(ser -> {
+                            // Trasformazione della stringa grezza in un oggetto Macchina strutturato
                             String tipo = ser.contains("Calciobalilla") ? "Calciobalilla" :
                                           ser.contains("Freccette") ? "Freccette" :
                                           ser.contains("Biliardo") ? "Biliardo" : "Sconosciuto";
                             return new Macchina(ser, tipo, true);
-                        })
-                        .toList();
+                        }).toList();
                     
-                    // Delega l'aggiornamento della UI al JavaFX Application Thread per evitare collisioni di concorrenza
-                    Platform.runLater(() -> macchineTable.setItems(FXCollections.observableArrayList(lista)));
-                }
-            });
+                    return new Object[]{listaMacchine, partite};
+                });
+            })
+            .thenAccept(risultatiCombinati -> {
+                @SuppressWarnings("unchecked")
+                List<Macchina> listaMacchine = (List<Macchina>) risultatiCombinati[0];
+                Partita[] partiteAttive = (Partita[]) risultatiCombinati[1];
 
-        restClient.faiChiamataGet("/gestore/locali/" + localeId + "/partite/attive", Partita[].class)
-            .thenAccept(partite -> {
-                if (partite != null) {
-                    // Sincronizzazione con il thread UI principale richiesto da JavaFX
-                    Platform.runLater(() -> partiteTable.setItems(FXCollections.observableArrayList(partite)));
-                }
+                Platform.runLater(() -> {
+                    macchineTable.setItems(FXCollections.observableArrayList(listaMacchine));
+                    partiteTable.setItems(FXCollections.observableArrayList(partiteAttive));
+                });
+            })
+            .exceptionally(ex -> {
+                // Intercettazione silenziosa dell'errore di polling per non bloccare il ciclo operativo
+                System.err.println("[GestoreDashboard] Errore nel polling: " + ex.getMessage());
+                return null;
             });
     }
 
     /**
-     * Carica e formatta le statistiche aggregative da mostrare nei grafici.
+     * Recupera dal backend il set di dati analitici e popola il pannello statistiche.
+     * Anch'esso sfrutta la dinamica di discovery HATEOAS e gestisce lo stato di caricamento.
      */
     private void loadStatistics() {
-        loadingIndicator.setVisible(true);
+        // Mostra l'indicatore di caricamento prima di iniziare l'operazione di rete
+        Platform.runLater(() -> loadingIndicator.setVisible(true));
 
-        restClient.faiChiamataGet("/gestore/locali/" + localeId + "/statistiche", StatisticheDTO.class)
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String statsUrl = root.getLinks().get("gestore-statistiche").getHref();
+                return restClient.getAsync(statsUrl, StatisticheDTO.class);
+            })
             .thenAccept(stats -> {
-                // Modifica stato componenti grafici protetta dal Platform.runLater
                 Platform.runLater(() -> {
                     if (stats != null) {
+                        // Popola le label di sintesi e inietta la serie di dati nel grafico a torta
                         lblPartiteOggi.setText("Partite oggi: " + stats.getTotalPartiteOggi());
                         lblDurataMedia.setText("Durata media: " + stats.getMediaDurata() + " min");
                         
@@ -197,72 +236,78 @@ public class GestoreDashboardController {
                     }
                     loadingIndicator.setVisible(false);
                 });
+            })
+            .exceptionally(ex -> {
+                Platform.runLater(() -> {
+                    loadingIndicator.setVisible(false);
+                    showAlert(Alert.AlertType.WARNING, "Dati non disponibili", "Impossibile caricare le statistiche.");
+                });
+                return null;
             });
     }
 
     /**
-     * Raccoglie i dati dal form e lancia la chiamata di rete asincrona per la creazione di un torneo.
-     */
-    /**
-     * Raccoglie i dati dal form, fa una validazione di base e lancia
-     * la chiamata di rete asincrona per la creazione di un torneo.
+     * Raccoglie, valida e trasmette le informazioni del form per registrare un nuovo torneo.
+     * Il processo è integralmente asincrono e prevede feedback visivi in caso di successo o errore.
      */
     @FXML
     public void handleCreaTorneo() {
-        // 1. VALIDAZIONE: Controlliamo che l'utente abbia inserito tutti i dati essenziali
+        // Validazione preventiva lato client per bloccare richieste palesemente malformate
         if (txtNomeTorneo.getText() == null || txtNomeTorneo.getText().trim().isEmpty() ||
                 choiceTipoGioco.getValue() == null ||
                 choiceModalita.getValue() == null ||
                 dateInizio.getValue() == null) {
-
-            // Se manca qualcosa, mostriamo un avviso e blocchiamo l'invio
-            showAlert(Alert.AlertType.WARNING, "Dati Mancanti", "Per favore, compila tutti i campi prima di creare il torneo!");
+            showAlert(Alert.AlertType.WARNING, "Dati Mancanti", "Compila tutti i campi prima di creare il torneo!");
             return;
         }
 
-        // 2. Prepariamo i dati da inviare
+        // Preparazione dell'oggetto di dominio da serializzare come payload JSON
         Torneo nuovoTorneo = new Torneo();
         nuovoTorneo.setNome(txtNomeTorneo.getText().trim());
         nuovoTorneo.setTipoGioco(choiceTipoGioco.getValue());
         nuovoTorneo.setDataInizio(dateInizio.getValue());
         nuovoTorneo.setMaxPartecipanti(spinnerPartecipanti.getValue());
         nuovoTorneo.setModalita(choiceModalita.getValue());
-        nuovoTorneo.setLocaleId(localeId);
 
-        loadingIndicator.setVisible(true);
+        Platform.runLater(() -> loadingIndicator.setVisible(true));
 
-        // 3. Inviamo i dati al Cloud Server tramite API REST
-        restClient.faiChiamataPost("/api/tornei", nuovoTorneo, Torneo.class)
-                .handle((res, ex) -> {
-                    // Riporto l'esecuzione sul thread della vista (regola d'oro di JavaFX!)
-                    Platform.runLater(() -> {
-                        loadingIndicator.setVisible(false);
-
-                        if (ex == null && res != null) {
-                            showAlert(Alert.AlertType.INFORMATION, "Successo", "Torneo creato correttamente!");
-                            resetForm();
-                        } else {
-                            // --- DEBUG: STAMPIAMO IL VERO ERRORE NELLA CONSOLE ---
-                            System.out.println("!!! ERRORE DURANTE LA CREAZIONE DEL TORNEO !!!");
-                            if (ex != null) {
-                                ex.printStackTrace(); // Stampa l'errore tecnico nel terminale
-                            } else {
-                                System.out.println("Il server non ha restituito nessuna risposta (res è null). Probabilmente c'è un errore 400 o 500.");
-                            }
-                            // -----------------------------------------------------
-
-                            showAlert(Alert.AlertType.ERROR, "Errore di Rete", "Impossibile creare il torneo. Controlla la console per i dettagli.");
-                        }
-                    });
-                    return null;
+        // DISCOVERY: Localizza l'endpoint preposto all'inserimento delle risorse di tipo torneo
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String torneiUrl = root.getLinks().get("tornei").getHref();
+                return restClient.postAsync(torneiUrl, nuovoTorneo, Torneo.class);
+            })
+            .thenAccept(res -> {
+                Platform.runLater(() -> {
+                    loadingIndicator.setVisible(false);
+                    showAlert(Alert.AlertType.INFORMATION, "Successo", "Torneo creato correttamente!");
+                    resetForm();
                 });
+            })
+            .exceptionally(ex -> {
+                Platform.runLater(() -> {
+                    loadingIndicator.setVisible(false);
+                    showAlert(Alert.AlertType.ERROR, "Errore di Rete", "Impossibile creare il torneo: " + ex.getMessage());
+                });
+                return null;
+            });
     }
 
+    /**
+     * Ripristina il form di creazione torneo allo stato iniziale dopo un inserimento o annullamento.
+     */
     private void resetForm() {
         txtNomeTorneo.clear();
         dateInizio.setValue(LocalDate.now().plusDays(1));
     }
 
+    /**
+     * Utility metod per generare ed esporre finestre di dialogo all'operatore in maniera unificata.
+     *
+     * @param type La gravità o tipologia del messaggio (es. ERROR, WARNING, INFO)
+     * @param title L'intestazione della finestra di dialogo
+     * @param content Il corpo testuale del messaggio
+     */
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -272,11 +317,13 @@ public class GestoreDashboardController {
     }
 
     /**
-     * Spegne lo scheduler alla chiusura della finestra per evitare memory leak e chiamate fantasma.
+     * Permette l'interruzione pulita del ciclo di aggiornamento.
+     * Deve essere invocata dai livelli superiori durante il ciclo di distruzione della vista
+     * o durante la navigazione in uscita per scongiurare leak di memoria e calcoli inutili in background.
      */
     public void stopPolling() {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdownNow();
+        if (pollingTimeline != null) {
+            pollingTimeline.stop();
         }
     }
 }
