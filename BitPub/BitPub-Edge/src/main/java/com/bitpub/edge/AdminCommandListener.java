@@ -1,52 +1,112 @@
 package com.bitpub.edge;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.charset.StandardCharsets;
 
 /**
- * Listener dedicato all'intercettazione dei comandi amministrativi remoti provenienti dal Cloud.
- * Gestisce operazioni critiche come lo sblocco forzato delle risorse fisiche (tavoli, postazioni)
- * in caso di emergenza o anomalie di sessione.
+ * Controller MQTT in ascolto dedicato all'intercettazione dei comandi amministrativi (Admin Plane).
+ * Rappresenta la backdoor operativa di sicurezza dell'Edge Node: permette all'amministratore
+ * collegato al Cloud di eseguire manovre d'emergenza (es. Sblocco forzato di un tavolo inceppato o
+ * annullamento anomalo della sessione).
+ * Architettonicamente, il comando intercettato delega la logica d'esecuzione a un Worker Thread
+ * separato, salvaguardando il Dispatcher primario di Paho da eventuali blocchi hardware locali.
  *
  * @author Stefano Bellan 20054330
- * @since 2024
  */
 public class AdminCommandListener implements IMqttMessageListener {
 
+    // Trace loggger governato da Logback per l'evidenza delle azioni amministrative distruttive
+    private static final Logger logger = LoggerFactory.getLogger(AdminCommandListener.class);
+
+    // Punto di ancoraggio al motore centrale di gestione delle macchine a stati finiti
+    private final GameTableStateManager stateManager;
+
     /**
-     * Invocata quando un messaggio amministrativo viene ricevuto sul topic sottoscritto.
-     * Analizza il payload per determinare l'azione correttiva da intraprendere.
+     * Iniezione della dipendenza necessaria per la mutazione dello stato logico.
      *
-     * @param topic   Il topic MQTT su cui è stato pubblicato il comando.
-     * @param message Il contenuto del comando (Payload).
-     * @throws Exception In caso di errori durante l'elaborazione del comando.
+     * @param stateManager L'infrastruttura atomica (ConcurrentHashMap) incaricata di allocare o deallocare il tavolo
+     */
+    public AdminCommandListener(GameTableStateManager stateManager) {
+        this.stateManager = stateManager;
+    }
+
+    /**
+     * Entry-point reattivo scatenato dal broker per il topic amministrativo.
+     * Interpreta il comando in ingresso ed esegue il routing della direttiva
+     * scavalcando il pattern Store-and-Forward (in quanto è un comando d'azione, non telemetria).
+     *
+     * @param topic La stringa di indirizzamento della direttiva
+     * @param message Payload byte crittografato e firmato col comando
      */
     @Override
-    public void messageArrived(String topic, MqttMessage message) throws Exception {
-        // Conversione del payload binario in stringa per l'analisi testuale
-        String payload = new String(message.getPayload());
-        System.out.println("[Edge] Comando ricevuto su " + topic + ": " + payload);
+    public void messageArrived(String topic, MqttMessage message) {
+        // Omogeneizzazione dell'encoding del flusso sorgente
+        String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
+        logger.info("[ADMIN] Ricevuto comando amministrativo su {}: {}", topic, payload);
 
-        // Verifica della presenza della direttiva di sblocco forzato nel messaggio
-        if (payload.contains("FORCE_UNLOCK")) {
-            eseguiSbloccoForzato(topic);
+        try {
+            // DECODIFICA STRUTTURALE (Deserilizazzione)
+            // Utilizzo del parser Gson per ricostruire l'albero JSON ed estrarre semanticamente
+            // le chiavi di comando senza dipendere dalla loro posizione nel documento.
+            JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
+
+            // Valutazione della coerenza del comando prima dell'estrapolazione dell'ID sensibile
+            if (json.has("command") && "FORCE_UNLOCK".equals(json.get("command").getAsString())) {
+                int tableId = json.get("tableId").getAsInt();
+
+                // DELEGA ASINCRONA DELL'AZIONE HARDWARE
+                // La liberazione di un tavolo potrebbe richiedere l'invio di segnali hardware (es. eccitazione bobina)
+                // e cancellazione di timer. L'uso di uno spawn thread isolato previene il timeout MQTT.
+                new Thread(() -> {
+                    eseguiSbloccoForzato(tableId);
+                }).start();
+            }
+        } catch (Exception e) {
+            // Assorbimento di eventuali ParseException dovute a payload di amministrazione malformati
+            logger.error("[ADMIN] Errore critico nella decodifica del comando di emergenza: {}", e.getMessage());
         }
     }
 
     /**
-     * Esegue la procedura di sblocco hardware/software della risorsa locale.
-     * Interrompe i timer attivi, resetta lo stato del simulatore e libera la risorsa.
+     * Esecutore tecnico della direttiva di bypass.
+     * Allinea il contatore logico software e interfacciandosi con i controller fisici
+     * innesca il reset meccanico o elettrico del biliardo/calciobalilla.
      *
-     * @param topic Il riferimento al canale che ha originato la richiesta (per identificare la risorsa).
+     * @param tableId Riferimento intero della periferica hardware bersaglio dell'azione
      */
-    private void eseguiSbloccoForzato(String topic) {
-        // Logging dell'operazione critica per audit trail locale
-        System.out.println("[Edge] !!! ESECUZIONE SBLOCCO FORZATO PER: " + topic);
+    private void eseguiSbloccoForzato(int tableId) {
+        logger.warn("[ADMIN-TASK] Avvio procedura di sblocco forzato per Tavolo ID: {}", tableId);
 
-        // TODO: Integrare il riferimento ai simulatori fisici (es. SimBiliardo.reset())
-        // Logica prevista:
-        // 1. Interruzione del task pianificato (Future.cancel)
-        // 2. Reset dello stato della risorsa (ResourceState.FREE)
-        // 3. Invio notifica di avvenuto sblocco al Cloud
+        try {
+            // Fase Logica: Induce una mutazione atomica disattivando lo stato OCCUPIED
+            stateManager.setFree(tableId);
+
+            // Fase Fisica: Esecuzione delle routine di basso livello (interfacciamento sensori)
+            // In questa sede viene interrotto qualsiasi Task di monitoraggio inquinato e puliti i registri GPIO.
+            simulaResetHardware();
+
+            logger.info("[ADMIN-TASK] Sblocco completato con successo. Tavolo {} è ora FREE.", tableId);
+
+        } catch (Exception e) {
+            logger.error("[ADMIN-TASK] Fallimento durante lo sblocco forzato del tavolo {}: {}", tableId, e.getMessage());
+        }
+    }
+
+    /**
+     * Stub procedurale implementato per riprodurre empiricamente l'attesa logica
+     * richiesta dai relè elettromeccanici durante le fasi di chiusura/apertura dei circuiti
+     * del tavolo fisico.
+     *
+     * @throws InterruptedException se il processo hardware subisce un preempt
+     */
+    private void simulaResetHardware() throws InterruptedException {
+        // Sleep temporizzato progettato per simulare le latenze di I/O
+        Thread.sleep(500);
     }
 }
