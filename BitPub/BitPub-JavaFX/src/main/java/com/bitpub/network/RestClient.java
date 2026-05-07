@@ -1,6 +1,8 @@
 package com.bitpub.network;
 
-import com.bitpub.utils.JsonManager;
+import com.bitpub.Main;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 
@@ -10,41 +12,36 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 /**
- * Service Layer per la gestione delle comunicazioni HTTP verso il Cloud BitPub.
- * Questa classe incapsula la logica di rete, gestendo la serializzazione JSON
- * e le chiamate asincrone per non bloccare il thread principale della UI.
- *
- * @author Stefano Bellan, Timothy Giolito, Luca Franzon
+ * Service Layer per la gestione asincrona delle comunicazioni HTTP verso il Cloud BitPub.
+ * Totalmente basato su HATEOAS, java.net.http.HttpClient e CompletableFuture.
+ * Centralizza la gestione degli errori e l'intercettazione dei token scaduti.
+ * @author Stefano Bellan 20054330
  */
 public class RestClient {
 
-    // --- LOGICA DI STEFANO: Core Engine (Singleton Pattern) ---
     private static volatile RestClient instance;
     private final HttpClient client;
+    private final Gson gson;
 
-    /** URL base dell'API di backend (Spring Boot) */
-    private final String baseUrl = "http://localhost:8080";
-
-    // --- LOGICA DI TIMOTHY: Versioning e Headers ---
-    /** Header specifico per il Semantic Versioning richiesto dalla Fase 13 */
+    // L'UNICO endpoint cablato ammesso in tutta l'applicazione (Root HATEOAS)
+    private static final String ROOT_URL = "http://localhost:8080/api/v1/home";
     private static final String ACCEPT_HEADER = "application/resources.v1+json";
 
-    /**
-     * Costruttore privato.
-     * Stefano: Inizializza il client HTTP nativo ottimizzato per Java 11+.
-     */
     private RestClient() {
         this.client = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
+        this.gson = new GsonBuilder()
+                    .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>) (src, typeOfSrc, context) -> 
+                new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE)))
+            .registerTypeAdapter(LocalDate.class, (JsonDeserializer<LocalDate>) (json, typeOfT, context) -> 
+                LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE))
+            .create();
     }
 
-    /**
-     * Recupera l'istanza unica del client (Thread-safe con Double-checked locking).
-     */
     public static RestClient getInstance() {
         if (instance == null) {
             synchronized (RestClient.class) {
@@ -56,172 +53,130 @@ public class RestClient {
         return instance;
     }
 
-    // =========================================================================
-    // NUOVI METODI SINCRONI (Modifiche per le specifiche del MODULO 1)
-    // =========================================================================
-
     /**
-     * Invia una richiesta GET sincrona con timeout di 10 secondi.
+     * Punto di partenza per la navigazione HATEOAS.
      */
-    public String sendGet(String endpoint) throws Exception {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + endpoint))
-                .header("Accept", ACCEPT_HEADER)
-                .timeout(Duration.ofSeconds(10))
-                .GET();
-
-        return sendSyncRequest(builder);
+    public String getRootUrl() {
+        return ROOT_URL;
     }
 
-    /**
-     * Invia una richiesta POST sincrona con body JSON e timeout di 10 secondi.
-     */
-    public String sendPost(String endpoint, String jsonPayload) throws Exception {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + endpoint))
+    // =========================================================================
+    // METODI CORE ASINCRONI
+    // =========================================================================
+
+    public <T> CompletableFuture<T> getAsync(String url, Class<T> responseClass) {
+        HttpRequest request = buildRequest(url).GET().build();
+        return executeRequest(request, responseClass);
+    }
+
+    public <T> CompletableFuture<T> postAsync(String url, Object payload, Class<T> responseClass) {
+        String jsonPayload = (payload != null) ? gson.toJson(payload) : "{}";
+        HttpRequest request = buildRequest(url)
                 .header("Content-Type", "application/json")
-                .header("Accept", ACCEPT_HEADER)
-                .timeout(Duration.ofSeconds(10))
-                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload != null ? jsonPayload : "{}"));
-
-        return sendSyncRequest(builder);
+                .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+        return executeRequest(request, responseClass);
     }
 
+    public <T> CompletableFuture<T> putAsync(String url, Object payload, Class<T> responseClass) {
+        String jsonPayload = (payload != null) ? gson.toJson(payload) : "{}";
+        HttpRequest request = buildRequest(url)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                .build();
+        return executeRequest(request, responseClass);
+    }
+
+    public CompletableFuture<Void> deleteAsync(String url) {
+        HttpRequest request = buildRequest(url).DELETE().build();
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(this::checkErrors)
+                .thenAccept(body -> {}); // Consuma la risposta senza restituire dati
+    }
+
+    // =========================================================================
+    // METODI DI SUPPORTO E GESTIONE ERRORI
+    // =========================================================================
+
     /**
-     * Metodo privato per inviare le richieste HTTP sincrone, iniettare il token e gestire gli errori 401 e 5xx.
+     * Costruisce la base della richiesta HTTP iniettando Header HATEOAS e JWT Token.
      */
-    private String sendSyncRequest(HttpRequest.Builder builder) throws Exception {
-        // Assicurati che SessionContext sia stato implementato e accessibile
+    private HttpRequest.Builder buildRequest(String url) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Accept", ACCEPT_HEADER)
+                .timeout(Duration.ofSeconds(10));
+
         String token = SessionManager.getInstance().getJwtToken();
         if (token != null && !token.isEmpty()) {
             builder.header("Authorization", "Bearer " + token);
         }
+        return builder;
+    }
 
-        HttpRequest request = builder.build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    /**
+     * Esegue la richiesta, controlla gli errori di stato HTTP ed effettua il parsing JSON.
+     */
+    private <T> CompletableFuture<T> executeRequest(HttpRequest request, Class<T> responseClass) {
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(this::checkErrors) // <-- Intercettatore
+                .thenApply(body -> {
+                    // Se ci si aspetta solo una stringa pura, evita GSON
+                    if (responseClass == String.class) {
+                        return responseClass.cast(body);
+                    }
+                    try {
+                        return gson.fromJson(body, responseClass);
+                    } catch (JsonSyntaxException e) {
+                        throw new HttpParsingException("Errore di parsing JSON nel RestClient", e);
+                    }
+                });
+    }
 
-        if (response.statusCode() == 401) {
-            // Rilancia alert e pulisce il token
-            Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Sessione Scaduta");
-                alert.setHeaderText("Sessione scaduta");
-                alert.setContentText("Sessione scaduta, effettua nuovamente il login.");
-                alert.showAndWait();
-            });
-            SessionContext.clearAll();
-            SessionManager.getInstance().logout();
-            throw new ApiException("Sessione scaduta (401)");
-            
-        } else if (response.statusCode() >= 500) {
-            System.err.println("Errore del Server (5xx): " + response.body());
-            throw new ApiException("Errore del server: " + response.statusCode());
-            
-        } else if (response.statusCode() >= 400) {
-            throw new RuntimeException("Errore HTTP Client: " + response.statusCode() + " - " + response.body());
+    /**
+     * Verifica il codice di stato HTTP. Se rileva 401 o 403, avvia la procedura di sicurezza.
+     */
+    private String checkErrors(HttpResponse<String> response) {
+        int status = response.statusCode();
+
+        if (status == 401 || status == 403) {
+            handleAuthError();
+            // Lanciare l'eccezione interrompe immediatamente la catena del CompletableFuture
+            throw new ApiException("Sessione scaduta o accesso negato (" + status + ")");
+        } else if (status >= 500) {
+            throw new ApiException("Errore interno del server (" + status + ")");
+        } else if (status >= 400) {
+            throw new ApiException("Richiesta errata (" + status + "): " + response.body());
         }
 
         return response.body();
     }
 
     /**
-     * Eccezione personalizzata per gli errori API.
+     * Invalida la sessione in background e usa il JavaFX Application Thread 
+     * per visualizzare l'errore e fare il redirect, garantendo la Thread Safety.
+     */
+    private void handleAuthError() {
+        SessionManager.getInstance().logout();
+        SessionContext.clearAll();
+
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Sessione Scaduta");
+            alert.setHeaderText("Accesso Negato");
+            alert.setContentText("La tua sessione è scaduta o non hai i permessi necessari. Verrai reindirizzato al Login.");
+            alert.showAndWait();
+            
+            Main.eseguiLogout();
+        });
+    }
+
+    /**
+     * Eccezione personalizzata per gli errori di rete HTTP.
      */
     public static class ApiException extends RuntimeException {
         public ApiException(String message) {
             super(message);
         }
-    }
-
-    // =========================================================================
-    // VECCHI METODI ASINCRONI (Lasciati invariati per retrocompatibilità)
-    // =========================================================================
-
-    public <T> CompletableFuture<T> faiChiamataGet(String endpoint, Class<T> responseClass) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + endpoint))
-                .header("Accept", ACCEPT_HEADER)
-                .GET();
-
-        String token = SessionManager.getInstance().getJwtToken();
-        if (token != null && !token.isEmpty()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
-
-        HttpRequest request = builder.build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() >= 400) {
-                        throw new RuntimeException("Errore HTTP dal server: " + response.statusCode());
-                    }
-                    return JsonManager.getInstance().fromJson(response.body(), responseClass);
-                });
-    }
-
-    public <T> CompletableFuture<T> faiChiamataPost(String endpoint, Object data, Class<T> responseClass) {
-        String json = JsonManager.getInstance().toJson(data);
-
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + endpoint))
-                .header("Content-Type", "application/json")
-                .header("Accept", ACCEPT_HEADER)
-                .POST(HttpRequest.BodyPublishers.ofString(json));
-
-        String token = SessionManager.getInstance().getJwtToken();
-        if (token != null && !token.isEmpty()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
-
-        HttpRequest request = builder.build();
-
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() >= 400) {
-                        throw new RuntimeException("Errore HTTP dal server: " + response.statusCode() + " - " + response.body());
-                    }
-                    return JsonManager.getInstance().fromJson(response.body(), responseClass);
-                });
-    }
-
-    public void postAsync(String endpoint, Object data, Consumer<String> callback) {
-        sendAsyncWithCallback("POST", endpoint, data, callback);
-    }
-
-    public void deleteAsync(String endpoint, Consumer<String> callback) {
-        sendAsyncWithCallback("DELETE", endpoint, null, callback);
-    }
-
-    public void putAsync(String endpoint, Object data, Consumer<String> callback) {
-        sendAsyncWithCallback("PUT", endpoint, data, callback);
-    }
-
-    private void sendAsyncWithCallback(String method, String endpoint, Object data, Consumer<String> callback) {
-        String json = (data != null) ? JsonManager.getInstance().toJson(data) : "{}";
-
-        HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + endpoint))
-                .header("Content-Type", "application/json")
-                .header("Accept", ACCEPT_HEADER);
-
-        String token = SessionManager.getInstance().getJwtToken();
-        if (token != null && !token.isEmpty()) {
-            builder.header("Authorization", "Bearer " + token);
-        }
-
-        HttpRequest request = builder.method(method, HttpRequest.BodyPublishers.ofString(json)).build();
-
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(res -> {
-                    if (callback != null) {
-                        Platform.runLater(() -> callback.accept(res));
-                    }
-                })
-                .exceptionally(ex -> {
-                    System.err.println("Errore durante la chiamata " + method + ": " + ex.getMessage());
-                    ex.printStackTrace();
-                    return null;
-                });
     }
 }

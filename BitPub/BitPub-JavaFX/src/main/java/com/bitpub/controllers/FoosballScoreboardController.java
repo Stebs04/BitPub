@@ -2,8 +2,12 @@ package com.bitpub.controllers;
 
 import com.bitpub.network.RestClient;
 import com.bitpub.network.SessionContext;
+import com.bitpub.network.RispostaHateoas;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -15,297 +19,272 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Controller del tabellone calciobalilla in tempo reale.
+ * Controller responsabile del tabellone in tempo reale per il calciobalilla.
+ * Implementa una logica dual-channel: da una parte riceve aggiornamenti push
+ * ad alta frequenza tramite MQTT (eventi fisici dal tavolo e comandi Edge), 
+ * dall'altra applica un meccanismo di polling reattivo HATEOAS verso il backend 
+ * cloud come garanzia di stato (source of truth) e gestione del ciclo di vita.
  *
- * <p>Ascolta due canali MQTT alternativi:</p>
- * <ul>
- *   <li><b>bitpub/locali/+/calciobalilla/+/eventi</b> – pubblicato dal modulo
- *       {@code BitPub-Simulators} (sempre in esecuzione); payload: {@code PartitaCalciobalilla}
- *       con campi {@code goalBlu}/{@code goalRossi}.</li>
- *   <li><b>bitpub/edge/+/score</b> – pubblicato dall'Edge Node quando il simulatore
- *       è stato avviato via comando MQTT; payload: {@code FoosballEvent}
- *       con campi {@code scoreBlue}/{@code scoreRed}/{@code status}.</li>
- * </ul>
+ * Le modifiche al DOM grafico sono sincronizzate sul thread UI per evitare 
+ * eccezioni di concorrenza, e le risorse di rete vengono liberate esplicitamente 
+ * alla chiusura per scongiurare memory leak.
  *
- * <p>All'apertura pubblica automaticamente il comando di start sull'Edge
- * ({@code bitpub/cloud/foosball/start}) per avviare il simulatore integrato
- * anche quando il Cloud Gateway MQTT non è raggiungibile.</p>
+ * @author Stefano Bellan 20054330
  */
 public class FoosballScoreboardController implements MqttCallback {
 
-    // ── FXML ─────────────────────────────────────────────────────────────────
-    @FXML private Label       lblScoreBlue;
-    @FXML private Label       lblScoreRed;
-    @FXML private Label       lblStatus;
-    @FXML private ProgressBar progressMatch;
-    @FXML private Button      btnBackToDashboard;
+    // Etichette dedicate all'esposizione dei punteggi correnti.
+    @FXML private Label lblScoreBlue;
+    @FXML private Label lblScoreRed;
+    
+    // Elementi di notifica stato (es. In Attesa, Vittoria) e barra di progressione partita.
+    @FXML private Label lblStatus;
+    @FXML private ProgressBar progressWin;
+    @FXML private Button btnBackToDashboard;
 
-    // ── Config ────────────────────────────────────────────────────────────────
-    private static final String BROKER_URL = "tcp://localhost:1883";
-    private static final int    MAX_GOALS  = 10;
+    // Soglia statica per determinare la fine dell'incontro.
+    private static final int SCORE_TO_WIN = 10;
 
-    /**
-     * Topic pubblicato da BitPub-Simulators (PartitaCalciobalilla JSON).
-     * Formato campi: goalBlu, goalRossi, totaleGol, totaleRullate, durataMediaPallinaSecondi.
-     */
-    private static final String TOPIC_SIMULATORS = "bitpub/locali/+/calciobalilla/+/eventi";
-
-    /**
-     * Topic pubblicato dall'Edge Node (FoosballEvent JSON).
-     * Formato campi: scoreBlue, scoreRed, status, eventType, sessionId, tableId.
-     */
-    private static final String TOPIC_EDGE       = "bitpub/edge/+/score";
-
-    /** Topic su cui il Cloud (o noi come fallback) manda il comando di start all'Edge. */
-    private static final String TOPIC_START_CMD  = "bitpub/cloud/foosball/start";
-
-    // ── Stato interno ─────────────────────────────────────────────────────────
+    // Motore per la ricezione asincrona degli eventi MQTT locali.
     private MqttClient mqttClient;
-    private Thread     pollingThread;
-    private volatile boolean running = true;
+    
+    // Client REST per interrogare il cloud in base alle specifiche HATEOAS.
+    private final RestClient restClient = RestClient.getInstance();
+    
+    // Serializzatore/deserializzatore JSON.
     private final Gson gson = new Gson();
 
-    private volatile int prevScoreBlue = 0;
-    private volatile int prevScoreRed  = 0;
+    // Timer JavaFX per schedulare le richieste REST senza bloccare la grafica.
+    private Timeline pollingTimeline;
+    
+    // Flag di stato interno per ignorare pacchetti tardivi quando la partita è già conclusa.
+    private boolean isFinished = false;
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Lifecycle
-    // ══════════════════════════════════════════════════════════════════════════
-
+    /**
+     * Entry-point del controller. Ripulisce la vista e avvia immediatamente
+     * le due macchine di sincronizzazione dati: MQTT e Polling HTTP.
+     */
     @FXML
     public void initialize() {
-        if (btnBackToDashboard != null) {
-            btnBackToDashboard.setVisible(false);
-            btnBackToDashboard.setManaged(false);
-        }
-        if (progressMatch != null) {
-            progressMatch.setProgress(0);
-        }
-        if (lblStatus != null) {
-            lblStatus.setText("IN CORSO");
-        }
+        System.out.println("[Scoreboard] Inizializzazione...");
 
-        connectAndListen();
-        startPollingFallback();
+        // Delega la formattazione iniziale al thread grafico principale.
+        Platform.runLater(() -> {
+            lblStatus.setText("IN ATTESA...");
+            progressWin.setProgress(0.0);
+        });
+
+        setupMqttClient();
+        startReactivePolling();
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // MQTT
-    // ══════════════════════════════════════════════════════════════════════════
+    // =========================================================================
+    // 1. CANALE MQTT (Aggiornamenti Push in Tempo Reale)
+    // =========================================================================
 
     /**
-     * Connette il client MQTT, si iscrive ad entrambi i canali di score
-     * e pubblica il comando di start all'Edge come fallback (nel caso in cui
-     * il Cloud Gateway MQTT non sia riuscito a farlo).
+     * Configura il client MQTT sottoscrivendosi sia al broker di campo (per i gol fisici)
+     * che all'Edge Node (per il fine partita autoritativo). 
+     * Impiega QoS 1 (At least once) per una ragionevole affidabilità della rete locale.
      */
-    private void connectAndListen() {
+    private void setupMqttClient() {
         try {
-            String clientId = "JavaFX-Scoreboard-" + System.currentTimeMillis();
-            mqttClient = new MqttClient(BROKER_URL, clientId, new MemoryPersistence());
+            String brokerUrl = "tcp://localhost:1883";
+            String clientId = MqttClient.generateClientId();
+            mqttClient = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
 
-            MqttConnectOptions opts = new MqttConnectOptions();
-            opts.setCleanSession(true);
-            opts.setAutomaticReconnect(true);
-            opts.setConnectionTimeout(5);
+            MqttConnectOptions options = new MqttConnectOptions();
+            options.setCleanSession(true);
+            options.setConnectionTimeout(5);
 
             mqttClient.setCallback(this);
-            mqttClient.connect(opts);
+            mqttClient.connect(options);
+            System.out.println("[Scoreboard] MQTT Connesso.");
 
-            // Sottoscrizione a entrambi i canali di dati di gioco
-            mqttClient.subscribe(TOPIC_SIMULATORS, 0);
-            mqttClient.subscribe(TOPIC_EDGE, 1);
-
-            System.out.println("[Scoreboard] MQTT connesso — ascolto su:");
-            System.out.println("  " + TOPIC_SIMULATORS + "  (BitPub-Simulators)");
-            System.out.println("  " + TOPIC_EDGE        + "  (Edge Node)");
-
-            // Pubblica il comando di start all'Edge come fallback
-            // (il Cloud dovrebbe averlo già fatto, ma se MQTT era irraggiungibile non è arrivato)
-            publishEdgeStartCommand();
+            // Sottoscrizione al topic di telemetria grezza prodotta dai sensori ottici del tavolo.
+            mqttClient.subscribe("bitpub/locali/+/calciobalilla/+/eventi", 1);
+            // Sottoscrizione al topic processato dall'Edge Node.
+            mqttClient.subscribe("bitpub/edge/+/score", 1);
 
         } catch (MqttException e) {
-            System.err.println("[Scoreboard] MQTT non raggiungibile, uso solo REST polling: " + e.getMessage());
+            System.err.println("[Scoreboard] Errore avvio MQTT: " + e.getMessage());
+            Platform.runLater(() -> lblStatus.setText("ERRORE MQTT LATERALE"));
         }
     }
 
     /**
-     * Pubblica {@code bitpub/cloud/foosball/start} con tableId=1 e il sessionId
-     * dal {@link SessionContext}, così l'Edge avvia il proprio simulatore.
+     * Callback innescata dalla libreria Paho alla ricezione di un nuovo pacchetto.
+     * Identifica l'origine tramite la struttura del topic ed estrae le metriche di interesse.
+     *
+     * @param topic L'indirizzo logico del messaggio in arrivo.
+     * @param message Il payload grezzo, tipicamente in formato JSON.
      */
-    private void publishEdgeStartCommand() {
-        if (mqttClient == null || !mqttClient.isConnected()) return;
-        try {
-            JsonObject cmd = new JsonObject();
-            cmd.addProperty("tableId", 1);
-            Long sessionId = SessionContext.getCurrentSessionId();
-            if (sessionId != null) {
-                cmd.addProperty("sessionId", sessionId);
-            }
-            MqttMessage msg = new MqttMessage(cmd.toString().getBytes(StandardCharsets.UTF_8));
-            msg.setQos(1);
-            mqttClient.publish(TOPIC_START_CMD, msg);
-            System.out.println("[Scoreboard] Comando start inviato all'Edge: " + cmd);
-        } catch (MqttException e) {
-            System.err.println("[Scoreboard] Impossibile inviare start command: " + e.getMessage());
-        }
-    }
-
-    // ── MqttCallback ─────────────────────────────────────────────────────────
-
     @Override
     public void messageArrived(String topic, MqttMessage message) {
-        String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-        System.out.println("[Scoreboard] MQTT ← [" + topic + "] " + payload);
+        // Taglia l'elaborazione per non mostrare "gol fantasma" postumi.
+        if (isFinished) return; 
 
         try {
+            String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(payload, JsonObject.class);
 
-            if (topic.matches("bitpub/locali/.+/calciobalilla/.+/eventi")) {
-                // ── Formato BitPub-Simulators (PartitaCalciobalilla) ──────────
-                // Campi: goalBlu, goalRossi, totaleGol, totaleRullate
-                int blue = json.has("goalBlu")    ? json.get("goalBlu").getAsInt()    : prevScoreBlue;
-                int red  = json.has("goalRossi")  ? json.get("goalRossi").getAsInt()  : prevScoreRed;
+            int b = 0;
+            int r = 0;
 
-                // La partita termina quando uno raggiunge MAX_GOALS
-                String status = (blue >= MAX_GOALS || red >= MAX_GOALS) ? "FINISHED" : "IN_PROGRESS";
-                Platform.runLater(() -> applyUpdate(blue, red, status, "GOAL"));
+            if (topic.contains("/eventi")) {
+                // Lettura dei gol diretti dai sensori.
+                b = json.has("goalBlu") ? json.get("goalBlu").getAsInt() : 0;
+                r = json.has("goalRossi") ? json.get("goalRossi").getAsInt() : 0;
+            } else if (topic.contains("/score")) {
+                // Lettura della rielaborazione dell'Edge.
+                b = json.has("scoreBlue") ? json.get("scoreBlue").getAsInt() : 0;
+                r = json.has("scoreRed") ? json.get("scoreRed").getAsInt() : 0;
 
-            } else if (topic.matches("bitpub/edge/.+/score")) {
-                // ── Formato Edge (FoosballEvent) ──────────────────────────────
-                // Campi: scoreBlue, scoreRed, status, eventType
-                int    blue   = json.has("scoreBlue") ? json.get("scoreBlue").getAsInt() : prevScoreBlue;
-                int    red    = json.has("scoreRed")  ? json.get("scoreRed").getAsInt()  : prevScoreRed;
-                String status = json.has("status")    ? json.get("status").getAsString()  : "IN_PROGRESS";
-                String evType = json.has("eventType") ? json.get("eventType").getAsString() : "GOAL";
-                Platform.runLater(() -> applyUpdate(blue, red, status, evType));
-            }
-
-        } catch (Exception e) {
-            System.err.println("[Scoreboard] Errore parsing evento MQTT: " + e.getMessage());
-        }
-    }
-
-    @Override
-    public void connectionLost(Throwable cause) {
-        System.err.println("[Scoreboard] Connessione MQTT persa (fallback su REST polling): " + cause.getMessage());
-    }
-
-    @Override
-    public void deliveryComplete(IMqttDeliveryToken token) { /* noop */ }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // REST polling (fallback)
-    // ══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Interroga ogni 3 secondi l'endpoint Cloud per mantenere il DB sincronizzato
-     * e come fallback quando MQTT non è disponibile.
-     */
-    private void startPollingFallback() {
-        pollingThread = new Thread(() -> {
-            while (running && !Thread.currentThread().isInterrupted()) {
-                try {
-                    Thread.sleep(3000);
-                    if (!running) break;
-
-                    // Usa sempre il path relativo per evitare la doppia-prefix con baseUrl HATEOAS
-                    String body = RestClient.getInstance().sendGet("/api/v1/sessions/foosball/current");
-                    JsonObject outer = gson.fromJson(body, JsonObject.class);
-
-                    // EntityModel HATEOAS: i dati DTO stanno direttamente al livello root
-                    int    blue   = outer.has("scoreBlue") ? outer.get("scoreBlue").getAsInt() : prevScoreBlue;
-                    int    red    = outer.has("scoreRed")  ? outer.get("scoreRed").getAsInt()  : prevScoreRed;
-                    String status = outer.has("status")    ? outer.get("status").getAsString()  : "IN_PROGRESS";
-
-                    Platform.runLater(() -> applyUpdate(blue, red, status, null));
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                    // La partita potrebbe non esistere ancora → silenzioso
-                    System.err.println("[Scoreboard] Poll REST fallito: " + e.getMessage());
+                // Verifiche sull'integrità del ciclo di vita del torneo (fine per limite o forfait).
+                if (json.has("status") && "FINISHED".equalsIgnoreCase(json.get("status").getAsString())) {
+                    isFinished = true;
+                    Platform.runLater(() -> {
+                        lblStatus.setText("PARTITA TERMINATA (Edge)");
+                        showBackButton();
+                    });
                 }
             }
-        });
-        pollingThread.setDaemon(true);
-        pollingThread.start();
-    }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Aggiornamento UI
-    // ══════════════════════════════════════════════════════════════════════════
+            aggiornaUI(b, r);
+
+        } catch (Exception e) {
+            System.err.println("[Scoreboard] Errore parsing MQTT: " + e.getMessage());
+        }
+    }
 
     /**
-     * Applica i nuovi punteggi alla UI. Deve essere chiamato sul JavaFX Application Thread.
-     *
-     * @param scoreBlue punteggio squadra blu
-     * @param scoreRed  punteggio squadra rossa
-     * @param status    stato della partita (IN_PROGRESS / FINISHED / FORCE_STOPPED)
-     * @param eventType tipo evento opzionale (GOAL / START / FORCE_STOPPED)
+     * Intercetta le cadute del bridge locale. Non termina l'applicazione,
+     * poiché la ridondanza fornita dal polling REST può compensare il disservizio transitorio.
      */
-    private void applyUpdate(int scoreBlue, int scoreRed, String status, String eventType) {
-        lblScoreBlue.setText(String.valueOf(scoreBlue));
-        lblScoreRed.setText(String.valueOf(scoreRed));
-
-        // Progress bar: percentuale del punteggio più alto rispetto al max
-        if (progressMatch != null) {
-            int maxScore = Math.max(scoreBlue, scoreRed);
-            progressMatch.setProgress((double) maxScore / MAX_GOALS);
+    @Override
+    public void connectionLost(Throwable cause) {
+        System.err.println("[Scoreboard] MQTT Connessione persa: " + cause.getMessage());
+        if (!isFinished) {
+            Platform.runLater(() -> lblStatus.setText("MQTT OFFLINE - Polling attivo"));
         }
-
-        if ("FINISHED".equals(status) || "FORCE_STOPPED".equals(status)) {
-            if ("FORCE_STOPPED".equals(status)) {
-                lblStatus.setText("PARTITA INTERROTTA");
-            } else if (scoreBlue >= MAX_GOALS) {
-                lblStatus.setText("VITTORIA SQUADRA BLU! 🏆");
-            } else {
-                lblStatus.setText("VITTORIA SQUADRA ROSSA! 🏆");
-            }
-            showBackButton();
-            shutdown();
-
-        } else {
-            // Mostra il messaggio contestuale solo se c'è un nuovo goal
-            if (scoreBlue > prevScoreBlue) {
-                lblStatus.setText("GOL SQUADRA BLU! 🔵");
-                resetStatusAfterDelay();
-            } else if (scoreRed > prevScoreRed) {
-                lblStatus.setText("GOL SQUADRA ROSSA! 🔴");
-                resetStatusAfterDelay();
-            } else if (lblStatus.getText().startsWith("IN ATTESA")) {
-                lblStatus.setText("IN CORSO");
-            }
-        }
-
-        prevScoreBlue = scoreBlue;
-        prevScoreRed  = scoreRed;
     }
 
-    private void resetStatusAfterDelay() {
-        Thread t = new Thread(() -> {
-            try {
-                Thread.sleep(2000);
-                Platform.runLater(() -> {
-                    String cur = lblStatus.getText();
-                    if (!cur.contains("VITTORIA") && !cur.contains("TERMINATA") && !cur.contains("INTERROTTA")) {
-                        lblStatus.setText("IN CORSO");
-                    }
-                });
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+    @Override
+    public void deliveryComplete(IMqttDeliveryToken token) {
+        // Non utilizzato dal subscriber, ignorato per design [cite:1].
+    }
+
+    // =========================================================================
+    // 2. CANALE REST (Polling Reattivo HATEOAS / Fallback)
+    // =========================================================================
+
+    /**
+     * Alloca la Timeline JavaFX per un'interrogazione HTTP circolare (ogni 3s).
+     */
+    private void startReactivePolling() {
+        pollingTimeline = new Timeline(new KeyFrame(Duration.seconds(3), event -> pollStatus()));
+        pollingTimeline.setCycleCount(Animation.INDEFINITE);
+        pollingTimeline.play();
+    }
+
+    /**
+     * Naviga l'architettura HATEOAS per rintracciare lo stato assoluto della sessione nel Cloud.
+     */
+    private void pollStatus() {
+        if (isFinished) return;
+
+        String knownUrl = SessionContext.getCurrentSessionStatusUrl();
+        CompletableFuture<String> sessionUrlFuture;
+
+        // Valutazione rapida: riuso dell'endpoint noto vs discovery dalla Root.
+        if (knownUrl != null && !knownUrl.isEmpty()) {
+             sessionUrlFuture = CompletableFuture.completedFuture(knownUrl);
+        } else {
+             sessionUrlFuture = restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+                    .thenApply(root -> {
+                        Long sid = SessionContext.getCurrentSessionId();
+                        if (sid != null && root.getLinks().containsKey("sessions")) {
+                            return root.getLinks().get("sessions").getHref() + "/" + sid;
+                        }
+                        throw new RuntimeException("URL Sessione non determinabile.");
+                    });
+        }
+
+        // Chiamata REST all'endpoint isolato.
+        sessionUrlFuture.thenCompose(url -> restClient.getAsync(url, JsonObject.class))
+            .thenAccept(session -> {
+                String status = session.has("status") ? session.get("status").getAsString() : "";
+                
+                int scoreB = session.has("scoreBlue") ? session.get("scoreBlue").getAsInt() : 0;
+                int scoreR = session.has("scoreRed") ? session.get("scoreRed").getAsInt() : 0;
+                
+                aggiornaUI(scoreB, scoreR);
+
+                // Controllo direttive autoritative inviate dall'interfaccia amministrativa cloud.
+                if ("COMPLETED".equalsIgnoreCase(status) || "CANCELLED".equalsIgnoreCase(status)) {
+                    isFinished = true;
+                    Platform.runLater(() -> {
+                        lblStatus.setText("CHIUSA DA REMOTO: " + status);
+                        showBackButton();
+                    });
+                }
+            })
+            .exceptionally(ex -> {
+                System.err.println("[Scoreboard] Errore Polling REST: " + ex.getMessage());
+                return null;
+            });
+    }
+
+    // =========================================================================
+    // 3. AGGIORNAMENTO UI E NAVIGAZIONE
+    // =========================================================================
+
+    /**
+     * Mutua i nuovi valori di punteggio sull'interfaccia utente assicurandosi 
+     * di non fare mai rollback dei dati (es. se la REST arrive dopo un pacchetto MQTT fresco).
+     */
+    private void aggiornaUI(int b, int r) {
+        Platform.runLater(() -> {
+            int currB = Integer.parseInt(lblScoreBlue.getText());
+            int currR = Integer.parseInt(lblScoreRed.getText());
+            
+            // Logica monotonica crescente: previene sovrascritture da latenza differenziale.
+            if (b < currB || r < currR) return;
+
+            lblScoreBlue.setText(String.valueOf(b));
+            lblScoreRed.setText(String.valueOf(r));
+
+            int maxScore = Math.max(b, r);
+            double prog = (double) maxScore / SCORE_TO_WIN;
+            progressWin.setProgress(Math.min(prog, 1.0));
+
+            // Transizione dallo stato "Iniziale" allo stato "Live".
+            if (!isFinished && lblStatus.getText().contains("ATTESA")) {
+                lblStatus.setText("PARTITA IN CORSO");
+            }
+
+            // Calcolo e consolidamento dell'evento di fine partita (soglia di vincita).
+            if (!isFinished && (b >= SCORE_TO_WIN || r >= SCORE_TO_WIN)) {
+                isFinished = true;
+                lblStatus.setText(b >= SCORE_TO_WIN ? "VITTORIA SQUADRA BLU!" : "VITTORIA SQUADRA ROSSA!");
+                showBackButton();
             }
         });
-        t.setDaemon(true);
-        t.start();
     }
 
+    /**
+     * Rende fruibile il bottone per tornare alla schermata madre 
+     * unicamente alla fine formale della gara.
+     */
     private void showBackButton() {
         if (btnBackToDashboard != null) {
             btnBackToDashboard.setVisible(true);
@@ -313,18 +292,21 @@ public class FoosballScoreboardController implements MqttCallback {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Navigazione e Cleanup
-    // ══════════════════════════════════════════════════════════════════════════
-
+    /**
+     * Esegue il context-switch di schermata avendo cura di invalidare le credenziali
+     * della sessione e spegnere preventivamente i task in background.
+     *
+     * @param event L'azione UI che ha invocato il ritorno.
+     */
     @FXML
     void handleBackToDashboard(ActionEvent event) {
-        shutdown();
+        shutdown(); 
         SessionContext.setCurrentSessionId(null);
         SessionContext.setCurrentSessionStatusUrl(null);
+        
         try {
-            Parent root  = FXMLLoader.load(getClass().getResource("/DashboardView.fxml"));
-            Stage  stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            Parent root = FXMLLoader.load(getClass().getResource("/DashboardView.fxml"));
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root, 1024, 768));
             stage.show();
         } catch (IOException e) {
@@ -332,11 +314,13 @@ public class FoosballScoreboardController implements MqttCallback {
         }
     }
 
-    /** Ferma polling e MQTT in modo sicuro. */
+    /**
+     * Funzione di teardown tecnico per arrestare sia l'animazione di timeline 
+     * JavaFX sia il tunnel socket Mosquitto.
+     */
     public void shutdown() {
-        running = false;
-        if (pollingThread != null) {
-            pollingThread.interrupt();
+        if (pollingTimeline != null) {
+            pollingTimeline.stop();
         }
         if (mqttClient != null && mqttClient.isConnected()) {
             try {

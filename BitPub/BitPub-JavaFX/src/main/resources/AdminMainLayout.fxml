@@ -1,47 +1,69 @@
+<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Font?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
 
-<BorderPane fx:id="mainContainer" prefHeight="720.0" prefWidth="1080.0" stylesheets="@../style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminMainController">
+<BorderPane prefHeight="800.0" prefWidth="1200.0" stylesheets="@style.css" 
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.bitpub.controllers.AdminMainController">
 
-    <!-- SIDEBAR SINISTRA -->
-    <left>
-        <VBox prefWidth="220.0" spacing="10.0" styleClass="sidebar">
-            <padding>
-                <Insets top="30.0" left="15.0" right="15.0" bottom="20.0"/>
-            </padding>
-            <children>
-                <Label text="BitPub ADMIN" textFill="WHITE">
-                    <font>
-                        <Font name="System Bold" size="20.0" />
-                    </font>
-                    <VBox.margin>
-                        <Insets bottom="30.0" />
-                    </VBox.margin>
-                </Label>
+   <left>
+      <VBox prefWidth="260.0" spacing="15.0" style="-fx-background-color: #1e293b;" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="20.0" left="20.0" right="20.0" top="30.0" />
+         </padding>
+         <children>
+            <Label text="BitPub" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-weight: bold;" />
+            <Label text="Admin Control Panel" style="-fx-text-fill: #94a3b8; -fx-font-size: 14px;" />
+            
+            <Separator style="-fx-background-color: #334155; -fx-padding: 2; -fx-opacity: 0.5;">
+               <VBox.margin>
+                  <Insets bottom="10.0" top="10.0" />
+               </VBox.margin>
+            </Separator>
 
-                <Button maxWidth="Infinity" styleClass="nav-button" text="🏠 Dashboard" onAction="#showDashboard" />
-                <Button maxWidth="Infinity" styleClass="nav-button" text="🌐 Stato Rete" onAction="#showNetworkStatus" />
-                <Button maxWidth="Infinity" styleClass="nav-button" text="👥 Gestione Utenti" onAction="#showUsers" />
-                <Button maxWidth="Infinity" styleClass="nav-button" text="🚨 Emergenze" onAction="#showSessions" />
-                <Button maxWidth="Infinity" styleClass="nav-button" text="📜 Log Sistema" onAction="#showLogs" />
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#showDashboard" 
+                    prefHeight="45.0" styleClass="sidebar-button" text="📊 Gestione Locali" />
+                    
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#showUsers" 
+                    prefHeight="45.0" styleClass="sidebar-button" text="👥 Utenti e Ruoli" />
+                    
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSessions" 
+                    prefHeight="45.0" styleClass="sidebar-button" text="🕹️ Sessioni Attive" />
+                    
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#showNetworkStatus" 
+                    prefHeight="45.0" styleClass="sidebar-button" text="🌐 Stato Rete Edge" />
+                    
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#showLogs" 
+                    prefHeight="45.0" styleClass="sidebar-button" text="📋 Log di Sistema" />
 
-                <Region VBox.vgrow="ALWAYS" />
+            <Region VBox.vgrow="ALWAYS" />
 
-                <Button maxWidth="Infinity" styleClass="logout-button" text="🚪 Logout" onAction="#handleLogout" />
-            </children>
-        </VBox>
-    </left>
+            <Separator style="-fx-background-color: #334155; -fx-padding: 2; -fx-opacity: 0.5;">
+               <VBox.margin>
+                  <Insets bottom="10.0" />
+               </VBox.margin>
+            </Separator>
+            <Button alignment="BASELINE_LEFT" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogout" 
+                    prefHeight="45.0" style="-fx-background-color: transparent; -fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-cursor: hand;" 
+                    text="🚪 Disconnetti" />
+         </children>
+      </VBox>
+   </left>
 
-    <!-- AREA CONTENUTO DINAMICA -->
-    <center>
-        <StackPane fx:id="contentArea" style="-fx-background-color: #f8fafc;">
-            <!-- Qui verranno caricate le altre viste -->
-            <Label text="Benvenuto, Amministratore" textFill="#64748b" />
-        </StackPane>
-    </center>
-
+   <center>
+      <StackPane fx:id="contentArea" style="-fx-background-color: #f1f5f9;" BorderPane.alignment="CENTER">
+         <padding>
+            <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+         </padding>
+         
+         </StackPane>
+   </center>
 </BorderPane>

@@ -1,122 +1,198 @@
 package com.bitpub.controllers;
 
+import com.bitpub.Main;
+import com.bitpub.models.StatisticheCalciobalilla;
+import com.bitpub.models.Torneo;
 import com.bitpub.network.RestClient;
-import com.bitpub.network.SessionManager;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
+import com.bitpub.network.RispostaHateoas;
+import com.bitpub.network.SessionContext;
+import com.google.gson.JsonObject;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-import javafx.util.Duration;
+import javafx.scene.control.cell.PropertyValueFactory;
 
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import com.google.gson.Gson;
-import com.bitpub.models.PartitaCalciobalilla;
-import javafx.application.Platform;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
 
 /**
- * Controller per la gestione del calciobalilla lato utente.
+ * Controller responsabile della gestione dell'area dedicata al calciobalilla lato utente.
+ * Agisce come hub centrale per la navigazione ipermediale tra la sezione delle partite libere 
+ * e quella dei tornei organizzati. Implementa una logica totalmente asincrona e non bloccante,
+ * guidata dai link scoperti a runtime tramite il paradigma HATEOAS per garantire un disaccoppiamento 
+ * totale dalle rotte hardcoded del backend.
+ *
+ * @author Stefano Bellan 20054330
  */
-public class CalciobalillaUtenteController implements MqttCallback {
+public class CalciobalillaUtenteController {
 
-    @FXML private VBox boxRisultatiPartita;
-    @FXML private Label lblPunteggio;
-    @FXML private Label lblStatistiche;
+    // Componenti dell'interfaccia dedicati al riepilogo delle prestazioni personali
+    @FXML private Label lblWinLoss, lblGolFatti, lblGolSubiti;
+    @FXML private Button btnGiocaOra;
+
+    // Componenti dell'interfaccia per la consultazione e l'iscrizione alle competizioni
+    @FXML private TableView<Torneo> tableTornei;
+    @FXML private TableColumn<Torneo, String> colNomeTorneo, colDataTorneo, colStatoTorneo;
     @FXML private TextField txtNomeSquadra;
-    @FXML private ListView<String> listSquadre;
-    @FXML private VBox boxTorneo;
 
-    private MqttClient localMqttClient;
+    // Istanza singleton del client HTTP per le comunicazioni di rete
+    private final RestClient restClient = RestClient.getInstance();
 
+    /**
+     * Metodo di callback standard del ciclo di vita di JavaFX.
+     * Configura il data binding della tabella e innesca il fetch iniziale dei dati
+     * necessari a popolare la schermata appena l'albero della scena è pronto.
+     */
     @FXML
     public void initialize() {
-        try {
-            // L'Edge Node (o in questo caso il client UI della LAN) si iscrive al broker locale
-            localMqttClient = new MqttClient("tcp://localhost:1883", "JavaFX-Calciobalilla-UI");
-            localMqttClient.setCallback(this);
-            localMqttClient.connect();
-            localMqttClient.subscribe("bitpub/locali/+/calciobalilla/+/eventi");
-            System.out.println("[Calciobalilla UI] In ascolto degli eventi locali per latenza nulla.");
-        } catch (MqttException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void connectionLost(Throwable cause) {
-        System.err.println("Connessione persa al broker locale: " + cause.getMessage());
-    }
-
-    @Override
-    public void messageArrived(String topic, MqttMessage message) throws Exception {
-        String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-        try {
-            PartitaCalciobalilla evento = new Gson().fromJson(payload, PartitaCalciobalilla.class);
-            // ⚡ View in Tempo Reale pilotata direttamente tramite Platform.runLater
-            Platform.runLater(() -> {
-                boxRisultatiPartita.setVisible(true);
-                lblPunteggio.setText("Punteggio: " + evento.getGoalRossi() + " - " + evento.getGoalBlu());
-                // Mostra il tempo. Le statistiche o rullate etc...
-                lblStatistiche.setText("Rullate totali: " + evento.getTotaleRullate() + " | Durata: " + evento.getDurataMediaPallinaSecondi() + "s");
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void deliveryComplete(IMqttDeliveryToken token) {
+        setupTable();
+        caricaDatiIniziali();
     }
 
     /**
-     * Gestisce l'iscrizione a un torneo da 16 squadre.
+     * Inizializza le colonne della tabella definendo le factory per l'estrazione delle proprietà.
+     * Associa i campi dell'oggetto Torneo alle rispettive colonne visive.
      */
-    @FXML
-    void iscrivitiTorneo(ActionEvent event) {
-        String miaSquadra = txtNomeSquadra.getText().trim();
-        if (miaSquadra.isEmpty()) return;
-
-        List<String> nomiFinti = Arrays.asList("Real Pub", "Atletico Birra", "Dinamo Bar", "I Corsari", 
-            "Le Aquile", "Team Alpha", "I Luppoli", "FC Divano", "Sbronza Team", "Gladiatori", 
-            "I Titani", "I Falchi", "I Lupi", "Zena FC", "Spartan");
-        
-        List<String> partecipanti = new ArrayList<>();
-        partecipanti.add("⭐ " + miaSquadra + " (Tu)");
-        partecipanti.addAll(nomiFinti);
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("nomeTorneo", "Torneo BitPub Primavera");
-        data.put("squadra", miaSquadra);
-        data.put("partecipanti", partecipanti);
-
-        RestClient.getInstance().postAsync("/api/v1/tornei/calciobalilla/iscriviti", data, res -> {
-            listSquadre.setItems(FXCollections.observableArrayList(partecipanti));
-            boxTorneo.setVisible(true);
-            txtNomeSquadra.setDisable(true);
-        });
+    private void setupTable() {
+        colNomeTorneo.setCellValueFactory(new PropertyValueFactory<>("nome"));
+        colDataTorneo.setCellValueFactory(new PropertyValueFactory<>("dataInizio"));
+        colStatoTorneo.setCellValueFactory(new PropertyValueFactory<>("modalita"));
     }
 
+    /**
+     * Raggruppa le chiamate di inizializzazione lanciando il caricamento delle statistiche
+     * e della lista tornei in parallelo, massimizzando l'efficienza della fase di avvio.
+     */
+    private void caricaDatiIniziali() {
+        caricaStatistichePartite();
+        caricaListaTornei();
+    }
+
+    // =========================================================================
+    // AREA PARTITE: LOGICA REATTIVA
+    // =========================================================================
+
+    /**
+     * Gestisce la richiesta dell'utente di avviare una nuova partita amichevole.
+     * Attua un blocco preventivo dell'interfaccia per evitare richieste multiple,
+     * scopre dinamicamente l'endpoint di avvio e istanzia una nuova sessione sul server.
+     *
+     * @param event L'evento di click catturato dall'interfaccia grafica
+     */
+    @FXML
+    void handleGiocaPartita(ActionEvent event) {
+        // Disabilitazione immediata del pulsante per impedire interazioni concorrenti
+        btnGiocaOra.setDisable(true);
+        btnGiocaOra.setText("Inizializzazione...");
+
+        // Interroga la root API per localizzare l'indirizzo operativo dedicato all'avvio sessione
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String startUrl = root.getLinks().get("foosball-start").getHref();
+                JsonObject payload = new JsonObject();
+                payload.addProperty("tipo", "AMICHEVOLE");
+                
+                // Propaga la chiamata POST verso l'endpoint appena scoperto
+                return restClient.postAsync(startUrl, payload, JsonObject.class);
+            })
+            .thenAccept(session -> {
+                // Registra l'ID generato dal backend nel contesto globale per l'uso da parte del tabellone
+                SessionContext.setCurrentSessionId(session.get("id").getAsLong());
+                
+                // Delega il cambio di scena al thread grafico principale
+                Platform.runLater(() -> Main.navigaVerso("/FoosballScoreboard.fxml", "BitPub - Match Live"));
+            })
+            .exceptionally(ex -> {
+                // Procedura di ripristino dell'interfaccia in caso di fallimento della chiamata di rete
+                Platform.runLater(() -> {
+                    btnGiocaOra.setDisable(false);
+                    btnGiocaOra.setText("Gioca Partita");
+                    new Alert(Alert.AlertType.ERROR, "Errore avvio: " + ex.getMessage()).show();
+                });
+                return null;
+            });
+    }
+
+    /**
+     * Effettua il recupero asincrono dello storico prestazioni dell'utente.
+     * Aggiorna le label della dashboard con il conteggio vittorie/sconfitte e le reti totali.
+     */
+    private void caricaStatistichePartite() {
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String statsUrl = root.getLinks().get("foosball-personal-stats").getHref();
+                return restClient.getAsync(statsUrl, StatisticheCalciobalilla.class);
+            })
+            .thenAccept(stats -> Platform.runLater(() -> {
+                lblWinLoss.setText(stats.getVinte() + " / " + stats.getPerse());
+                lblGolFatti.setText(String.valueOf(stats.getGolFatti()));
+                lblGolSubiti.setText(String.valueOf(stats.getGolSubiti()));
+            }))
+            .exceptionally(ex -> {
+                Platform.runLater(() -> lblWinLoss.setText("Dati non disponibili"));
+                return null;
+            });
+    }
+
+    // =========================================================================
+    // AREA TORNEI: LOGICA CRUD/DISCOVERY
+    // =========================================================================
+
+    /**
+     * Interroga l'API per ottenere l'elenco dei tornei di calciobalilla programmati.
+     * I dati recuperati vengono convertiti in una ObservableList per il render nella TableView.
+     */
+    private void caricaListaTornei() {
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String torneiUrl = root.getLinks().get("tornei-calciobalilla").getHref();
+                return restClient.getAsync(torneiUrl, Torneo[].class);
+            })
+            .thenAccept(tornei -> Platform.runLater(() -> 
+                tableTornei.setItems(FXCollections.observableArrayList(Arrays.asList(tornei)))
+            ));
+    }
+
+    /**
+     * Gestisce la logica di iscrizione della squadra a un torneo specifico.
+     * Valida l'input locale e verifica la presenza del link operativo direttamente 
+     * all'interno del DTO del torneo, confermando l'approccio HATEOAS a livello di entità.
+     */
+    @FXML
+    void handleIscrizioneTorneo() {
+        Torneo selezionato = tableTornei.getSelectionModel().getSelectedItem();
+        String nomeSquadra = txtNomeSquadra.getText().trim();
+
+        // Controllo di coerenza sui dati forniti prima di impegnare la rete
+        if (selezionato == null || nomeSquadra.isEmpty()) {
+            new Alert(Alert.AlertType.WARNING, "Seleziona un torneo e inserisci il nome della squadra").show();
+            return;
+        }
+
+        // Verifica che il backend abbia esposto l'azione di iscrizione per l'elemento selezionato
+        if (selezionato.getLinks().containsKey("iscriviti")) {
+            String iscrizioneUrl = selezionato.getLinks().get("iscriviti").getHref();
+            
+            JsonObject payload = new JsonObject();
+            payload.addProperty("nomeSquadra", nomeSquadra);
+
+            // Sottomette i dati di iscrizione e aggiorna la tabella per riflettere le modifiche lato server
+            restClient.postAsync(iscrizioneUrl, payload, JsonObject.class)
+                .thenAccept(res -> Platform.runLater(() -> {
+                    new Alert(Alert.AlertType.INFORMATION, "Iscrizione completata!").show();
+                    caricaListaTornei();
+                }));
+        }
+    }
+
+    /**
+     * Fornisce il comando di uscita dalla vista corrente per tornare alla dashboard principale.
+     *
+     * @param event L'evento scatenato dal pulsante di ritorno
+     */
     @FXML
     void tornaAllaDashboard(ActionEvent event) {
-        try {
-            Parent root = FXMLLoader.load(getClass().getResource("/DashboardView.fxml"));
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root, 1024, 768)); // Adjust to main dashboard size
-        } catch (IOException e) { e.printStackTrace(); }
+        Main.navigaVerso("/DashboardView.fxml", "BitPub - Dashboard");
     }
 }

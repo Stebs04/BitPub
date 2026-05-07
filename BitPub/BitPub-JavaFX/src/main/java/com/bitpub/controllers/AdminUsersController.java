@@ -2,157 +2,206 @@ package com.bitpub.controllers;
 
 import com.bitpub.models.Utente;
 import com.bitpub.network.RestClient;
+import com.bitpub.network.RispostaHateoas;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Controller per la gestione dell'anagrafica utenti all'interno del pannello amministrativo.
- * Permette la ricerca filtrata, la visualizzazione dei saldi e la gestione dello stato degli account.
+ * Controller responsabile della gestione dell'interfaccia di amministrazione degli utenti.
+ * L'architettura implementata segue rigorosamente il paradigma del client passivo guidato 
+ * dall'ipermedia (HATEOAS), demandando la risoluzione degli endpoint al backend. 
+ * Questo approccio garantisce una forte resilienza ai cambiamenti delle rotte lato server,
+ * isolando la logica di presentazione dalla topologia della rete.
  *
  * @author Stefano Bellan 20054330
- * @since 2024
  */
 public class AdminUsersController {
 
+    // Componenti di input e visualizzazione per la ricerca e la consultazione della base utenti
     @FXML private TextField searchField;
     @FXML private TableView<Utente> usersTable;
     @FXML private TableColumn<Utente, String> colUsername, colEmail, colRole, colStato;
     @FXML private TableColumn<Utente, Double> colCredito;
+    
+    // Controlli operativi per l'alterazione dello stato e dei privilegi delle entità selezionate
     @FXML private Button toggleRoleButton;
+    @FXML private Button toggleStatusButton;
+
+    // Struttura dati reattiva legata bidirezionalmente alla TableView
+    private final ObservableList<Utente> masterData = FXCollections.observableArrayList();
+    
+    // Client REST singleton per l'orchestrazione delle chiamate HTTP asincrone
+    private final RestClient restClient = RestClient.getInstance();
 
     /**
-     * Inizializza la vista configurando le colonne della TableView e caricando
-     * l'elenco completo degli utenti registrati.
+     * Entry-point del ciclo di vita del controller JavaFX.
+     * Si occupa di mappare le proprietà del modello di dominio sulle colonne visive,
+     * configurare la reattività dei controlli in base al contesto di selezione e 
+     * avviare il popolamento iniziale della griglia dati.
      */
     @FXML
     public void initialize() {
-        // Mapping delle proprietà del modello Utente con le colonne dell'interfaccia FXML
+        // Mappatura riflettiva dei campi della classe Utente sulle rispettive colonne
         colUsername.setCellValueFactory(new PropertyValueFactory<>("username"));
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
         colRole.setCellValueFactory(new PropertyValueFactory<>("role"));
         colCredito.setCellValueFactory(new PropertyValueFactory<>("credito"));
         colStato.setCellValueFactory(new PropertyValueFactory<>("stato"));
 
-        // Caricamento iniziale dei dati
+        // Associazione della lista osservabile alla tabella per aggiornamenti automatici del DOM
+        usersTable.setItems(masterData);
+
+        // Listener reattivo sul modello di selezione della tabella per gestire dinamicamente lo stato dei bottoni
+        usersTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            boolean isSelected = (newSelection != null);
+            toggleRoleButton.setDisable(!isSelected);
+            if (toggleStatusButton != null) toggleStatusButton.setDisable(!isSelected);
+        });
+
+        // Trigger del fetch iniziale per presentare la lista utenti all'apertura della vista
         handleSearch();
     }
 
     /**
-     * Esegue una ricerca filtrata degli utenti interpellando le API Cloud.
-     * Se il campo di ricerca è vuoto, recupera l'intera collezione.
+     * Intercetta la richiesta di ricerca testuale e innesca il recupero dei dati.
+     * Il processo interroga preliminarmente la Root API per localizzare la collezione utenti,
+     * compone dinamicamente la query string in conformità agli standard REST e delega
+     * la mutazione della UI al thread grafico una volta processato il payload HATEOAS.
      */
     @FXML
     public void handleSearch() {
-        String query = searchField.getText();
-        // URL-encoding della query per gestire spazi e caratteri speciali nel parametro di ricerca
-        String queryEncoded = URLEncoder.encode(query, StandardCharsets.UTF_8).replace("+", "%20");
-        String endpoint = "/api/v1/users" + (query.isEmpty() ? "" : "?search=" + queryEncoded);
+        String query = searchField.getText().trim();
 
-        RestClient.getInstance().faiChiamataGet(endpoint, Utente[].class)
-                .thenAccept(users -> {
-                    if (users != null) {
-                        // Aggiornamento della lista osservabile sul thread UI di JavaFX
-                        Platform.runLater(() -> usersTable.setItems(FXCollections.observableArrayList(Arrays.asList(users))));
-                    }
-                })
-                .exceptionally(ex -> {
-                    // Notifica dell'errore di comunicazione in console
-                    Platform.runLater(() -> System.err.println("Errore ricerca utenti: " + ex.getMessage()));
-                    return null;
-                });
+        // Fase di discovery ipermediale partendo dal punto di ingresso noto dell'API
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                String usersUrl = root.getLinks().get("users").getHref();
+                
+                // Sanitizzazione e accodamento del parametro di ricerca se l'utente ha inserito un filtro
+                if (!query.isEmpty()) {
+                    usersUrl += "?search=" + query.replace(" ", "%20");
+                }
+                
+                // Avvio della richiesta effettiva verso la risorsa identificata
+                return restClient.getAsync(usersUrl, JsonObject.class);
+            })
+            .thenAccept(response -> {
+                // Estrapolazione delle entità dal wrapper JSON specifico del framework server
+                List<Utente> listaEstratta = extractUsersFromHateoas(response);
+
+                // Sincronizzazione sicura del data binding sul JavaFX Application Thread
+                Platform.runLater(() -> masterData.setAll(listaEstratta));
+            })
+            .exceptionally(ex -> {
+                // Intercettazione degli errori di rete per informare l'amministratore senza causare crash
+                Platform.runLater(() -> mostraAlert("Errore", "Impossibile recuperare gli utenti: " + ex.getMessage(), Alert.AlertType.ERROR));
+                return null;
+            });
     }
 
     /**
-     * Inverte lo stato di attivazione (Attivo/Sospeso) dell'utente selezionato.
-     * Invia una richiesta PUT asincrona al server per persistere la modifica.
-     */
-    @FXML
-    public void handleToggleStatus() {
-        // Recupero dell'utente selezionato nella tabella
-        Utente selezionato = usersTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null) return;
-
-        // URL-encoding dello username per gestire spazi e caratteri speciali nel path
-        String usernameEncoded = URLEncoder.encode(selezionato.getUsername(), StandardCharsets.UTF_8).replace("+", "%20");
-        String endpoint = "/api/v1/users/" + usernameEncoded + "/toggle-status";
-
-        // Esecuzione della chiamata PUT asincrona
-        RestClient.getInstance().putAsync(endpoint, null, response -> {
-            // Sincronizzazione dell'interfaccia dopo la conferma del server
-            handleSearch();
-            System.out.println("Stato utente aggiornato correttamente.");
-        });
-    }
-
-    /**
-     * Alterna il ruolo dell'utente selezionato tra {@code USER} e {@code GESTORE}.
-     * Invia una richiesta PUT asincrona all'endpoint {@code /toggle-role} e,
-     * a completamento, aggiorna la tabella e mostra un alert di conferma.
-     * Gli account con ruolo {@code ADMIN} vengono protetti lato server.
+     * Gestisce la logica di elevazione o revoca dei privilegi per l'utente evidenziato.
+     * Implementa difese a livello di client per prevenire autolesionismo sui profili di amministrazione
+     * e si affida alla presenza dei link operativi (HATEOAS) per convalidare l'autorizzazione all'azione.
      */
     @FXML
     public void handleToggleRole() {
-        // Recupero dell'utente selezionato nella tabella
         Utente selezionato = usersTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null) {
-            Platform.runLater(() -> {
-                Alert avviso = new Alert(Alert.AlertType.WARNING);
-                avviso.setTitle("Nessuna selezione");
-                avviso.setHeaderText(null);
-                avviso.setContentText("Seleziona un utente dalla tabella prima di modificarne il ruolo.");
-                avviso.showAndWait();
-            });
+        if (selezionato == null) return;
+
+        // Blocco di sicurezza lato client per impedire modifiche accidentali alla struttura di amministrazione
+        if ("ADMIN".equals(selezionato.getRole())) {
+            mostraAlert("Azione Negata", "Non è possibile modificare il ruolo di un Amministratore.", Alert.AlertType.WARNING);
             return;
         }
 
-        // Protezione lato UI: impedisce di agire sugli account admin
-        if ("ADMIN".equalsIgnoreCase(selezionato.getRole())) {
-            Platform.runLater(() -> {
-                Alert avviso = new Alert(Alert.AlertType.WARNING);
-                avviso.setTitle("Operazione non consentita");
-                avviso.setHeaderText(null);
-                avviso.setContentText("Non è possibile modificare il ruolo di un account ADMIN.");
-                avviso.showAndWait();
-            });
+        // Verifica della reale disponibilità dell'operazione valutando i link forniti dal server
+        if (selezionato.getLinks() == null || !selezionato.getLinks().containsKey("toggle-role")) {
+            mostraAlert("Errore", "L'operazione 'Cambio Ruolo' non è permessa per questo utente.", Alert.AlertType.ERROR);
             return;
         }
 
-        // Calcolo del nuovo ruolo per il testo del dialogo di conferma
-        String nuovoRuolo = "GESTORE".equalsIgnoreCase(selezionato.getRole()) ? "USER" : "GESTORE";
-        // URL-encoding dello username per gestire spazi e caratteri speciali nel path
-        String usernameEncoded = URLEncoder.encode(selezionato.getUsername(), StandardCharsets.UTF_8).replace("+", "%20");
-        String endpoint = "/api/v1/users/" + usernameEncoded + "/toggle-role";
+        String toggleUrl = selezionato.getLinks().get("toggle-role").getHref();
 
-        // Richiesta di conferma prima di inviare la modifica
-        Platform.runLater(() -> {
-            Alert conferma = new Alert(Alert.AlertType.CONFIRMATION);
-            conferma.setTitle("Modifica Ruolo");
-            conferma.setHeaderText("Cambio ruolo: " + selezionato.getUsername());
-            conferma.setContentText(
-                "Stai per cambiare il ruolo di \"" + selezionato.getUsername() + "\" in \"" + nuovoRuolo + "\".\nContinuare?"
-            );
-            conferma.showAndWait().ifPresent(risposta -> {
-                if (risposta == ButtonType.OK) {
-                    // Esecuzione della chiamata PUT asincrona al backend
-                    RestClient.getInstance().putAsync(endpoint, null, response -> {
-                        handleSearch();
-                        System.out.println("=== Ruolo di " + selezionato.getUsername() + " aggiornato a: " + nuovoRuolo + " ===");
+        // Richiesta di conferma esplicita per prevenire operazioni distruttive non intenzionali
+        Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Vuoi cambiare il ruolo di " + selezionato.getUsername() + "?");
+        conferma.showAndWait().ifPresent(btn -> {
+            if (btn == ButtonType.OK) {
+                // Esecuzione del cambio di stato tramite chiamata idempotente
+                restClient.putAsync(toggleUrl, null, JsonObject.class)
+                    .thenAccept(res -> {
                         Platform.runLater(() -> {
-                            Alert ok = new Alert(Alert.AlertType.INFORMATION);
-                            ok.setTitle("Ruolo aggiornato");
-                            ok.setHeaderText(null);
-                            ok.setContentText("Il ruolo di \"" + selezionato.getUsername() + "\" è stato aggiornato a \"" + nuovoRuolo + "\".");
-                            ok.show();
+                            mostraAlert("Successo", "Ruolo aggiornato correttamente.", Alert.AlertType.INFORMATION);
+                            // Ricarica la vista per garantire coerenza con il nuovo stato del database
+                            handleSearch(); 
                         });
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> mostraAlert("Errore", "Modifica fallita: " + ex.getMessage(), Alert.AlertType.ERROR));
+                        return null;
                     });
-                }
-            });
+            }
         });
+    }
+
+    /**
+     * Isolatore architetturale per la deserializzazione di payload complessi.
+     * Analizza l'albero JSON per supportare sia lo standard HAL (Hypertext Application Language)
+     * utilizzato da Spring Data REST, sia strutture di paginazione classiche, 
+     * rendendo il client agnostico rispetto all'impacchettamento del server.
+     *
+     * @param response L'oggetto JSON grezzo ricevuto dal backend
+     * @return Una lista tipizzata di istanze Utente pronte per il binding
+     */
+    private List<Utente> extractUsersFromHateoas(JsonObject response) {
+        List<Utente> utenti = new ArrayList<>();
+        try {
+            // Risoluzione della struttura HAL standard basata sull'oggetto _embedded
+            if (response.has("_embedded")) {
+                JsonObject embedded = response.getAsJsonObject("_embedded");
+                // Identificazione dinamica della chiave che wrappa l'array di risorse
+                String key = embedded.keySet().iterator().next();
+                JsonArray array = embedded.getAsJsonArray(key);
+                for (JsonElement el : array) {
+                    utenti.add(restClient.getGson().fromJson(el, Utente.class));
+                }
+            } 
+            // Fallback per endpoint che implementano la paginazione Spring standard
+            else if (response.has("content")) {
+                JsonArray array = response.getAsJsonArray("content");
+                for (JsonElement el : array) {
+                    utenti.add(restClient.getGson().fromJson(el, Utente.class));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Errore parsing HATEOAS utenti: " + e.getMessage());
+        }
+        return utenti;
+    }
+
+    /**
+     * Metodo di utilità per centralizzare e standardizzare la creazione delle finestre di dialogo,
+     * riducendo la duplicazione del codice di gestione dell'interfaccia utente.
+     *
+     * @param titolo Il testo da mostrare nella barra del titolo della finestra
+     * @param testo Il contenuto testuale descrittivo del messaggio
+     * @param tipo La gravità dell'avviso che influenza l'iconografia mostrata
+     */
+    private void mostraAlert(String titolo, String testo, Alert.AlertType tipo) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titolo);
+        alert.setHeaderText(null);
+        alert.setContentText(testo);
+        alert.showAndWait();
     }
 }

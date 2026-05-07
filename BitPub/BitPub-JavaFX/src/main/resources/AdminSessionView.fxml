@@ -1,3 +1,4 @@
+<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
@@ -5,69 +6,60 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<!-- Vista Admin per monitorare e forzare le sessioni attive -->
-<BorderPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #1e1e1e;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminSessionsController">
+<VBox spacing="20.0" styleClass="root" stylesheets="@style.css" 
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.AdminSessionsController">
 
-    <!-- Intestazione con Titolo, Stato Edge e Bottoni d'Azione -->
-    <top>
-        <VBox spacing="15.0" BorderPane.alignment="CENTER">
-            <BorderPane.margin>
-                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-            </BorderPane.margin>
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
+
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="20.0">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleBackToDashboard" styleClass="button-secondary" text="⬅ Indietro" />
             
-            <HBox alignment="CENTER_LEFT" spacing="20.0">
-                <Label text="Monitoraggio Sessioni Attive" textFill="WHITE">
-                    <font>
-                        <Font name="System Bold" size="24.0" />
-                    </font>
-                </Label>
-                
-                <!-- Spaziatore dinamico per allineare a destra la label dello stato Edge -->
-                <Region HBox.hgrow="ALWAYS" />
-                
-                <!-- Etichetta di stato Edge (il colore verrà cambiato dinamicamente dal controller) -->
-                <Label fx:id="lblEdgeStatus" text="Edge: VERIFICA IN CORSO..." textFill="GRAY">
-                    <font>
-                        <Font name="System Bold" size="18.0" />
-                    </font>
-                </Label>
-            </HBox>
+            <VBox>
+               <children>
+                  <Label text="Monitoraggio Sessioni Attive" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Supervisione e gestione in tempo reale dei tavoli da gioco" style="-fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
             
-            <HBox spacing="15.0">
-                <!-- Bottone Aggiorna per ricaricare i dati manualmente -->
-                <Button mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #0d6efd; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Aggiorna" />
-                <!-- Bottone per tornare alla Dashboard Admin -->
-                <Button mnemonicParsing="false" onAction="#handleBackToDashboard" style="-fx-background-color: #6c757d; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="Torna alla Dashboard Admin" />
-            </HBox>
-        </VBox>
-    </top>
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <VBox alignment="CENTER_RIGHT" style="-fx-background-color: white; -fx-padding: 10 20; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+               <children>
+                  <Label text="Connessione Hardware" style="-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;" />
+                  <Label fx:id="lblEdgeStatus" text="Edge: IN ATTESA..." style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
 
-    <!-- Tabella per visualizzare le sessioni in corso -->
-    <center>
-        <TableView fx:id="tableActiveSessions" BorderPane.alignment="CENTER">
-            <BorderPane.margin>
-                <Insets bottom="20.0" left="20.0" right="20.0" />
-            </BorderPane.margin>
-            <columns>
-                <!-- Colonne richieste dalle specifiche -->
-                <TableColumn fx:id="colSessionId" prefWidth="100.0" text="ID Sessione" />
-                <TableColumn fx:id="colGameType" prefWidth="130.0" text="Gioco" />
-                <TableColumn fx:id="colUser" prefWidth="150.0" text="Utente" />
-                <TableColumn fx:id="colStatus" prefWidth="130.0" text="Stato" />
-                <TableColumn fx:id="colScore" prefWidth="120.0" text="Punteggio" />
-                <TableColumn fx:id="colActions" prefWidth="150.0" text="Azioni" />
-            </columns>
-            <!-- Permette di riempire lo spazio orizzontale in modo proporzionale -->
-            <columnResizePolicy>
-                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-            </columnResizePolicy>
-        </TableView>
-    </center>
-    
-</BorderPane>
+      <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleRefresh" styleClass="button-primary" text="🔄 Ricarica Tabellone" />
+         </children>
+      </HBox>
+
+      <TableView fx:id="tableActiveSessions" VBox.vgrow="ALWAYS" style="-fx-background-radius: 8; -fx-border-radius: 8;">
+         <columns>
+            <TableColumn fx:id="colSessionId" prefWidth="80.0" text="ID Sess." />
+            <TableColumn fx:id="colGameType" prefWidth="150.0" text="Tipo Gioco" />
+            <TableColumn fx:id="colUser" prefWidth="150.0" text="Utente" />
+            <TableColumn fx:id="colStatus" prefWidth="120.0" text="Stato" />
+            <TableColumn fx:id="colScore" prefWidth="120.0" text="Punteggio" />
+            
+            <TableColumn fx:id="colActions" prefWidth="150.0" text="Azioni Remote" />
+         </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+      </TableView>
+   </children>
+</VBox>
