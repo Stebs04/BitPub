@@ -1,30 +1,64 @@
+<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
 
-<VBox spacing="15" styleClass="root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminUsersController">
-    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+<VBox spacing="20.0" styleClass="root" stylesheets="@style.css" 
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.AdminUsersController">
 
-    <Label text="Gestione Utenti e Credito" style="-fx-font-size: 24; -fx-font-weight: bold;"/>
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
 
-    <HBox spacing="10" alignment="CENTER_LEFT">
-        <TextField fx:id="searchField" promptText="Cerca per username..." prefWidth="300"/>
-        <Button text="Cerca" onAction="#handleSearch"/>
-    </HBox>
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="15.0">
+         <children>
+            <VBox>
+               <children>
+                  <Label text="Gestione Utenti" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Amministra gli account, i ruoli e monitora il credito dei clienti" style="-fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
 
-    <TableView fx:id="usersTable" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="colUsername" text="Username" prefWidth="150"/>
-            <TableColumn fx:id="colEmail" text="Email" prefWidth="200"/>
-            <TableColumn fx:id="colRole" text="Ruolo" prefWidth="100"/>
-            <TableColumn fx:id="colCredito" text="Credito (€)" prefWidth="100"/>
-            <TableColumn fx:id="colStato" text="Stato" prefWidth="100"/>
-        </columns>
-    </TableView>
+      <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+         <children>
+            <Label text="Cerca:" style="-fx-font-weight: bold; -fx-text-fill: #475569;" />
+            <TextField fx:id="searchField" prefWidth="250.0" promptText="Username o Email..." style="-fx-background-radius: 5; -fx-padding: 8;" />
+            
+            <Button mnemonicParsing="false" onAction="#handleSearch" styleClass="button-secondary" text="🔍 Cerca / Aggiorna" />
 
-    <HBox spacing="10" alignment="CENTER_RIGHT">
-        <Button fx:id="toggleRoleButton" text="Promuovi / Retrocedi Ruolo" onAction="#handleToggleRole" style="-fx-background-color: #27ae60; -fx-text-fill: white;"/>
-        <Button fx:id="toggleStatusButton" text="Sospendi / Riattiva" onAction="#handleToggleStatus" style="-fx-background-color: #f39c12; -fx-text-fill: white;"/>
-    </HBox>
+            <Region HBox.hgrow="ALWAYS" />
+
+            <Button fx:id="toggleRoleButton" disable="true" mnemonicParsing="false" onAction="#handleToggleRole" 
+                    styleClass="button-primary" text="🔄 Cambia Ruolo" />
+                    
+            <Button fx:id="toggleStatusButton" disable="true" mnemonicParsing="false" 
+                    style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold;" text="⛔ Blocca / Sblocca" />
+         </children>
+      </HBox>
+
+      <TableView fx:id="usersTable" VBox.vgrow="ALWAYS" style="-fx-background-radius: 8; -fx-border-radius: 8;">
+         <columns>
+            <TableColumn fx:id="colUsername" prefWidth="200.0" text="Username" />
+            <TableColumn fx:id="colEmail" prefWidth="250.0" text="Email" />
+            <TableColumn fx:id="colRole" prefWidth="150.0" text="Ruolo" />
+            <TableColumn fx:id="colCredito" prefWidth="120.0" text="Credito (€)" />
+            <TableColumn fx:id="colStato" prefWidth="120.0" text="Stato Account" />
+         </columns>
+         <columnResizePolicy>
+            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+         </columnResizePolicy>
+      </TableView>
+   </children>
 </VBox>
