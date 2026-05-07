@@ -1,64 +1,91 @@
-package com.bitpub;
+package com.bitpub.edge;
 
-import com.bitpub.edge.EdgeMqttClient;
-import com.bitpub.edge.GameTableStateManager;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import com.bitpub.buffer.BufferDatiEdge;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * FILE 15: EdgeApplication (Main)
- * Entry point per l'Edge Node.
+ * Punto di ingresso e centro nevralgico dell'infrastruttura del nodo BitPub Edge.
+ * L'architettura è stata progettata per fungere da layer di disaccoppiamento tra il mondo IoT 
+ * (sensori dei biliardi/calciobalilla) e il cloud centrale, offrendo funzionalità 
+ * di elaborazione locale, gestione del buffer e telemetria.
+ * Questa classe orchestra il ciclo di vita dell'applicazione, dall'inizializzazione dei motori
+ * asincroni alla registrazione degli hook per garantire un arresto aggraziato del sistema.
+ *
+ * @author Stefano Bellan 20054330
  */
 public class Main {
+
+    // Istanza del logger SLF4J dedicata al tracciamento delle fasi di bootstrap e teardown del nodo
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+    /**
+     * Metodo di innesco primario dell'applicazione Edge.
+     * Alloca la memoria per le strutture a coda (buffer), inizializza le connessioni persistenti 
+     * e orchestra i thread in background per la manutenzione dello stato.
+     *
+     * @param args Parametri iniettati dall'interprete di riga di comando
+     */
     public static void main(String[] args) {
-        System.out.println("BitPub Edge Node avviato. Connessione al broker MQTT...");
+        logger.info("Avvio BitPub Edge Node in corso...");
 
         try {
-            // 1. Istanzia lo State Manager
+            // Fase 1: Predisposizione dell'architettura in memoria
+            // Instanziazione del buffer circolare bloccante per la logica di Store-and-Forward
+            // essenziale per assorbire i picchi di dati fisici in caso di cloud irraggiungibile.
+            BufferDatiEdge buffer = new BufferDatiEdge();
             GameTableStateManager stateManager = new GameTableStateManager();
 
-            // 2. Istanzia e connette il Client MQTT
-            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager);
+            // Fase 2: Bootstrapping della messaggistica locale
+            // Allocazione e avvio del tunnel socket verso il broker Mosquitto di prossimità
+            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager, buffer);
             mqttClient.connect();
 
-            // 3. Avvia il thread separato per l'heartbeat (ogni 15 secondi)
+            // Fase 3: Orchestrazione del battito cardiaco (Heartbeat)
+            // Utilizzo di un executor pre-dimensionato per isolare la telemetria periodica
+            // evitando interferenze col thread di ascolto degli eventi fisici.
             ScheduledExecutorService heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
-            heartbeatScheduler.scheduleAtFixedRate(() -> {
-                if (mqttClient.getClient() != null && mqttClient.getClient().isConnected()) {
-                    try {
-                        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                        String payload = String.format("{\"status\":\"ONLINE\",\"timestamp\":\"%s\"}", timestamp);
-                        
-                        MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
-                        message.setQos(1);
-                        // mqttClient.getClient().publish("bitpub/locali/1/edge/heartbeat", message); // Muted: zero internal event generation
-                        System.out.println("[Edge] Segnale di presenza generato ma non inviato (Passive Edge).");
-                        
-                    } catch (Exception e) {
-                        System.err.println("Errore invio heartbeat: " + e.getMessage());
-                    }
-                }
-            }, 0, 15, TimeUnit.SECONDS);
+            
+            // Programmazione del segnale di keep-alive per notificare al cloud la vitalità dell'hub
+            heartbeatScheduler.scheduleAtFixedRate(
+                new HeartbeatTask(mqttClient.getClient(), "Locale_Esempio_01"),
+                0, 15, TimeUnit.SECONDS
+            );
 
-            // 4. Shutdown hook per la chiusura pulita
+            logger.info("Sistema Edge operativo. Heartbeat avviato ogni 15s.");
+
+            // Fase 4: Definizione della logica di Graceful Shutdown
+            // Registrazione di un listener a livello di Virtual Machine per intercettare 
+            // le direttive di interruzione del sistema operativo (es. CTRL+C, SIGTERM).
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                logger.warn("Rilevato segnale di spegnimento (SIGTERM/Interrupt).");
                 try {
-                    System.err.println("Chiusura pulita dell'Edge Node in corso...");
-                    heartbeatScheduler.shutdownNow();
-                    mqttClient.disconnect();
+                    // Abbattimento controllato del demone temporale con timeout di salvaguardia
+                    heartbeatScheduler.shutdown();
+                    if (!heartbeatScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                        heartbeatScheduler.shutdownNow();
+                    }
+
+                    // Chiusura formale del socket MQTT prima della distruzione del processo
+                    // per inibire l'attivazione del testamento (LWT) lato broker.
+                    if (mqttClient != null) {
+                        mqttClient.disconnect();
+                        logger.info("Client MQTT disconnesso correttamente.");
+                    }
+                    
+                    logger.info("Chiusura del nodo Edge completata con successo.");
                 } catch (Exception ex) {
-                    // Ignora le eccezioni in fase di chiusura (es. JAnsi su Windows)
+                    logger.error("Errore durante la procedura di spegnimento: {}", ex.getMessage());
                 }
             }));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            // Terminazione d'emergenza a fronte di criticità non gestibili in fase di setup
+            logger.error("Errore critico durante l'avvio: {}", e.getMessage());
+            System.exit(1);
         }
     }
 }

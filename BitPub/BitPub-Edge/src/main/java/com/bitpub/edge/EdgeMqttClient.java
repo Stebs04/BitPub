@@ -1,166 +1,143 @@
 package com.bitpub.edge;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.bitpub.buffer.BufferDatiEdge;
+import com.bitpub.mqtt.CloudMqttManager;
 import org.eclipse.paho.client.mqttv3.*;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * FILE 15 (Update): EdgeMqttClient
- * Client MQTT per l'Edge Node. Orchestra i comandi Cloud e instrada 
- * la coda degli eventi del simulatore stocastico.
+ * Tunnel di comunicazione asincrono per il nodo periferico Edge.
+ * L'architettura è stata ingegnerizzata per operare come gateway bidirezionale:
+ * intercetta e disaccoppia i comandi direttivi imposti dall'infrastruttura Cloud,
+ * smistandoli localmente ai moduli di simulazione fisica, e contestualmente offre
+ * il varco di accesso per incanalare la telemetria di gioco all'interno 
+ * del buffer Store-and-Forward di salvaguardia.
+ *
  */
 public class EdgeMqttClient implements MqttCallback {
 
-    private static final String BROKER_URL = "tcp://localhost:1883";
-    private static final String CLIENT_ID = "BitPub-Edge-Node-1";
+    // Meccanismo di logging granulare demandato al framework SLF4J
+    private static final Logger logger = LoggerFactory.getLogger(EdgeMqttClient.class);
 
+    // Gestore del socket persistente implementato dalla libreria Eclipse Paho
     private MqttClient client;
+    
+    // Modulo incaricato di supervisionare lo statemap a stati finiti dei tavoli locali
     private final GameTableStateManager stateManager;
     
-    // Coda bloccante thread-safe per accogliere gli eventi dal Simulatore
-    private final BlockingQueue<FoosballEvent> eventQueue = new LinkedBlockingQueue<>();
-    private Thread simulatorThread;
-    private SimCalciobalilla activeSimulator;
+    // Memoria circolare bloccante necessaria per tutelare l'integrità del dato fisico
+    private final BufferDatiEdge buffer;
 
-    private final Gson gson = new Gson();
-
-    public EdgeMqttClient(GameTableStateManager stateManager) {
+    /**
+     * Costruttore parametrico. Alloca l'istanza vincolandola in maniera immutabile 
+     * alle due componenti strategiche del nodo: lo stato operazionale e la memoria transitoria.
+     *
+     * @param stateManager Struttura dati per la validazione logica dei tavoli in uso
+     * @param buffer Astrazione a coda in cui rovesciare la telemetria ottica
+     */
+    public EdgeMqttClient(GameTableStateManager stateManager, BufferDatiEdge buffer) {
         this.stateManager = stateManager;
+        this.buffer = buffer;
     }
 
+    /**
+     * Orchestra il protocollo di allineamento crittografato verso il broker centrale.
+     * Sfrutta un manager esterno per mimetizzare le procedure di handshaking TLS
+     * e si sottoscrive automaticamente ai canali di comando riservati al proprio profilo di autorizzazione.
+     */
     public void connect() {
         try {
-            client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
-            MqttConnectOptions options = new MqttConnectOptions();
-            options.setCleanSession(true);
-            options.setAutomaticReconnect(true);
-            // Plain TCP, nessuna TLS in sviluppo locale
+            // Risoluzione della catena di trust SSL e allocazione dei certificati client 
+            // incapsulati per mantenere compatto il corpo logico del controller
+            this.client = CloudMqttManager.configuraClientCloud("ssl://localhost:8883", "Locale_1");
+            
+            // Registrazione dell'istanza corrente come ascoltatore reattivo per gli interrupt di rete
+            this.client.setCallback(this);
 
-            client.setCallback(this);
-            client.connect(options);
-            System.out.println("[EDGE NODE] Connesso al broker " + BROKER_URL);
+            // Vincolo su Quality of Service 1 (At Least Once) per garantire l'affidabilità 
+            // della direttiva di blocco/sblocco del macchinario
+            client.subscribe("bitpub/cloud/foosball/+", 1);
+            client.subscribe("bitpub/cloud/admin/+", 1);
 
-            client.subscribe("bitpub/cloud/foosball/start", 1);
-            client.subscribe("bitpub/cloud/foosball/force-stop", 1);
+            logger.info("[EDGE MQTT] Connesso e sottoscritto ai canali di comando.");
 
-            // Avviamo il thread consumatore che leggerà dalla coda e pubblicherà via MQTT
-            startEventPublisher();
-
-        } catch (MqttException e) {
-            System.err.println("[EDGE NODE] Errore connessione MQTT: " + e.getMessage());
-            e.printStackTrace();
         } catch (Exception e) {
-            System.err.println("[EDGE NODE] Errore generico durante la connessione: " + e.getMessage());
-            e.printStackTrace();
+            // Fail-safe intercettato dal logger senza causare lo spegnimento forzato
+            // poiché il sistema bufferizzato potrebbe ancora raccogliere e accantonare dati locali
+            logger.error("[EDGE MQTT] Errore critico durante la connessione: {}", e.getMessage());
         }
     }
 
+    /**
+     * Innesca la disconnessione graziosa del socket MQTT.
+     * Passaggio tassativo per scongiurare che il broker cloud identifichi lo spegnimento
+     * come anomalo, scatenando di conseguenza falsi positivi nei monitoraggi di disponibilità (LWT).
+     */
     public void disconnect() {
-        if (client != null && client.isConnected()) {
-            try {
-                if (simulatorThread != null) {
-                    simulatorThread.interrupt();
-                }
+        try {
+            if (client != null && client.isConnected()) {
                 client.disconnect();
-                System.out.println("[EDGE NODE] Disconnesso dal broker.");
-            } catch (MqttException e) {
-                e.printStackTrace();
+                logger.info("[EDGE MQTT] Disconnessione effettuata con successo.");
             }
+        } catch (MqttException e) {
+            logger.error("[EDGE MQTT] Errore durante la disconnessione: {}", e.getMessage());
         }
     }
 
-    public MqttClient getClient() {
+    /**
+     * Espone in sola lettura il client nativo ai processi di background
+     * che necessitano di un canale diretto (es. invio Heartbeat).
+     *
+     * @return L'interfaccia Paho operativa
+     */
+    public IMqttClient getClient() {
         return client;
     }
 
     /**
-     * Pattern Produttore-Consumatore: Un thread in background estrae di continuo gli eventi
-     * inseriti in coda da SimCalciobalilla e li pubblica verso il Cloud in modo asincrono.
+     * Ritorna l'handler della coda per permettere ai moduli listener
+     * di enqueuare le matrici di sensori raccolte sul campo.
+     *
+     * @return L'istanza del sistema Store-and-Forward
      */
-    private void startEventPublisher() {
-        Thread publisherThread = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    FoosballEvent event = eventQueue.take(); // Bloccante: attende finché non c'è un evento
-                    
-                    if (client != null && client.isConnected()) {
-                        String payload = gson.toJson(event);
-                        MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
-                        message.setQos(1);
-                        client.publish("bitpub/edge/" + event.getTableId() + "/score", message);
-                        System.out.println("[EDGE NODE] -> MQTT OUT: " + payload);
-                        
-                        // Libera il tavolo se il simulatore ha inviato un evento finale
-                        if ("FINISHED".equals(event.getStatus()) || "FORCE_STOPPED".equals(event.getStatus())) {
-                            stateManager.setFree(event.getTableId());
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    System.out.println("[EDGE NODE] Publisher thread interrotto.");
-                    Thread.currentThread().interrupt();
-                } catch (MqttException e) {
-                    System.err.println("[EDGE NODE] Errore pubblicazione evento: " + e.getMessage());
-                }
-            }
-        });
-        publisherThread.setDaemon(true);
-        publisherThread.start();
+    public BufferDatiEdge getBuffer() {
+        return buffer;
     }
 
+    // --- Implementazione MqttCallback ---
+
+    /**
+     * Hook generato nativamente dal daemon Paho a fronte dell'ingresso di un pacchetto.
+     * Applica il pattern di routing asincrono: distacca immediatamente il payload
+     * su un worker thread per non occupare il dispatcher di rete.
+     *
+     * @param topic Il percorso logico esatto che ha consegnato la direttiva
+     * @param message L'involucro contenente il payload informativo e i flag QoS
+     */
     @Override
     public void messageArrived(String topic, MqttMessage message) {
-        String payload = new String(message.getPayload(), StandardCharsets.UTF_8);
-        System.out.println("\n[EDGE NODE] <- MQTT IN (" + topic + "): " + payload);
+        logger.info("[EDGE MQTT] Messaggio ricevuto sul topic: {}", topic);
 
-        try {
-            JsonObject json = JsonParser.parseString(payload).getAsJsonObject();
-            Integer tableId = json.has("tableId") ? json.get("tableId").getAsInt() : null;
-
-            if (tableId != null && tableId == 1) {
-                if (topic.equals("bitpub/cloud/foosball/start")) {
-                    if (stateManager.isOccupied(tableId)) {
-                        System.out.println("[EDGE NODE] Avviso: il Tavolo " + tableId + " risulta già occupato.");
-                        return;
-                    }
-                    // Estrae il sessionId propagato dal Cloud
-                    Long sessionId = json.has("sessionId") ? json.get("sessionId").getAsLong() : null;
-                    System.out.println("[EDGE NODE] Avvio simulatore per tavolo " + tableId + ", sessionId=" + sessionId);
-
-                    // 1. Aggiorna stato
-                    stateManager.setOccupied(tableId);
-                    
-                    // 2. Avvia nuovo thread stocastico passando la coda condivisa e il sessionId
-                    activeSimulator = new SimCalciobalilla(tableId, sessionId, eventQueue);
-                    simulatorThread = new Thread(activeSimulator);
-                    simulatorThread.start();
-                } 
-                else if (topic.equals("bitpub/cloud/foosball/force-stop")) {
-                    System.out.println("[EDGE NODE] Comando d'emergenza: FORCE-STOP per tavolo " + tableId);
-                    // 1. Interrompe il thread del simulatore
-                    if (simulatorThread != null && simulatorThread.isAlive()) {
-                        simulatorThread.interrupt();
-                    }
-                    // 2. Aggiorna stato (anche se lo farà il publisher, forziamo qui per sicurezza)
-                    stateManager.setFree(tableId);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("[EDGE NODE] Errore parsing comando MQTT: " + e.getMessage());
-        }
+        // Disaccoppiamento architetturale: l'elaborazione del comando 
+        // e la conseguente manipolazione degli statemap vengono processate fuori dal contesto MQTT
+        new Thread(new AdminCommandListener(stateManager, topic, message)).start();
     }
 
+    /**
+     * Attiva le logiche di fallback se il bridge verso il cloud cade inavvertitamente.
+     */
     @Override
     public void connectionLost(Throwable cause) {
-        System.err.println("[EDGE NODE] Connessione MQTT persa.");
+        logger.warn("[EDGE MQTT] Connessione persa: {}", cause.getMessage());
     }
 
+    /**
+     * Feedback opzionale ignorato per design: i comandi emessi localmente dall'Edge
+     * vengono già gestiti dall'architettura Store-and-Forward.
+     */
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
+        // Nessun comportamento codificato
     }
 }
