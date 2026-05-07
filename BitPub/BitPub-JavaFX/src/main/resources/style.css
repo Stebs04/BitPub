@@ -1,83 +1,149 @@
-/* Imposta il font principale e il colore di sfondo dell'intera applicazione */
+/* * BitPub - Global Stylesheet
+ * Una combinazione di design moderno, leggibilità e feedback reattivo.
+ */
+
+/* --- VARIABILI E BASE --- */
 .root {
-    -fx-font-family: "Segoe UI", Arial, sans-serif;
-    -fx-background-color: #f4f6f7;
-    -fx-background-color: #ecf0f1;
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-background-color: #f1f5f9; /* Slate 100 */
+    -fx-text-fill: #1e293b;        /* Slate 800 */
 }
 
-/* Rende trasparente lo sfondo della ScrollPane, così si vede il colore della root */
-.scroll-pane {
-    -fx-background-color: transparent;
-    -fx-control-inner-background: transparent;
-}
-
-.scroll-pane > .viewport {
-    -fx-background-color: transparent;
-}
-
-/* Rimuove i bordi fastidiosi dalla ScrollPane */
-.scroll-pane:focused {
-    -fx-background-insets: 0;
-}
-
-/* Stile per i pulsanti (es. il pulsante "Aggiorna Stato") */
+/* --- BOTTONI --- */
 .button {
-    -fx-background-color: #3498db;
-    -fx-text-fill: white;
+    -fx-cursor: hand;
+    -fx-background-radius: 8;
     -fx-font-weight: bold;
-    -fx-padding: 8px 15px;
-    -fx-background-radius: 5px;
-    -fx-cursor: hand;
+    -fx-padding: 10 20;
+    -fx-transition: all 0.3s;
 }
 
-/* Effetto quando passi sopra il pulsante con il mouse */
-.button:hover {
-    -fx-background-color: #2980b9;
+.button-primary {
+    -fx-background-color: #3b82f6; /* Blue 500 */
+    -fx-text-fill: white;
+}
+.button-primary:hover {
+    -fx-background-color: #2563eb; /* Blue 600 */
 }
 
-/* Effetto quando clicchi il pulsante */
-.button:pressed {
-    -fx-background-color: #1c6ea4;
+.button-secondary {
+    -fx-background-color: white;
+    -fx-text-fill: #475569;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 8;
+}
+.button-secondary:hover {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #94a3b8;
 }
 
-/* Colore di sfondo per l'intera vista */
-.root {
-    -fx-background-color: #ecf0f1;
-}
-
-/* Effetto al passaggio del mouse sopra le card */
-.venues-container .vbox:hover {
-    -fx-cursor: hand;
-    -fx-opacity: 0.9;
-}
-
-/* Stile per il pulsante Aggiorna */
-.button {
-    -fx-background-radius: 20;
-    -fx-padding: 8 20;
-    -fx-transition: 0.3s;
-}
-
-.sidebar {
-    -fx-background-color: #1e293b; /* Blu molto scuro */
-}
-
-.nav-button {
+/* --- SIDEBAR (AREA ADMIN) --- */
+.sidebar-button {
     -fx-background-color: transparent;
-    -fx-text-fill: #cbd5e1;
-    -fx-alignment: CENTER_LEFT;
-    -fx-padding: 10 15;
+    -fx-text-fill: #94a3b8;
+    -fx-alignment: center-left;
+    -fx-background-radius: 5;
     -fx-font-size: 14px;
-    -fx-cursor: hand;
 }
-
-.nav-button:hover {
+.sidebar-button:hover {
     -fx-background-color: #334155;
     -fx-text-fill: white;
 }
-
-.logout-button {
-    -fx-background-color: #ef4444;
+.sidebar-button.active {
+    -fx-background-color: #3b82f6;
     -fx-text-fill: white;
+}
+
+/* --- CARDS & TILES (DASHBOARD) --- */
+.card-button {
+    -fx-background-color: white;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 15, 0, 0, 5);
+    -fx-text-fill: #1e293b;
+    -fx-font-size: 18px;
+    -fx-padding: 30;
+}
+.card-button:hover {
+    -fx-effect: dropshadow(three-pass-box, rgba(59,130,246,0.3), 20, 0, 0, 8);
+    -fx-translate-y: -5;
+}
+
+/* --- STATS & KPI (GESTORI / UTENTI) --- */
+.stat-card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 3);
+}
+
+.stat-label {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 12px;
     -fx-font-weight: bold;
+    -fx-text-transform: uppercase;
+}
+
+.stat-value {
+    -fx-text-fill: #0f172a;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+/* --- TABELLE (TABLEVIEW) --- */
+.table-view {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 10;
+    -fx-padding: 5;
+}
+.table-view .column-header-background {
+    -fx-background-color: #f8fafc;
+}
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 40;
+}
+.table-view .column-header .label {
+    -fx-text-fill: #475569;
+    -fx-font-weight: bold;
+}
+.table-view .table-row-cell {
+    -fx-cell-size: 45;
+    -fx-background-color: transparent;
+    -fx-border-color: #f1f5f9;
+    -fx-border-width: 0 0 1 0;
+}
+.table-view .table-row-cell:selected {
+    -fx-background-color: #eff6ff;
+}
+
+/* --- INPUT FIELDS --- */
+.text-field, .password-field {
+    -fx-background-color: white;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 10;
+}
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #3b82f6;
+    -fx-effect: dropshadow(three-pass-box, rgba(59,130,246,0.2), 5, 0, 0, 0);
+}
+
+/* --- COMPONENTI SPECIALI --- */
+.chart-container {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 5);
+}
+
+.score-label {
+    -fx-effect: dropshadow(three-pass-box, rgba(255,255,255,0.1), 10, 0, 0, 0);
+}
+
+.progress-bar .track {
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 15;
 }

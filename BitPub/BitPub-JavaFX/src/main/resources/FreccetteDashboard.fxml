@@ -1,51 +1,109 @@
+<!--Author: Timothy Giolito-->
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressBar?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" spacing="30.0" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.bitpub.controllers.FreccetteDashboardController"
-      style="-fx-background-color: #f8fafc; -fx-font-family: 'Segoe UI', sans-serif;">
+<BorderPane prefHeight="768.0" prefWidth="1024.0" styleClass="root" stylesheets="@style.css" 
+            xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="com.bitpub.controllers.FreccetteController">
+   
+   <top>
+      <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: white; -fx-padding: 20 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 0, 0, 0, 5);">
+         <children>
+            <Button mnemonicParsing="false" onAction="#tornaAllaDashboard" styleClass="button-secondary" text="⬅ Dashboard" />
+            <VBox>
+               <children>
+                  <Label text="Club Freccette" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Sfida i tuoi amici o migliora la tua precisione" style="-fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS" />
+            <VBox alignment="CENTER_RIGHT">
+               <children>
+                  <Label text="Stato Sensore Target" style="-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;" />
+                  <Label fx:id="lblSensorStatus" text="CONNECTED" style="-fx-text-fill: #10b981; -fx-font-weight: bold;" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+   </top>
 
-    <padding>
-        <Insets top="30" right="30" bottom="30" left="30"/>
-    </padding>
+   <center>
+      <StackPane>
+         <children>
+            <VBox spacing="30.0">
+               <padding>
+                  <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
+               </padding>
+               <children>
+                  
+                  <HBox spacing="20.0">
+                     <children>
+                        <VBox prefWidth="250.0" styleClass="stat-card">
+                           <children>
+                              <Label text="Highest Checkout" styleClass="stat-label" />
+                              <Label fx:id="lblHighCheckout" text="---" styleClass="stat-value" />
+                           </children>
+                        </VBox>
+                        <VBox prefWidth="250.0" styleClass="stat-card">
+                           <children>
+                              <Label text="Media 3 Frecce" styleClass="stat-label" />
+                              <Label fx:id="lblAvgScore" text="--.-" styleClass="stat-value" />
+                           </children>
+                        </VBox>
+                        <VBox prefWidth="250.0" styleClass="stat-card">
+                           <children>
+                              <Label text="Partite Totali" styleClass="stat-label" />
+                              <Label fx:id="lblTotalGames" text="0" styleClass="stat-value" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </HBox>
 
-    <Label text="🎯 Partita Freccette (501)" style="-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Seleziona Modalità di Gioco" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
 
-    <HBox alignment="CENTER" spacing="80.0">
-        <VBox alignment="CENTER" spacing="15.0" style="-fx-background-color: white; -fx-padding: 20 40; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-            <Label fx:id="lblGiocatore1" text="Giocatore 1" style="-fx-font-size: 20px; -fx-text-fill: #64748b; -fx-font-weight: bold;" />
-            <Label fx:id="lblPunteggio1" text="501" style="-fx-font-size: 60px; -fx-font-weight: 900; -fx-text-fill: #d32f2f;" />
-            <ProgressBar fx:id="progressGiocatore1" progress="1.0" prefWidth="250.0" prefHeight="20.0" style="-fx-accent: #d32f2f;" />
-        </VBox>
+                  <GridPane hgap="25.0" vgap="25.0" VBox.vgrow="ALWAYS">
+                    <columnConstraints>
+                      <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                      <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                    </columnConstraints>
+                    <rowConstraints>
+                      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                    </rowConstraints>
+                     <children>
+                        <Button fx:id="btnClassic" contentDisplay="TOP" mnemonicParsing="false" onAction="#handleClassicGame" 
+                                prefHeight="300.0" prefWidth="500.0" styleClass="card-button" text="Classica (301/501)" GridPane.columnIndex="0">
+                           <graphic>
+                              <Label text="🎯" style="-fx-font-size: 60px;" />
+                           </graphic>
+                        </Button>
+                        
+                        <Button fx:id="btnCricket" contentDisplay="TOP" mnemonicParsing="false" onAction="#handleCricketGame" 
+                                prefHeight="300.0" prefWidth="500.0" styleClass="card-button" text="Cricket" GridPane.columnIndex="1">
+                           <graphic>
+                              <Label text="🦗" style="-fx-font-size: 60px;" />
+                           </graphic>
+                        </Button>
+                     </children>
+                  </GridPane>
+               </children>
+            </VBox>
 
-        <Label text="STATISTICHE" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #94a3b8;" />
-
-        <VBox alignment="CENTER" spacing="20.0" style="-fx-background-color: white; -fx-padding: 20 40; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-            <HBox spacing="40" alignment="CENTER">
-                <VBox alignment="CENTER">
-                    <Label text="Totale 180s" style="-fx-font-size: 16px; -fx-text-fill: #94a3b8;" />
-                    <Label fx:id="labelTotale180" text="..." style="-fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;" />
-                </VBox>
-                <VBox alignment="CENTER">
-                    <Label text="Media Punti" style="-fx-font-size: 16px; -fx-text-fill: #94a3b8;" />
-                    <Label fx:id="labelMediaPunti" text="..." style="-fx-font-size: 40px; -fx-font-weight: bold; -fx-text-fill: #10b981;" />
-                </VBox>
-            </HBox>
-        </VBox>
-    </HBox>
-
-    <VBox alignment="CENTER" spacing="15.0">
-        <Label fx:id="statoLabel" text="In attesa di connessione..." style="-fx-font-size: 14px; -fx-font-style: italic; -fx-text-fill: #64748b;" />
-        <Button fx:id="bottoneAggiorna" text="🔄 Ricarica Statistiche" onAction="#caricaStatisticheFreccette"
-                style="-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 10 30; -fx-background-radius: 8; -fx-cursor: hand;" />
-    </VBox>
-    
-    <TableView fx:id="tabellaPartite" prefHeight="250.0" prefWidth="800.0" style="-fx-background-radius: 8;" />
-</VBox>
+            <ProgressIndicator fx:id="loadingIndicator" visible="false" maxHeight="80.0" maxWidth="80.0" />
+         </children>
+      </StackPane>
+   </center>
+</BorderPane>
