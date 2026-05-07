@@ -1,39 +1,47 @@
+<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<BorderPane stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminNetworkStatusController">
+<VBox spacing="20.0" styleClass="root" stylesheets="@style.css" 
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.AdminNetworkStatusController">
 
-    <!-- Intestazione -->
-    <top>
-        <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: #2c3e50; -fx-padding: 15px;">
-            <Label text="Stato Rete Locali (Edge Nodes)" textFill="WHITE">
-                <font>
-                    <Font name="System Bold" size="24.0" />
-                </font>
-            </Label>
-            <Button fx:id="refreshButton" mnemonicParsing="false" onAction="#handleRefresh" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="Aggiorna Stato" />
-        </HBox>
-    </top>
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
 
-    <!-- Contenitore Principale -->
-    <center>
-        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
-            <!-- FlowPane per le card dei locali -->
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="15.0">
+         <children>
+            <VBox>
+               <children>
+                  <Label text="Stato Rete Edge Nodes" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Monitoraggio del battito (ping) dei server locali nei pub" style="-fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
+            
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <Button fx:id="refreshButton" mnemonicParsing="false" onAction="#handleRefresh" styleClass="button-secondary" text="🔄 Forza Aggiornamento" />
+         </children>
+      </HBox>
+
+      <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;" VBox.vgrow="ALWAYS">
+         <content>
             <FlowPane fx:id="venuesContainer" hgap="20.0" vgap="20.0">
-                <padding>
-                    <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-                </padding>
-            </FlowPane>
-        </ScrollPane>
-    </center>
-
-</BorderPane>
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+               </FlowPane>
+         </content>
+      </ScrollPane>
+   </children>
+</VBox>

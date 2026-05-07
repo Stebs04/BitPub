@@ -1,27 +1,50 @@
 package com.bitpub.network;
 
+import com.google.gson.annotations.Expose;
 import java.util.Map;
 
-// Questa classe avvolge i tuoi dati (es. Partita) e cattura i link HATEOAS
-public class RispostaHateoas<T> {
+/**
+ * Data Transfer Object (DTO) progettato per incapsulare e deserializzare le risposte 
+ * ipermediali standard fornite dal backend Spring Boot. 
+ * Il suo scopo strutturale è fornire al RestClient un modello tipizzato per l'estrazione 
+ * e l'analisi della mappa dei link (_links), abilitando di fatto la navigazione 
+ * dinamica degli endpoint e l'implementazione del pattern architetturale HATEOAS.
+ */
+public class RispostaHateoas {
 
-    // I dati veri e propri (es. la lista delle partite o un singolo locale)
-    @com.google.gson.annotations.Expose
-    private T data;
-
-    // Mappa che conterrà l'oggetto "_links" generato da Spring
-    // La chiave è il nome dell'azione (es. "self", "update", "delete")
-    // Il valore è il link vero e proprio
-    @com.google.gson.annotations.Expose
+    // Mappa la struttura JSON nativa di Spring Data REST isolando il blocco _links,
+    // dove la chiave identifica il tipo di relazione (rel) e il valore l'indirizzo
+    @Expose
     private Map<String, LinkDettaglio> _links;
 
-    public T getData() { return data; }
-    public Map<String, LinkDettaglio> getLinks() { return _links; }
+    /**
+     * Fornisce l'accesso al dizionario dei collegamenti ipermediali disponibili.
+     * 
+     * @return La mappa delle relazioni scoperte a runtime per la risorsa interrogata
+     */
+    public Map<String, LinkDettaglio> getLinks() {
+        return _links;
+    }
 
-    // Sotto-classe per leggere la struttura esatta dei link di Spring HATEOAS
+    /**
+     * Sottoclasse statica che riflette la struttura formale di un singolo nodo di navigazione.
+     * Permette alla libreria Gson di isolare e proiettare in memoria gli attributi 
+     * specifici del link omettendo eventuali metadati aggiuntivi ignorati dal client.
+     */
     public static class LinkDettaglio {
-        @com.google.gson.annotations.Expose
+        
+        // Proprietà fondamentale che conserva l'URI (Uniform Resource Identifier)
+        // a cui la logica di business dovrà indirizzare la successiva transazione HTTP
+        @Expose
         private String href;
-        public String getHref() { return href; }
+
+        /**
+         * Restituisce l'indirizzo operativo associato alla specifica relazione.
+         * 
+         * @return L'URL assoluto o relativo pronto per essere processato dal RestClient
+         */
+        public String getHref() {
+            return href;
+        }
     }
 }

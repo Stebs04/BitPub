@@ -1,3 +1,4 @@
+<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
@@ -7,44 +8,49 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.text.Font?>
 
-<!-- Colleghiamo la vista al suo Controller e applichiamo lo stile CSS -->
-<VBox spacing="20.0" styleClass="root" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.AdminLogsController">
+<VBox spacing="20.0" styleClass="root" stylesheets="@style.css" 
+      xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="com.bitpub.controllers.AdminLogsController">
 
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-    </padding>
+   <padding>
+      <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+   </padding>
 
-    <!-- Titolo della sezione -->
-    <Label text="Audit Trail e Log di Sistema" style="-fx-font-weight: bold;">
-        <font>
-            <Font size="24.0" />
-        </font>
-    </Label>
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="15.0">
+         <children>
+            <VBox>
+               <children>
+                  <Label text="Log di Sistema" style="-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #1e293b;" />
+                  <Label text="Monitoraggio in tempo reale degli eventi del backend Edge e Cloud" style="-fx-text-fill: #64748b;" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
 
-    <!-- Barra dei filtri e azioni -->
-    <HBox alignment="CENTER_LEFT" spacing="15.0">
-        <Label text="Filtra per livello:" />
-        <ComboBox fx:id="filterLevelCombo" prefWidth="150.0" promptText="Seleziona..." />
+      <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 2);">
+         <children>
+            <Label text="Filtra per Livello:" style="-fx-font-weight: bold; -fx-text-fill: #475569;" />
+            
+            <ComboBox fx:id="filterLevelCombo" prefWidth="180.0" promptText="Seleziona Livello..." style="-fx-background-radius: 5;" />
 
-        <!-- Pulsante di aggiornamento collegato al metodo refreshLogs() del controller -->
-        <Button mnemonicParsing="false" onAction="#refreshLogs" text="Aggiorna Dati" />
-    </HBox>
+            <Region HBox.hgrow="ALWAYS" />
 
-    <!-- Tabella per la visualizzazione dei log -->
-    <TableView fx:id="logsTable" VBox.vgrow="ALWAYS">
-        <columns>
-            <!-- Le colonne sono collegate ai campi del modello SystemLog tramite i loro fx:id -->
-            <TableColumn fx:id="colTimestamp" prefWidth="180.0" text="Data e Ora" />
+            <Button mnemonicParsing="false" onAction="#refreshLogs" styleClass="button-primary" text="🔄 Aggiorna Log" />
+         </children>
+      </HBox>
+
+      <TableView fx:id="logsTable" VBox.vgrow="ALWAYS" style="-fx-background-radius: 8; -fx-border-radius: 8;">
+         <columns>
+            <TableColumn fx:id="colTimestamp" prefWidth="180.0" text="Data / Ora" />
             <TableColumn fx:id="colLevel" prefWidth="100.0" text="Livello" />
-            <TableColumn fx:id="colSource" prefWidth="120.0" text="Sorgente" />
-            <TableColumn fx:id="colMessage" prefWidth="400.0" text="Messaggio" />
-        </columns>
-        <columnResizePolicy>
-            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-        </columnResizePolicy>
-    </TableView>
-
+            <TableColumn fx:id="colSource" prefWidth="250.0" text="Sorgente (Classe/Modulo)" />
+            
+            <TableColumn fx:id="colMessage" prefWidth="550.0" text="Dettaglio Messaggio" />
+         </columns>
+      </TableView>
+   </children>
 </VBox>
