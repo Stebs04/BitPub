@@ -1,0 +1,10 @@
+# Configurazione MQTT e Sicurezza TLS
+mqtt:
+  broker-url: tcp://localhost:1883
+  tls:
+    # Percorsi ai certificati montati tramite Docker Volume (vedi docker-compose.yml)
+    ca-path: ${MQTT_TLS_CA_PATH:/etc/mosquitto/certs/ca.crt}
+    client-crt-path: ${MQTT_TLS_CRT_PATH:/etc/mosquitto/certs/client.crt}
+    client-key-path: ${MQTT_TLS_KEY_PATH:/etc/mosquitto/certs/client.key}
+    # Password del keystore iniettata come variabile d'ambiente (MAI in chiaro in prod)
+    keystore-password: ${MQTT_KEYSTORE_PASSWORD:cambiami_in_produzione}

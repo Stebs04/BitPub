@@ -1,7 +1,7 @@
 package com.bitpub.assembler;
 
 import com.bitpub.controllers.UtenteController;
-import com.bitpub.models.Utente;
+import com.bitpub.dto.UtenteDTO;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
@@ -10,46 +10,45 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
- * Componente per la trasformazione ipertestuale dell'entità {@link Utente}.
- * <p>
- * Gestisce la mappatura dei link ipertestuali relativi al profilo utente, 
- * inclusi i punti di accesso alle statistiche e allo storico partite.
- * </p>
+ * Controller di assemblaggio HATEOAS dedicato all'impacchettamento del dominio Utente
+ * A seguito del refactoring architetturale, opera esclusivamente sul Data Transfer Object (UtenteDTO),
+ * isolando completamente l'API REST dall'Entity JPA sottostante. Questa separazione
+ * previene alla radice il leakage di campi riservati (come l'hash della password o i
+ * metadati di persistenza) durante le fasi di serializzazione JSON.
+ *
  * @author Stefano Bellan 20054330
  */
 @Component
-public class UtenteModelAssembler implements RepresentationModelAssembler<Utente, EntityModel<Utente>> {
+public class UtenteModelAssembler implements RepresentationModelAssembler<UtenteDTO, EntityModel<UtenteDTO>> {
 
     /**
-     * Arricchisce l'entità Utente con i link HATEOAS necessari alla navigazione del profilo.
-     * <p>
-     * Nota: Viene utilizzato il {@code nickname} come chiave naturale per la risoluzione 
-     * dei percorsi, garantendo URL più leggibili (SEO-friendly/User-friendly).
-     * </p>
+     * Mappa i dati autorizzati dell'utente e li incapsula in un EntityModel [cite:23].
+     * Arricchisce dinamicamente l'involucro con direttive ipertestuali relative
+     * sia ad azioni amministrative sia alla scoperta di risorse satellite.
      *
-     * @param utente L'oggetto di dominio da mappare.
-     * @return {@link EntityModel} contenente i dati dell'utente e i link relazionali.
+     * @param utenteDto Il DTO asettico originato dal layer dei servizi
+     * @return Il wrapper navigabile strutturato secondo gli standard Spring HATEOAS
      */
     @Override
-    public EntityModel<Utente> toModel(Utente utente) {
-        // Estrazione della chiave naturale per la costruzione degli endpoint
-        String nick = utente.getUsername();
-        Long id = utente.getId();
+    public EntityModel<UtenteDTO> toModel(UtenteDTO utenteDto) {
+        // Estrazione delle chiavi di routing (Id per azioni dirette, Nickname per URI SEO-friendly)
+        String nick = utenteDto.getUsername();
+        Long id = utenteDto.getId();
 
         /*
-         * Definizione dei link ipertestuali:
-         * - self: Accesso al profilo tramite nickname.
-         * - modifica: Operazioni di aggiornamento (Action link).
-         * - partite: Lista degli eventi a cui l'utente ha partecipato.
-         * - dashboard_statistiche: Endpoint aggregatore per metriche di performance.
+         * REGISTRAZIONE DELL'ALBERO IPERMEDIALE
+         * Inietta le direttive operative e di discovery sfruttando la riflessione metodologica
+         * di Spring MVC, garantendo che gli URL si adeguino automaticamente ad eventuali
+         * modifiche delle rotte nel controller.
          */
-        return EntityModel.of(utente,
+        return EntityModel.of(utenteDto,
+                // Risoluzione canonica (Self-Relation) puntata alla radice pubblica del profilo
                 linkTo(methodOn(UtenteController.class).getUtenteByNickname(nick, null)).withSelfRel(),
-                
-                // Endpoint di mutazione risorsa
+
+                // Indirizzo logico riservato alle operazioni CRUD di mutazione dello stato
                 linkTo(methodOn(UtenteController.class).aggiornaUtente(id, null)).withRel("modifica"),
-                
-                // Collegamenti a risorse correlate (Discovery)
+
+                // Puntatori di aggregazione verso i sottomoduli del dominio utente
                 linkTo(methodOn(UtenteController.class).getPartiteUtente(nick)).withRel("partite"),
                 linkTo(methodOn(UtenteController.class).getStatisticheUtente(nick)).withRel("dashboard_statistiche")
         );

@@ -1,36 +1,58 @@
 package com.bitpub.cloud.config;
 
 import com.bitpub.cloud.security.AuditInterceptor;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.GsonHttpMessageConverter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.List;
+
 /**
- * Configurazione personalizzata del framework Web MVC per l'ecosistema BitPub.
- * Questa classe registra i componenti necessari per il monitoraggio del traffico
- * e la gestione del ciclo di vita delle richieste HTTP.
- *
- * @author Stefano Bellan 20054330
+ * Configurazione Web MVC centralizzata.
+ * Gestisce la registrazione degli intercettori di sicurezza e forza l'utilizzo
+ * di GSON come convertitore JSON globale per le API REST.
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    /** Intercettore dedicato alla registrazione automatica degli eventi di Audit. */
     @Autowired
     private AuditInterceptor auditInterceptor;
 
     /**
-     * Registra gli intercettori nel registro globale di Spring MVC.
-     * Configura i path pattern specifici per i quali l'audit trail deve essere attivo.
-     *
-     * @param registry Il registro degli intercettori fornito dal framework.
+     * Registra l'AuditInterceptor per monitorare il traffico API v1.
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Applichiamo la logica di tracciamento (Audit Trail) esclusivamente alle rotte API v1
-        // Questo garantisce che ogni chiamata verso gli endpoint REST venga loggata nel DB PostgreSQL
         registry.addInterceptor(auditInterceptor)
                 .addPathPatterns("/api/v1/**");
+    }
+
+    /**
+     * Configura GSON come convertitore di messaggi HTTP predefinito.
+     * Questo assicura che il formato JSON delle API sia identico a quello dei messaggi MQTT.
+     */
+    @Override
+    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+        GsonHttpMessageConverter gsonConverter = new GsonHttpMessageConverter();
+        gsonConverter.setGson(gson());
+        // Aggiungiamo il convertitore in prima posizione per dargli la precedenza su Jackson
+        converters.add(0, gsonConverter);
+    }
+
+    /**
+     * Bean GSON centralizzato con configurazione personalizzata per le date.
+     */
+    @Bean
+    public Gson gson() {
+        return new GsonBuilder()
+                .setDateFormat("yyyy-MM-dd HH:mm:ss") // Standard BitPub per la coerenza temporale
+                .serializeNulls()                     // Utile per HATEOAS se mancano alcuni link
+                .create();
     }
 }
