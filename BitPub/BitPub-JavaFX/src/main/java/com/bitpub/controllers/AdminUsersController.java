@@ -13,6 +13,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -89,7 +91,7 @@ public class AdminUsersController {
                 
                 // Sanitizzazione e accodamento del parametro di ricerca se l'utente ha inserito un filtro
                 if (!query.isEmpty()) {
-                    usersUrl += "?search=" + query.replace(" ", "%20");
+                    usersUrl += "?search=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
                 }
                 
                 // Avvio della richiesta effettiva verso la risorsa identificata
@@ -143,6 +145,37 @@ public class AdminUsersController {
                         Platform.runLater(() -> {
                             mostraAlert("Successo", "Ruolo aggiornato correttamente.", Alert.AlertType.INFORMATION);
                             // Ricarica la vista per garantire coerenza con il nuovo stato del database
+                            handleSearch(); 
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> mostraAlert("Errore", "Modifica fallita: " + ex.getMessage(), Alert.AlertType.ERROR));
+                        return null;
+                    });
+            }
+        });
+    }
+
+    /**
+     * Inverte lo stato di attivazione (Attivo/Sospeso) dell'utente selezionato.
+     * Invia una richiesta PUT asincrona al server per persistere la modifica.
+     */
+    @FXML
+    public void handleToggleStatus() {
+        Utente selezionato = usersTable.getSelectionModel().getSelectedItem();
+        if (selezionato == null) return;
+
+        // URL-encoding dello username per gestire spazi e caratteri speciali nel path, usando un URLEncoder con UTF-8
+        String usernameEncoded = URLEncoder.encode(selezionato.getUsername(), StandardCharsets.UTF_8).replace("+", "%20");
+        String endpoint = restClient.getRootUrl().replace("/home", "") + "/users/" + usernameEncoded + "/toggle-status";
+
+        Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Vuoi cambiare lo stato di " + selezionato.getUsername() + "?");
+        conferma.showAndWait().ifPresent(btn -> {
+            if (btn == ButtonType.OK) {
+                restClient.putAsync(endpoint, null, JsonObject.class)
+                    .thenAccept(res -> {
+                        Platform.runLater(() -> {
+                            mostraAlert("Successo", "Stato aggiornato correttamente.", Alert.AlertType.INFORMATION);
                             handleSearch(); 
                         });
                     })

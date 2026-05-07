@@ -2,6 +2,7 @@ package com.bitpub.controllers;
 
 import com.bitpub.network.RestClient;
 import com.bitpub.network.RispostaHateoas;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -27,18 +28,15 @@ import java.io.IOException;
 import java.util.Optional;
 
 /**
- * Controller per la Dashboard Amministratore delle Sessioni.
- * Gestisce l'interfaccia di monitoraggio in tempo reale e il controllo operativo sulle sessioni di gioco attive.
- * Implementa le direttive del paradigma HATEOAS operando come client passivo: le azioni disponibili 
- * e i percorsi di rete vengono derivati dinamicamente dalle risposte del server.
- * Il ciclo di aggiornamento si appoggia all'infrastruttura di animazione di JavaFX (Timeline)
- * per garantire thread-safety senza la necessità di manipolare direttamente i thread di sistema.
+ * Controller responsabile della gestione della dashboard amministrativa per le sessioni attive.
+ * Implementato seguendo i principi di un client ipermediale passivo (HATEOAS), demanda la
+ * discovery degli endpoint al server. La reattività dell'interfaccia è garantita dall'uso
+ * di Timeline per il polling, evitando il blocco del thread UI e la gestione esplicita dei thread.
  *
- * @author Stefano Bellan 20054330
+ * @author Stefano Bellan (Refactoring)
  */
 public class AdminSessionsController {
 
-    // Componenti UI della griglia dati per la disamina delle sessioni in corso
     @FXML private TableView<JsonObject> tableActiveSessions;
     @FXML private TableColumn<JsonObject, String> colSessionId;
     @FXML private TableColumn<JsonObject, String> colGameType;
@@ -47,36 +45,35 @@ public class AdminSessionsController {
     @FXML private TableColumn<JsonObject, String> colScore;
     @FXML private TableColumn<JsonObject, Void> colActions;
 
-    // Componente di feedback visivo per il controllo heartbeat dell'Edge Node
     @FXML private Label lblEdgeStatus;
 
-    // Istanza di comunicazione asincrona verso il backend
+    // Istanza singleton del client di rete per le chiamate API
     private final RestClient restClient = RestClient.getInstance();
     
-    // Riferimento al loop temporale per consentirne la disattivazione controllata
+    // Riferimento alla timeline mantenuto a livello di classe per permetterne l'arresto durante la navigazione
     private Timeline edgeStatusTimeline;
 
     /**
-     * Hook del ciclo di vita invocato da JavaFX a valle della costruzione dell'albero FXML.
-     * Si occupa dell'inizializzazione delle policy di binding per la tabella e dell'innesco 
-     * del loop reattivo per il controllo di connettività dei nodi periferici.
+     * Metodo di inizializzazione invocato automaticamente dal framework JavaFX.
+     * Configura i binding della tabella, esegue il primo caricamento dei dati
+     * e imposta il loop di polling per il monitoraggio dello stato dell'Edge Node.
      */
     @FXML
     public void initialize() {
         setupTableColumns();
         loadSessions();
 
-        // Implementazione di un meccanismo di polling non intrusivo ancorato al thread UI.
-        // Rispetto ai timer standard, assicura la sincronizzazione delle mutazioni del DOM.
+        // REFACTORING: Sostituzione di ScheduledExecutorService con Timeline di JavaFX.
+        // Esegue il polling dell'Edge Status ogni 5 secondi, mantenendo sicura l'interazione UI.
         edgeStatusTimeline = new Timeline(new KeyFrame(Duration.seconds(5), event -> pollEdgeStatus()));
         edgeStatusTimeline.setCycleCount(Animation.INDEFINITE);
         edgeStatusTimeline.play();
     }
 
     /**
-     * Configura le routine di estrazione dei dati dai payload JSON.
-     * Utilizza lambda expression per implementare un parsing difensivo in grado di tollerare
-     * l'assenza di chiavi strutturali senza causare crash dell'interfaccia.
+     * Configura le factory per le celle della tabella.
+     * Estrae dinamicamente i valori dai JsonObject associati a ogni riga,
+     * garantendo tolleranza ai campi mancanti per evitare NullPointerException.
      */
     private void setupTableColumns() {
         colSessionId.setCellValueFactory(cellData -> 
@@ -91,7 +88,7 @@ public class AdminSessionsController {
         colStatus.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().has("status") ? cellData.getValue().get("status").getAsString() : ""));
             
-        // Aggregazione customizzata per comporre il referto del punteggio in una singola stringa formattata
+        // Formattazione custom per comporre lo score combinando i punteggi dei due team
         colScore.setCellValueFactory(cellData -> {
             JsonObject session = cellData.getValue();
             String score = (session.has("scoreBlue") ? session.get("scoreBlue").getAsString() : "0") 
@@ -100,11 +97,12 @@ public class AdminSessionsController {
             return new SimpleStringProperty(score);
         });
 
-        // Configura il generatore di celle personalizzato per la colonna dedicata alle azioni amministrative
+        // Configurazione della colonna Azioni per forzare la chiusura
+        // Inietta un bottone interattivo per ogni riga renderizzata
         colActions.setCellFactory(param -> new TableCell<>() {
             private final Button btnForceStop = new Button("Forza Chiusura");
 
-            // Blocco di istanziazione statica della cella: formatta il pulsante e aggancia il listener di chiusura
+            // Blocco di inizializzazione per lo stile e il binding dell'evento di click
             {
                 btnForceStop.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
                 btnForceStop.setOnAction(event -> {
@@ -126,12 +124,12 @@ public class AdminSessionsController {
     }
 
     /**
-     * Interroga l'infrastruttura per valutare l'operatività del gateway edge locale.
-     * Segue una pipeline asincrona partendo dalla Root dell'API per isolare l'URL corretto,
-     * aggiornando il semaforo visivo in base all'esito.
+     * Interroga il backend per verificare lo stato dell'Edge Node.
+     * Utilizza un approccio HATEOAS puro: prima recupera la root per ottenere l'URL corretto,
+     * poi effettua la chiamata effettiva verso l'endpoint scoperto.
      */
     private void pollEdgeStatus() {
-        // Avvio sequenza di discovery ipermediale
+        // DISCOVERY: Trova l'endpoint di stato Edge interrogando la Root
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
                 String edgeStatusUrl = root.getLinks().get("edge-status").getHref();
@@ -139,7 +137,8 @@ public class AdminSessionsController {
             })
             .thenAccept(json -> {
                 String status = json.has("status") ? json.get("status").getAsString() : "UNKNOWN";
-                // Trasferimento coatto sul thread UI per garantire la thread-safety di JavaFX
+                // UI UPDATE (La Timeline di per sé scatta sul thread UI, ma il thenAccept viaggia su worker, 
+                // quindi Platform.runLater rimane obbligatorio)
                 Platform.runLater(() -> {
                     if ("ONLINE".equals(status)) {
                         lblEdgeStatus.setText("Edge: ONLINE");
@@ -151,7 +150,7 @@ public class AdminSessionsController {
                 });
             })
             .exceptionally(e -> {
-                // Fail-safe visuale in caso di connettività interrotta
+                // Gestione elegante degli errori di rete per evitare crash dell'interfaccia
                 Platform.runLater(() -> {
                     lblEdgeStatus.setText("Edge: ERRORE CONNESSIONE");
                     lblEdgeStatus.setTextFill(Color.web("#dc3545"));
@@ -161,8 +160,7 @@ public class AdminSessionsController {
     }
 
     /**
-     * Entry-point collegato all'azione manuale dell'amministratore per sincronizzare
-     * la griglia delle sessioni col database centrale.
+     * Handler per il bottone di aggiornamento manuale.
      */
     @FXML
     public void handleRefresh() {
@@ -170,12 +168,12 @@ public class AdminSessionsController {
     }
 
     /**
-     * Coordina l'estrazione e il rendering della collezione di sessioni attive.
-     * Adotta un meccanismo di unboxing flessibile per interpretare le convenzioni
-     * del formato HAL o della paginazione generica restituiti dal layer REST.
+     * Recupera l'elenco delle sessioni attive dal backend.
+     * Anche in questo caso si parte dalla root per scoprire l'URI corretto.
+     * I dati ricevuti vengono normalizzati e caricati nella TableView.
      */
     private void loadSessions() {
-        // Fila la chiamata partendo dall'ancora principale del backend
+        // DISCOVERY: Scopre le sessioni attive partendo dalla root HATEOAS
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
                 String activeSessionsUrl = root.getLinks().get("active-sessions").getHref();
@@ -184,7 +182,8 @@ public class AdminSessionsController {
             .thenAccept(rootObject -> {
                 JsonArray jsonArray;
                 
-                // Analisi e scomposizione polimorfica dell'involucro di risposta
+                // Estrazione dati dinamica dal wrapper HATEOAS
+                // Prevede diverse strutture di risposta a seconda di come il backend impacchetta la collection
                 if (rootObject.has("_embedded")) {
                     JsonObject embedded = rootObject.getAsJsonObject("_embedded");
                     String listKey = embedded.keySet().iterator().next(); 
@@ -192,7 +191,7 @@ public class AdminSessionsController {
                 } else if (rootObject.has("content")) {
                     jsonArray = rootObject.getAsJsonArray("content");
                 } else if (rootObject.isJsonArray()) {
-                    jsonArray = rootObject.getAsJsonArray(); // Fallback nudo
+                    jsonArray = rootObject.getAsJsonArray(); // Fallback purista
                 } else {
                     jsonArray = new JsonArray();
                 }
@@ -202,7 +201,7 @@ public class AdminSessionsController {
                     sessions.add(el.getAsJsonObject());
                 }
 
-                // Carica il volume di dati processato nella TableView
+                // Push dei dati parsati verso il thread grafico
                 Platform.runLater(() -> tableActiveSessions.setItems(sessions));
             })
             .exceptionally(e -> {
@@ -218,11 +217,12 @@ public class AdminSessionsController {
     }
 
     /**
-     * Intercetta la richiesta di interruzione anomala di una partita.
-     * Tenta prima di seguire un link ipermediale di azione fornito all'interno della risorsa stessa,
-     * supportando nativamente i controlli di autorizzazione lato server.
+     * Gestisce la logica di chiusura forzata di una specifica sessione.
+     * Richiede conferma all'utente prima di inoltrare la richiesta di stop.
+     * Tenta prima di utilizzare i link HATEOAS specifici della sessione e, in caso di fallimento,
+     * applica una strategia di fallback calcolando l'URL dalla root.
      *
-     * @param session Il frammento JSON corrispondente alla riga selezionata in tabella
+     * @param session Il JsonObject rappresentante la sessione selezionata nella tabella
      */
     private void handleForceStop(JsonObject session) {
         String sessionId = session.has("id") ? session.get("id").getAsString() : "Sconosciuto";
@@ -235,12 +235,13 @@ public class AdminSessionsController {
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             
-            // Preferenza primaria: utilizzo del trigger azionabile iniettato direttamente nel DTO (HATEOAS puro)
+            // Preferiamo il link ipermediale esposto direttamente sulla risorsa
             if (session.has("_links") && session.getAsJsonObject("_links").has("force-stop")) {
                 String forceStopUrl = session.getAsJsonObject("_links").getAsJsonObject("force-stop").get("href").getAsString();
                 eseguiForceStopAsincrono(forceStopUrl);
             } else {
-                // Percorso alternativo: calcolo logico dell'endpoint tramite la direttiva generica fornita dalla Root
+                // Fallback: lo scopriamo dalla Root
+                // Componiamo l'URI se il backend non fornisce il link di azione diretta sulla sessione
                 restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
                     .thenCompose(root -> {
                         String fallbackUrl = root.getLinks().get("sessions").getHref() + "/" + sessionId + "/force-stop";
@@ -254,9 +255,9 @@ public class AdminSessionsController {
     }
 
     /**
-     * Avvia il trigger remoto per abbattere lo stato della sessione.
+     * Esegue materialmente la chiamata POST per arrestare la sessione.
      *
-     * @param url L'indirizzo puntuale a cui indirizzare l'azione di stato
+     * @param url L'endpoint finale risolto per l'azione di force-stop
      */
     private void eseguiForceStopAsincrono(String url) {
         restClient.postAsync(url, new JsonObject(), JsonObject.class)
@@ -265,8 +266,8 @@ public class AdminSessionsController {
     }
 
     /**
-     * Gestisce la notifica di successo della procedura distruttiva
-     * e ordina un aggiornamento integrale per riallineare l'interfaccia col database.
+     * Callback di successo per l'operazione di chiusura forzata.
+     * Avvisa l'utente e ricarica i dati per mantenere la tabella sincronizzata.
      */
     private void gestisciSuccessoChiusura() {
         Platform.runLater(() -> {
@@ -280,10 +281,10 @@ public class AdminSessionsController {
     }
 
     /**
-     * Interceptor degli errori verificatisi durante l'operazione asincrona di chiusura forzata.
+     * Callback di errore per l'operazione di chiusura forzata.
      *
-     * @param e Eccezione incapsulata prodotta dalla catena di future
-     * @return null per soddisfare i requisiti formali della funzione exceptionally
+     * @param e L'eccezione sollevata durante la chiamata di rete
+     * @return null per soddisfare la firma del metodo exceptionally
      */
     private Void gestisciErroreChiusura(Throwable e) {
         Platform.runLater(() -> {
@@ -297,14 +298,15 @@ public class AdminSessionsController {
     }
 
     /**
-     * Regola l'uscita dalla schermata e il ritorno al menu di amministrazione generale.
-     * Abbatte sistematicamente l'orologio interno prima di smontare la scena per eliminare referenze pendenti.
+     * Gestisce il ritorno alla dashboard principale.
+     * Ferma il thread di polling per evitare memory leak o esecuzioni fantasma e
+     * carica la nuova scena.
      *
-     * @param event L'evento emesso in corrispondenza del click dell'utente
+     * @param event L'evento di navigazione innescato dalla UI
      */
     @FXML
     void handleBackToDashboard(ActionEvent event) {
-        // Garantisce il cleanup del task schedulato prima della deallocazione della classe
+        // Interruzione preventiva del polling prima del cambio di contesto
         if (edgeStatusTimeline != null) {
             edgeStatusTimeline.stop();
         }
