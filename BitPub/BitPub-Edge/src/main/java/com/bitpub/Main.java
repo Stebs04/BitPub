@@ -1,11 +1,18 @@
-package com.bitpub.edge;
+package com.bitpub;
 
 import com.bitpub.buffer.BufferDatiEdge;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import com.bitpub.edge.EdgeMqttClient;
+import com.bitpub.edge.GameTableStateManager;
+import com.bitpub.edge.HeartbeatTask;
+import com.bitpub.edge.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.SSLContext;
 
 /**
  * Punto di ingresso e centro nevralgico dell'infrastruttura del nodo BitPub Edge.
@@ -36,12 +43,18 @@ public class Main {
             // Fase 1: Predisposizione dell'architettura in memoria
             // Instanziazione del buffer circolare bloccante per la logica di Store-and-Forward
             // essenziale per assorbire i picchi di dati fisici in caso di cloud irraggiungibile.
-            BufferDatiEdge buffer = new BufferDatiEdge();
+            BufferDatiEdge buffer = new BufferDatiEdge(100);
             GameTableStateManager stateManager = new GameTableStateManager();
+
+            SSLContext sslContext = SslContextFactory.build(
+                    "../BitPub-Security/certs/ca.crt",
+                    "../BitPub-Security/certs/client.crt",
+                    "../BitPub-Security/certs/client_pkcs8.key"
+            );
 
             // Fase 2: Bootstrapping della messaggistica locale
             // Allocazione e avvio del tunnel socket verso il broker Mosquitto di prossimità
-            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager, buffer);
+            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager, buffer, sslContext);
             mqttClient.connect();
 
             // Fase 3: Orchestrazione del battito cardiaco (Heartbeat)

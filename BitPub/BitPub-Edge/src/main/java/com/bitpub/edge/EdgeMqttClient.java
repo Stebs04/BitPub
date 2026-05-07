@@ -5,13 +5,14 @@ import com.bitpub.mqtt.CloudMqttManager;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.net.ssl.SSLContext;
 
 /**
  * Tunnel di comunicazione asincrono per il nodo periferico Edge.
  * L'architettura è stata ingegnerizzata per operare come gateway bidirezionale:
  * intercetta e disaccoppia i comandi direttivi imposti dall'infrastruttura Cloud,
  * smistandoli localmente ai moduli di simulazione fisica, e contestualmente offre
- * il varco di accesso per incanalare la telemetria di gioco all'interno 
+ * il varco di accesso per incanalare la telemetria di gioco all'interno
  * del buffer Store-and-Forward di salvaguardia.
  *
  */
@@ -22,23 +23,28 @@ public class EdgeMqttClient implements MqttCallback {
 
     // Gestore del socket persistente implementato dalla libreria Eclipse Paho
     private MqttClient client;
-    
+
     // Modulo incaricato di supervisionare lo statemap a stati finiti dei tavoli locali
     private final GameTableStateManager stateManager;
-    
+
     // Memoria circolare bloccante necessaria per tutelare l'integrità del dato fisico
     private final BufferDatiEdge buffer;
 
+    // Contesto crittografico per l'autenticazione mTLS verso il broker cloud
+    private final SSLContext sslContext;
+
     /**
-     * Costruttore parametrico. Alloca l'istanza vincolandola in maniera immutabile 
+     * Costruttore parametrico. Alloca l'istanza vincolandola in maniera immutabile
      * alle due componenti strategiche del nodo: lo stato operazionale e la memoria transitoria.
      *
      * @param stateManager Struttura dati per la validazione logica dei tavoli in uso
      * @param buffer Astrazione a coda in cui rovesciare la telemetria ottica
+     * @param sslContext Contesto crittografico pre-valutato per il tunnel mTLS
      */
-    public EdgeMqttClient(GameTableStateManager stateManager, BufferDatiEdge buffer) {
+    public EdgeMqttClient(GameTableStateManager stateManager, BufferDatiEdge buffer, SSLContext sslContext) {
         this.stateManager = stateManager;
         this.buffer = buffer;
+        this.sslContext = sslContext;
     }
 
     /**
@@ -48,14 +54,14 @@ public class EdgeMqttClient implements MqttCallback {
      */
     public void connect() {
         try {
-            // Risoluzione della catena di trust SSL e allocazione dei certificati client 
+            // Risoluzione della catena di trust SSL e allocazione dei certificati client
             // incapsulati per mantenere compatto il corpo logico del controller
-            this.client = CloudMqttManager.configuraClientCloud("ssl://localhost:8883", "Locale_1");
-            
+            this.client = CloudMqttManager.configuraClientCloud("localhost", "Locale_1", sslContext);
+
             // Registrazione dell'istanza corrente come ascoltatore reattivo per gli interrupt di rete
             this.client.setCallback(this);
 
-            // Vincolo su Quality of Service 1 (At Least Once) per garantire l'affidabilità 
+            // Vincolo su Quality of Service 1 (At Least Once) per garantire l'affidabilità
             // della direttiva di blocco/sblocco del macchinario
             client.subscribe("bitpub/cloud/foosball/+", 1);
             client.subscribe("bitpub/cloud/admin/+", 1);
@@ -119,9 +125,15 @@ public class EdgeMqttClient implements MqttCallback {
     public void messageArrived(String topic, MqttMessage message) {
         logger.info("[EDGE MQTT] Messaggio ricevuto sul topic: {}", topic);
 
-        // Disaccoppiamento architetturale: l'elaborazione del comando 
+        // Disaccoppiamento architetturale: l'elaborazione del comando
         // e la conseguente manipolazione degli statemap vengono processate fuori dal contesto MQTT
-        new Thread(new AdminCommandListener(stateManager, topic, message)).start();
+        new Thread(() -> {
+            try {
+                new AdminCommandListener(stateManager).messageArrived(topic, message);
+            } catch (Exception e) {
+                logger.error("[EDGE MQTT] Errore nel dispatch del comando amministrativo: {}", e.getMessage());
+            }
+        }).start();
     }
 
     /**

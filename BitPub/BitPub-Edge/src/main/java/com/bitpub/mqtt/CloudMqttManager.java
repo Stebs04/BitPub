@@ -1,76 +1,88 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.security.TlsUtility;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import javax.net.ssl.SSLContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Gestore della connettività MQTT per l'integrazione tra l'Edge Node e il backend Cloud.
- * Configura il client per garantire la persistenza dei dati e la sicurezza del trasporto.
- *
- * <p>Caratteristiche principali: Sessioni durevoli, TLS mutuo e auto-reconnect.</p>
- *
+ * Orchestratore specializzato per il bootstrapping della connessione MQTT verso l'infrastruttura Cloud.
+ * Nasconde la complessità architetturale legata all'implementazione dei pattern di sicurezza
+ * (autenticazione mutua TLS) e di continuità del servizio (Durable Sessions e QoS).
+ * Isola rigorosamente la logica di configurazione dal resto dell'Edge Node, fornendo
+ * ai componenti superiori un socket Paho già autenticato, sbloccato e pronto per la sottoscrizione o pubblicazione.
  * @author Timothy (Architettura Sessioni - Fase 21)
- * @author Stefano Bellan 20054330 (Modulo Sicurezza TLS)
+ * @author Stefano Bellan 20054330
  */
 public class CloudMqttManager {
 
-    /**
-     * Factory method per la creazione e configurazione del client MQTT Cloud.
-     * Implementa la logica di "Store and Forward" necessaria per gestire l'intermittenza della rete.
-     *
-     * @param brokerCloudUrl L'URL del broker remoto (es. "ssl://localhost:8883").
-     * @param nomeLocale     Identificativo testuale del locale per la generazione del ClientID.
-     * @return {@link MqttClient} istanziato e configurato, pronto per la chiamata .connect().
-     * @throws Exception Se l'URL del broker non è valido, i certificati mancano o la connessione fallisce.
-     */
-    public static MqttClient configuraClientCloud(String brokerCloudUrl, String nomeLocale) throws Exception {
+    // Tracer operativo interfacciato con Logback
+    private static final Logger logger = LoggerFactory.getLogger(CloudMqttManager.class);
 
-        // Definizione ClientID statico: critico per il ripristino della sessione lato broker
+    /**
+     * Costruttore factory (statico) preposto all'allocazione logica del socket di trasporto.
+     * Allinea i parametri di latenza, impone la conservazione dello stato sul broker (Clean Session = false)
+     * e avvolge la connessione all'interno dell'involucro crittografico fornito tramite SSLContext.
+     *
+     * @param brokerHost Hostname puro (FQDN o indirizzo IP) del server Mosquitto centrale
+     * @param nomeLocale Valore convenzionale stringa per generare il prefisso del ClientID
+     * @param sslContext Contesto crittografato pre-valutato contenente KeyManager e TrustManager
+     * @return Una connessione logica asincrona operativa verso la control-plane
+     * @throws Exception Se la sintassi dell'URI non risulta valida o l'handshake del tunnel TLS fallisce
+     */
+    public static MqttClient configuraClientCloud(String brokerHost, String nomeLocale, SSLContext sslContext) throws Exception {
+
+        // Composizione formale del Client ID: tassativo che resti costante tra un riavvio e l'altro.
+        // Se il client cambiasse identificativo a ogni avvio, il broker (Mosquitto) sarebbe incapace di
+        // ricollegare il socket alla Durable Session orfana, scartando i messaggi accodati durante il blackout.
         String clientIdFisso = "Edge-" + nomeLocale;
+
+        // Composizione hardcoded dello schema e della porta standard per connessioni MQTT-S
+        String brokerCloudUrl = "ssl://" + brokerHost + ":8883";
 
         MqttConnectOptions connOpts = new MqttConnectOptions();
 
         /*
-         * CONFIGURAZIONE SESSIONE AVANZATA (Timothy - Fase 21)
+         * REGOLA DI INGEGNERIA N°1: DURABLE SESSION
+         * L'impostazione del flag a falso ordina al broker di conservare l'albero delle subscription e la
+         * coda dei messaggi Quality of Service 1/2 quando questo client va in timeout, preparandosi a riversarli
+         * istantaneamente al ripristino del tunnel.
          */
-
-        // setCleanSession(false) abilita la "Durable Session": il broker mantiene
-        // le sottoscrizioni e i messaggi QoS 1/2 anche se il client è offline.
         connOpts.setCleanSession(false);
 
-        // Riconnessione automatica gestita dal client Paho
+        /*
+         * REGOLA DI INGEGNERIA N°2: RESILIENZA E TCP/IP TUNING
+         * Dimensionamento proattivo dei timer TCP per consentire attraversamenti sicuri
+         * in reti inaffidabili o pesantemente sottoposte a NAT/Firewall cellulari (reti mobili 4G/5G).
+         */
+        connOpts.setConnectionTimeout(30);  // Intervallo di tolleranza all'handshake SYN-ACK (30s)
+        connOpts.setKeepAliveInterval(60); // Cadenza fisiologica dei ping MQTT per mantenere calda la sessione (60s)
+
+        // Attivazione dell'algoritmo intrinseco Paho per eseguire exponential backoff retry in autonomia
         connOpts.setAutomaticReconnect(true);
 
-        // Invia un pacchetto di controllo ogni 60 secondi per confermare che il server sia vivo
-        connOpts.setKeepAliveInterval(60);
-
-        // Tempo massimo di attesa per stabilire la connessione iniziale
-        connOpts.setConnectionTimeout(30);
-
         /*
-         * CONFIGURAZIONE SICUREZZA TLS (Ref: Stefano 20054330)
-         *
-         * applyTlsToOptions installa una PermissiveSSLSocketFactory direttamente
-         * su connOpts. Questo approccio funziona anche con "mvn exec:java" dove
-         * la JVM è condivisa con Maven e SSLContext.setDefault() viene ignorato.
+         * REGOLA DI INGEGNERIA N°3: CRITTOGRAFIA DI LIVELLO TRASPORTO (mTLS)
+         * Incorporazione del contesto di autenticazione asimmetrico: trasforma un payload clear-text
+         * in uno stream indecifrabile per attacchi di tipo Man In The Middle.
          */
-        String certsBasePath = "../BitPub-Security/certs";
-        try {
-            TlsUtility.applyTlsToOptions(connOpts, certsBasePath);
-            System.out.println("[EDGE-INFO] TLS Setup: SSLSocketFactory permissiva installata con successo.");
-        } catch (Exception e) {
-            System.err.println("[CRITICAL] Impossibile configurare TLS: " + e.getMessage());
-            throw e;
+        if (sslContext != null) {
+            connOpts.setSocketFactory(sslContext.getSocketFactory());
+            logger.info("[CLOUD MQTT] SSLSocketFactory iniettata correttamente per porta 8883.");
+        } else {
+            throw new IllegalStateException("SSLContext nullo: impossibile stabilire connessione sicura.");
         }
 
-        // MqttClient viene costruito DOPO aver configurato connOpts
+        // Allocazione dell'istanza client imponendo uno store logico temporaneo allocato esclusivamente in memoria RAM (MemoryPersistence)
         MqttClient cloudClient = new MqttClient(brokerCloudUrl, clientIdFisso, new MemoryPersistence());
 
+        // Innesco del processo di connessione sincronizzando la thread d'avvio col demone della JVM
+        logger.info("[CLOUD MQTT] Tentativo di connessione a {} (ID: {})", brokerCloudUrl, clientIdFisso);
         cloudClient.connect(connOpts);
 
-        System.out.println("[EDGE] Client Cloud pronto. ID: " + clientIdFisso + " (Durable Session e Auto-Reconnect attivi)");
+        logger.info("[CLOUD MQTT] Connessione stabilita con successo. Durable Session e mTLS attivi.");
 
         return cloudClient;
     }
