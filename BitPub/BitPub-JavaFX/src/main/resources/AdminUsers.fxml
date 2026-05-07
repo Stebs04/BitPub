@@ -43,7 +43,7 @@
             <Button fx:id="toggleRoleButton" disable="true" mnemonicParsing="false" onAction="#handleToggleRole" 
                     styleClass="button-primary" text="🔄 Cambia Ruolo" />
                     
-            <Button fx:id="toggleStatusButton" disable="true" mnemonicParsing="false" 
+            <Button fx:id="toggleStatusButton" disable="true" mnemonicParsing="false" onAction="#handleToggleStatus" 
                     style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold;" text="⛔ Blocca / Sblocca" />
          </children>
       </HBox>

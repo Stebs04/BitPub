@@ -157,6 +157,37 @@ public class AdminUsersController {
     }
 
     /**
+     * Inverte lo stato di attivazione (Attivo/Sospeso) dell'utente selezionato.
+     * Invia una richiesta PUT asincrona al server per persistere la modifica.
+     */
+    @FXML
+    public void handleToggleStatus() {
+        Utente selezionato = usersTable.getSelectionModel().getSelectedItem();
+        if (selezionato == null) return;
+
+        // URL-encoding dello username per gestire spazi e caratteri speciali nel path, usando un URLEncoder con UTF-8
+        String usernameEncoded = URLEncoder.encode(selezionato.getUsername(), StandardCharsets.UTF_8).replace("+", "%20");
+        String endpoint = restClient.getRootUrl().replace("/home", "") + "/users/" + usernameEncoded + "/toggle-status";
+
+        Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Vuoi cambiare lo stato di " + selezionato.getUsername() + "?");
+        conferma.showAndWait().ifPresent(btn -> {
+            if (btn == ButtonType.OK) {
+                restClient.putAsync(endpoint, null, JsonObject.class)
+                    .thenAccept(res -> {
+                        Platform.runLater(() -> {
+                            mostraAlert("Successo", "Stato aggiornato correttamente.", Alert.AlertType.INFORMATION);
+                            handleSearch(); 
+                        });
+                    })
+                    .exceptionally(ex -> {
+                        Platform.runLater(() -> mostraAlert("Errore", "Modifica fallita: " + ex.getMessage(), Alert.AlertType.ERROR));
+                        return null;
+                    });
+            }
+        });
+    }
+
+    /**
      * Isolatore architetturale per la deserializzazione di payload complessi.
      * Analizza l'albero JSON per supportare sia lo standard HAL (Hypertext Application Language)
      * utilizzato da Spring Data REST, sia strutture di paginazione classiche, 

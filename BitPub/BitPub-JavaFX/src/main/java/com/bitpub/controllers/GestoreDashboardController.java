@@ -112,8 +112,12 @@ public class GestoreDashboardController {
      */
     @FXML
     public void initialize() {
-        setupTables();
-        setupForm();
+        if (macchineTable != null) {
+            setupTables();
+        }
+        if (txtNomeTorneo != null) {
+            setupForm();
+        }
 
         pollingTimeline = new Timeline(new KeyFrame(Duration.seconds(10), event -> pollData()));
         pollingTimeline.setCycleCount(Animation.INDEFINITE);
@@ -124,11 +128,18 @@ public class GestoreDashboardController {
 
         // Listener che implementa il lazy loading delle statistiche, effettuando chiamate di rete
         // solo nel momento in cui l'operatore seleziona effettivamente la scheda dedicata
-        tabStatistiche.setOnSelectionChanged(event -> {
-            if (tabStatistiche.isSelected()) {
-                loadStatistics();
-            }
-        });
+        if (tabStatistiche != null) {
+            tabStatistiche.setOnSelectionChanged(event -> {
+                if (tabStatistiche.isSelected()) {
+                    loadStatistics();
+                }
+            });
+        }
+    }
+
+    @FXML
+    public void refreshStats() {
+        loadStatistics();
     }
 
     /**
