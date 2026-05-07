@@ -18,7 +18,7 @@
 
 <BorderPane prefHeight="768.0" prefWidth="1024.0" styleClass="root" stylesheets="@style.css" 
             xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
-            fx:controller="com.bitpub.controllers.FreccetteController">
+            fx:controller="com.bitpub.controllers.FreccetteDashboardController">
    
    <top>
       <HBox alignment="CENTER_LEFT" spacing="20.0" style="-fx-background-color: white; -fx-padding: 20 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 0, 0, 0, 5);">

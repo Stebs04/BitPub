@@ -103,6 +103,30 @@ public class Main extends Application {
     }
 
     /**
+     * Reindirizza l'utente alla dashboard corretta in base al suo ruolo
+     * dopo un login riuscito.
+     */
+    public static void redirectDopoLogin() {
+        String role = com.bitpub.network.SessionManager.getInstance().getUserRole();
+        if (role == null) {
+            navigaVerso("/LoginView.fxml", "BitPub - Login");
+            return;
+        }
+        
+        switch (role) {
+            case "ADMIN":
+                navigaVerso("/AdminDashboardView.fxml", "Generale");
+                break;
+            case "GESTORE":
+                navigaVerso("/GestoreDashboardView.fxml", "Generale");
+                break;
+            default:
+                navigaVerso("/DashboardView.fxml", "Generale");
+                break;
+        }
+    }
+
+    /**
      * Hook di teardown invocato dal sistema operativo in fase di chiusura del processo.
      * Agisce come punto di intercettazione per orchestrare lo spegnimento pulito (graceful shutdown)
      * dei task pendenti, delle allocazioni di rete o dei client broker persistenti.
