@@ -5,17 +5,22 @@ import com.bitpub.models.AuthRequest;
 import com.bitpub.models.AuthResponse;
 import com.bitpub.network.RestClient;
 import com.bitpub.network.SessionManager;
+import com.bitpub.network.RispostaHateoas;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
 /**
  * Controller per la gestione della vista di Login.
- * Si occupa dell'acquisizione delle credenziali utente e della comunicazione
- * asincrona con i servizi di autenticazione Cloud per l'ottenimento del token JWT.
+ * 
+ * Implementato secondo il paradigma "HATEOAS-driven": il controller agisce come un client 
+ * passivo che non possiede conoscenza statica degli endpoint di autenticazione, ma li 
+ * scopre dinamicamente interrogando il punto d'ingresso (Root) delle API.
+ * 
+ * Gestisce l'intero ciclo di vita dell'autenticazione, dalla validazione formale
+ * all'aggiornamento della sessione globale.
  *
- * @author Stefano Bellan 20054330
- * @since 2024
+ * @author Stefano Bellan
  */
 public class LoginController {
 
@@ -23,66 +28,82 @@ public class LoginController {
     @FXML private PasswordField passwordField;
     @FXML private Label erroreLabel;
 
+    /** Client HTTP per le operazioni di rete */
+    private final RestClient restClient = RestClient.getInstance();
+
     /**
-     * Gestisce la logica di autenticazione dell'utente.
-     * Recupera l'input, valida la presenza dei campi e inoltra la richiesta al server.
-     * In caso di successo, delega il reindirizzamento alla logica centralizzata del Main.
+     * Gestisce il processo di autenticazione dell'utente.
+     * 
+     * Il workflow segue tre fasi asincrone:
+     * 1. Discovery: recupero dei metadati dalla Root API.
+     * 2. Action: invio delle credenziali all'endpoint scoperto.
+     * 3. Sync: aggiornamento del SessionManager e switch della scena.
      */
     @FXML
     public void handleLogin() {
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        // Validazione formale dell'input per minimizzare le chiamate superflue al server
+        // --- VALIDAZIONE LOCALE (UI Thread) ---
         if (username.isEmpty() || password.isEmpty()) {
             erroreLabel.setText("Inserisci username e password.");
             return;
         }
 
-        // Feedback visivo immediato durante l'attesa della risposta dal Cloud
+        // Fornisce feedback visivo immediato per migliorare la UX durante l'attesa di rete
         erroreLabel.setText("Accesso in corso...");
 
-        // Incapsulamento dei dati di accesso nel DTO per la richiesta REST
-        AuthRequest request = new AuthRequest(username, password);
+        // --- FASE 1: DISCOVERY (Asincrona) ---
+        // Interroga la root per identificare dinamicamente l'URL del servizio di login
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+                .thenCompose(root -> {
+                    // Validazione ipermediale: verifica l'esistenza del link "login"
+                    if (root == null || root.getLinks() == null || !root.getLinks().containsKey("login")) {
+                        throw new RuntimeException("Metadati HATEOAS mancanti: link 'login' non trovato.");
+                    }
+                    
+                    // Estrazione URL ipermediale (es: /api/v1/auth/login)
+                    String loginUrl = root.getLinks().get("login").getHref();
 
-        // Chiamata asincrona POST per validare le credenziali tramite l'endpoint dedicato
-        RestClient.getInstance().faiChiamataPost("/api/v1/auth/login", request, AuthResponse.class)
-                .thenAccept(authResponse -> {
-                    Platform.runLater(() -> {
-                        // Se la risposta è valida e contiene un token
-                        if (authResponse != null && authResponse.getToken() != null) {
-
-                            // 1. Salviamo il token nel SessionManager
-                            SessionManager.getInstance().setJwtToken(authResponse.getToken());
-
-                            // ---> NUOVA RIGA DA AGGIUNGERE <---
-                            // Salviamo anche il ruolo dell'utente nel SessionManager!
-                            // (Nota: assumo che in AuthResponse e SessionManager i metodi si chiamino così)
-                            SessionManager.getInstance().setUserRole(authResponse.getRole());
-
-                            // 2. Deleghiamo il compito di capire quale pagina aprire al Main
-                            Main.redirectDopoLogin();
-
-                        } else {
-                            erroreLabel.setText("Credenziali non valide.");
-                        }
-                    });
+                    // --- FASE 2: AZIONE (POST) ---
+                    // Inoltra le credenziali all'indirizzo ottenuto dalla discovery
+                    AuthRequest request = new AuthRequest(username, password);
+                    return restClient.postAsync(loginUrl, request, AuthResponse.class);
                 })
-                .exceptionally(e -> {
-                    // Logging dell'eccezione per scopi di monitoraggio e diagnostica
-                    System.err.println("Errore critico durante il processo di login:");
-                    e.printStackTrace();
+                .thenAccept(authResponse -> {
+                    // --- FASE 3: ELABORAZIONE RISPOSTA ---
+                    if (authResponse != null && authResponse.getToken() != null) {
+                        
+                        // Persistenza dei dati di sessione (Token JWT e privilegi)
+                        SessionManager.getInstance().setJwtToken(authResponse.getToken());
+                        SessionManager.getInstance().setUserRole(authResponse.getRole());
+                        SessionManager.getInstance().setUsername(username);
 
-                    // Notifica all'utente in caso di indisponibilità dei servizi Cloud
+                        // --- UI UPDATE ---
+                        // Le modifiche allo Stage di JavaFX devono avvenire sul thread applicativo dedicato
+                        Platform.runLater(() -> Main.redirectDopoLogin());
+                        
+                    } else {
+                        // Gestione anomalie del payload di risposta (es. server non conforme)
+                        Platform.runLater(() -> erroreLabel.setText("Errore: risposta del server non valida."));
+                    }
+                })
+                .exceptionally(ex -> {
+                    // --- GESTIONE ERRORI (Worker Thread) ---
                     Platform.runLater(() -> {
-                        erroreLabel.setText("Impossibile contattare il server.");
+                        // Log tecnico su console per il debug
+                        System.err.println("[LOGIN REFACTOR] Errore durante il processo: " + ex.getMessage());
+                        
+                        // Messaggio semplificato per l'utente finale.
+                        // I codici HTTP specifici (es. 401) sono intercettati a monte dal RestClient.
+                        erroreLabel.setText("Impossibile accedere: credenziali errate o server offline.");
                     });
                     return null;
                 });
     }
 
     /**
-     * Gestisce la navigazione verso la schermata di creazione di un nuovo account utente.
+     * Reindirizza l'utente alla schermata di creazione di un nuovo account.
      */
     @FXML
     private void vaiARegistrazione() {
