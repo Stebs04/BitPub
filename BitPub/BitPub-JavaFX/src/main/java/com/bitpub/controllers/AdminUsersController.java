@@ -13,6 +13,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -89,7 +91,7 @@ public class AdminUsersController {
                 
                 // Sanitizzazione e accodamento del parametro di ricerca se l'utente ha inserito un filtro
                 if (!query.isEmpty()) {
-                    usersUrl += "?search=" + query.replace(" ", "%20");
+                    usersUrl += "?search=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
                 }
                 
                 // Avvio della richiesta effettiva verso la risorsa identificata

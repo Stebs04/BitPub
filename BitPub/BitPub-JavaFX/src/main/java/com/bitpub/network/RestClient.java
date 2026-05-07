@@ -34,12 +34,7 @@ public class RestClient {
                 .version(HttpClient.Version.HTTP_2)
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
-        this.gson = new GsonBuilder()
-                    .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>) (src, typeOfSrc, context) -> 
-                new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE)))
-            .registerTypeAdapter(LocalDate.class, (JsonDeserializer<LocalDate>) (json, typeOfT, context) -> 
-                LocalDate.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE))
-            .create();
+        this.gson = com.bitpub.utils.JsonManager.getGson();
     }
 
     public static RestClient getInstance() {
@@ -58,6 +53,10 @@ public class RestClient {
      */
     public String getRootUrl() {
         return ROOT_URL;
+    }
+
+    public Gson getGson() {
+        return gson;
     }
 
     // =========================================================================
