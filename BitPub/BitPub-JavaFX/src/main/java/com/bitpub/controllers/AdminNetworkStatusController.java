@@ -2,6 +2,10 @@ package com.bitpub.controllers;
 
 import com.bitpub.models.EdgeStatus;
 import com.bitpub.network.RestClient;
+import com.bitpub.network.RispostaHateoas;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -13,135 +17,154 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.util.Duration;
 
 import java.util.Arrays;
 
 /**
- * Controller per la visualizzazione dello stato della rete degli Edge Nodes nel pannello Admin.
- * Gestisce la generazione dinamica di componenti grafiche (Card) all'interno di un FlowPane
- * per monitorare la connettività in tempo reale delle sedi remote.
+ * Controller dedicato al monitoraggio dello stato di salute della rete degli Edge Nodes 
+ * distribuiti nei vari locali fisici.
+ * L'implementazione segue l'architettura di un client passivo: l'interfaccia non possiede
+ * rotte cablate ma naviga l'albero delle risorse HATEOAS per recuperare dinamicamente 
+ * le informazioni di stato. La generazione dell'interfaccia utente è flessibile e si modella 
+ * sui dati ricevuti, mantenendo un aggiornamento continuo tramite un meccanismo di polling 
+ * non bloccante.
  *
  * @author Stefano Bellan 20054330
- * @since 2024
  */
 public class AdminNetworkStatusController {
 
-    /** Contenitore FXML per la disposizione fluida delle card dei locali. */
-    @FXML
-    private FlowPane venuesContainer;
+    // Contenitore fluido responsabile del layout dinamico delle schede dei locali
+    @FXML private FlowPane venuesContainer;
+    
+    // Comando per forzare manualmente la sincronizzazione dello stato di rete
+    @FXML private Button refreshButton;
 
-    /** Pulsante per l'aggiornamento manuale dei dati di rete. */
-    @FXML
-    private Button refreshButton;
+    // Client HTTP per l'orchestrazione delle chiamate asincrone e la navigazione ipermediale
+    private final RestClient restClient = RestClient.getInstance();
+    
+    // Gestore del ciclo temporale per il polling dei dati di monitoraggio
+    private Timeline networkPollingTimeline;
 
     /**
-     * Inizializzazione automatica della vista.
-     * Esegue il primo caricamento dei dati all'apertura della schermata.
+     * Hook di inizializzazione invocato dal framework JavaFX alla costruzione della scena.
+     * Instanzia il ciclo temporale delegando l'infrastruttura di animazione di JavaFX
+     * per eseguire un aggiornamento automatico ogni 30 secondi, forzando contemporaneamente
+     * la prima estrazione dei dati per un feedback immediato.
      */
     @FXML
     public void initialize() {
+        // Configurazione del timer reattivo ancorato al thread grafico per aggiornamenti sicuri
+        networkPollingTimeline = new Timeline(new KeyFrame(Duration.seconds(30), event -> handleRefresh()));
+        networkPollingTimeline.setCycleCount(Animation.INDEFINITE);
+        networkPollingTimeline.play();
+
+        // Innesco esplicito della prima transazione HTTP per popolare la dashboard
         handleRefresh();
     }
 
     /**
-     * Recupera lo stato degli Edge Nodes interrogando le API Cloud tramite RestClient.
-     * Implementa una gestione asincrona per non bloccare il thread principale della UI.
+     * Coordina il flusso asincrono di recupero dello stato della rete.
+     * Applica un vincolo temporaneo sull'interazione dell'operatore, esegue la discovery
+     * dell'endpoint di monitoraggio partendo dalla root dell'API, processa la risposta
+     * e orchestra la rigenerazione completa delle card informative all'interno del DOM.
      */
     @FXML
     public void handleRefresh() {
-        // Disabilitazione temporanea del tasto per prevenire condizioni di race o spam di richieste
-        refreshButton.setDisable(true);
+        // Inibizione preventiva del controllo di ricarica per prevenire accodamenti di richieste concorrenti
+        Platform.runLater(() -> refreshButton.setDisable(true));
 
-        // Chiamata GET centralizzata con gestione dei JWT e della versione API
-        RestClient.getInstance().faiChiamataGet("/api/v1/system/network-status", EdgeStatus[].class)
-                .thenAccept(statusArray -> {
+        // Avvio della catena di promesse interrogando l'entry point predefinito dell'architettura
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+            .thenCompose(root -> {
+                // Valida l'esistenza del link operativo richiesto prima di tentare la risoluzione
+                if (!root.getLinks().containsKey("network-status")) {
+                    throw new RuntimeException("Link 'network-status' non trovato nella Root.");
+                }
+                String networkUrl = root.getLinks().get("network-status").getHref();
+                
+                // Redirezione della richiesta asincrona verso il percorso operativo scoperto
+                return restClient.getAsync(networkUrl, EdgeStatus[].class);
+            })
+            .thenAccept(statusArray -> {
+                // Sincronizzazione delle manipolazioni strutturali sul JavaFX Application Thread
+                Platform.runLater(() -> {
+                    // Reset strutturale del contenitore prima del nuovo inserimento
+                    venuesContainer.getChildren().clear();
                     if (statusArray != null) {
-                        // Sincronizzazione con il thread grafico di JavaFX per l'aggiornamento visivo
-                        Platform.runLater(() -> {
-                            visualizzaLocali(statusArray);
-                            refreshButton.setDisable(false);
-                        });
+                        for (EdgeStatus status : statusArray) {
+                            venuesContainer.getChildren().add(createVenueCard(status));
+                        }
                     }
-                })
-                .exceptionally(ex -> {
-                    // Gestione degli errori di comunicazione e ripristino dell'interazione UI
-                    Platform.runLater(() -> {
-                        System.err.println("Errore nel recupero dello stato rete: " + ex.getMessage());
-                        refreshButton.setDisable(false);
-                    });
-                    return null;
+                    // Ripristino della disponibilità operativa al completamento del rendering
+                    refreshButton.setDisable(false);
                 });
+            })
+            .exceptionally(ex -> {
+                // Intercettazione globale delle eccezioni di rete e ripristino sicuro dello stato interattivo
+                Platform.runLater(() -> {
+                    refreshButton.setDisable(false);
+                    System.err.println("[NetworkStatus] Errore: " + ex.getMessage());
+                });
+                return null;
+            });
     }
 
     /**
-     * Aggiorna graficamente il contenitore inserendo le nuove card generate.
+     * Genera a runtime un componente grafico isolato per la rappresentazione sintetica
+     * dello stato di operatività di un singolo locale periferico.
+     * Configura il layout, applica le regole stilistiche in linea e inietta i marcatori cromatici
+     * in base alla raggiungibilità del nodo.
      *
-     * @param statuses Array di oggetti {@link EdgeStatus} recuperati dal server.
+     * @param status Il DTO contenente le metriche aggiornate dell'Edge Node
+     * @return Una struttura VBox incapsulata pronta per essere agganciata al parent layout
      */
-    private void visualizzaLocali(EdgeStatus[] statuses) {
-        // Reset del contenitore per eliminare le card della sessione precedente
-        venuesContainer.getChildren().clear();
-
-        for (EdgeStatus status : statuses) {
-            // Generazione programmatica e aggiunta della singola card
-            VBox card = creaCardLocale(status);
-            venuesContainer.getChildren().add(card);
-        }
-    }
-
-    /**
-     * Crea un componente grafico personalizzato (Card) per rappresentare una sede.
-     * Implementa stili CSS inline per definire l'estetica e gli indicatori cromatici di stato.
-     *
-     * @param status I metadati della sede (nome, id, stato, timestamp).
-     * @return Un contenitore {@link VBox} formattato come card visiva.
-     */
-    private VBox creaCardLocale(EdgeStatus status) {
+    private VBox createVenueCard(EdgeStatus status) {
+        // Inizializzazione e parametrizzazione spaziale della struttura principale
         VBox card = new VBox(10);
-        card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(15));
-        card.setPrefWidth(220);
+        card.setAlignment(Pos.CENTER);
+        card.setPrefWidth(200);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 10; " +
+                     "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);");
 
-        // Applicazione di effetti grafici: bordi arrotondati e ombreggiatura (DropShadow)
-        card.setStyle("-fx-background-color: white; " +
-                "-fx-background-radius: 10; " +
-                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);");
-
-        // Titolo della card: Nome della sede
+        // Composizione testuale per l'identificazione del nodo
         Label nameLabel = new Label(status.getVenueName());
-        nameLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        // Identificativo tecnico della sede
-        Label idLabel = new Label("ID: " + status.getVenueId());
-        idLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
+        // Raggruppamento orizzontale per affiancare il marcatore semaforico e l'etichetta testuale
+        HBox statusIndicator = new HBox(8);
+        statusIndicator.setAlignment(Pos.CENTER);
+        Circle dot = new Circle(5);
+        Label statusText = new Label(status.getStatus());
 
-        // Layout per l'indicatore di connettività
-        HBox statusBox = new HBox(8);
-        statusBox.setAlignment(Pos.CENTER);
-
-        // Definizione dell'indicatore circolare (Status Dot)
-        Circle statusDot = new Circle(6);
-        Label statusText = new Label(status.getStatus().toUpperCase());
-        statusText.setStyle("-fx-font-weight: bold;");
-
-        // Logica condizionale per la codifica cromatica (Verde = Online, Rosso = Offline)
+        // Traduzione visiva dello stato di connessione
         if ("ONLINE".equalsIgnoreCase(status.getStatus())) {
-            statusDot.setFill(Color.web("#2ecc71"));
-            statusText.setTextFill(Color.web("#2ecc71"));
+            dot.setFill(Color.GREEN);
+            statusText.setTextFill(Color.GREEN);
         } else {
-            statusDot.setFill(Color.web("#e74c3c"));
-            statusText.setTextFill(Color.web("#e74c3c"));
+            dot.setFill(Color.RED);
+            statusText.setTextFill(Color.RED);
         }
 
-        statusBox.getChildren().addAll(statusDot, statusText);
-
-        // Metadati relativi all'ultima marca temporale di contatto (Last Seen)
+        statusIndicator.getChildren().addAll(dot, statusText);
+        
+        // Esposizione del timestamp dell'ultimo battito di cuore (heartbeat) rilevato dal cloud
         Label lastSeen = new Label("Visto: " + status.getLastSeen());
-        lastSeen.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
+        lastSeen.setStyle("-fx-font-size: 10px; -fx-text-fill: #7f8c8d;");
 
-        // Assemblaggio finale dei componenti all'interno della card
-        card.getChildren().addAll(nameLabel, idLabel, statusBox, lastSeen);
-
+        card.getChildren().addAll(nameLabel, statusIndicator, lastSeen);
         return card;
+    }
+
+    /**
+     * Disconnette permanentemente il meccanismo di monitoraggio automatico.
+     * Questa chiamata risulta cruciale durante lo smontaggio della vista per evitare 
+     * l'esecuzione latente di query HTTP orfane e prevenire perdite di memoria.
+     */
+    public void stopPolling() {
+        if (networkPollingTimeline != null) {
+            networkPollingTimeline.stop();
+        }
     }
 }

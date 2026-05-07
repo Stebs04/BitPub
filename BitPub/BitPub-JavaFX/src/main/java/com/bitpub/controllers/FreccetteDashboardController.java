@@ -3,108 +3,108 @@ package com.bitpub.controllers;
 import com.bitpub.models.PartitaFreccette;
 import com.bitpub.models.StatisticheFreccette;
 import com.bitpub.network.RestClient;
+import com.bitpub.network.RispostaHateoas;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
 
 /**
- * Controller per la Dashboard Freccette - Progetto BitPub.
- * Implementa le logiche di networking asincrono, gestione link HATEOAS
- * e visualizzazione statistiche aggregate.
- * Gestisce rigorosamente il rinfresco della UI tramite il JavaFX Application Thread.
+ * Controller per la Dashboard Freccette del progetto BitPub.
+ * Responsabile della gestione dell'interfaccia utente per il monitoraggio
+ * delle partite e delle statistiche associate al gioco delle freccette.
+ *
+ * Implementa un'architettura a client passivo, demandando la scoperta degli 
+ * endpoint operativi al paradigma HATEOAS esposto dal backend. Tutte le
+ * modifiche all'interfaccia utente sono confinate all'Application Thread
+ * di JavaFX per garantire la stabilità grafica.
  *
  * @author Timothy Giolito
  */
 public class FreccetteDashboardController {
 
-    // --- Costanti di Configurazione ---
-    // Estrarre questi valori evita stringhe "magiche" sparse nel codice e centralizza le modifiche.
-    private static final String API_ENDPOINT_STATISTICHE = "/statistiche/freccette";
+    // Placeholder testuali per la gestione degli stati di transizione dell'interfaccia.
     private static final String TESTO_CARICAMENTO = "...";
     private static final String TESTO_ERRORE = "N/D";
-    private static final int PUNTEGGIO_INIZIALE = 501;
 
-    // --- Componenti dell'interfaccia collegate tramite FXML ---
     @FXML public TableView<PartitaFreccette> tabellaPartite;
     @FXML public Button bottoneAggiorna;
     @FXML public Label statoLabel;
     
     @FXML public Label lblGiocatore1;
     @FXML public Label lblPunteggio1;
-    @FXML public ProgressBar progressGiocatore1;
-
+    
     @FXML public Label labelTotale180;
     @FXML public Label labelMediaPunti;
 
-    // Servizio REST per le chiamate HTTP
-    private final RestClient restClient;
+    // Istanza unica del client REST per le comunicazioni HTTP col backend.
+    private final RestClient restClient = RestClient.getInstance();
 
     /**
-     * Costruttore del controller. 
-     * Inizializza i servizi necessari prima del caricamento della vista.
-     */
-    public FreccetteDashboardController() {
-        this.restClient = RestClient.getInstance();
-    }
-
-    /**
-     * Metodo di inizializzazione richiamato automaticamente da JavaFX.
-     * Prepara lo stato iniziale della UI.
+     * Inizializzazione del controller invocata automaticamente da JavaFX.
+     * Avvia immediatamente il processo asincrono di caricamento dati.
      */
     @FXML
     public void initialize() {
-        resetUI();
-        caricaStatisticheFreccette();
+        aggiornaStatistiche();
     }
 
     /**
-     * Imposta la UI allo stato iniziale per prepararsi a una nuova partita o caricamento.
-     */
-    private void resetUI() {
-        lblPunteggio1.setText(String.valueOf(PUNTEGGIO_INIZIALE));
-        progressGiocatore1.setProgress(1.0);
-        statoLabel.setText("Pronto.");
-    }
-
-    /**
-     * Esegue una chiamata asincrona per recuperare le statistiche aggiornate dal server.
-     * Garantisce la sicurezza dei thread durante l'aggiornamento dei nodi grafici.
+     * Avvia la sequenza di aggiornamento dei dati statistici dalla rete.
+     * Mette in sicurezza i componenti visivi prima della chiamata asincrona,
+     * sfrutta il discovery HATEOAS per recuperare la risorsa esatta, e gestisce
+     * il rilascio dei nuovi valori (o degli errori) sul thread principale UI.
      */
     @FXML
-    public void caricaStatisticheFreccette() {
-        // Messa in sicurezza: Platform.runLater assicura che modifichiamo i nodi 
-        // grafici ESCLUSIVAMENTE dal JavaFX Application Thread, evitando eccezioni.
+    public void aggiornaStatistiche() {
+        // Prepara l'interfaccia per mostrare all'utente che un caricamento è in corso, 
+        // inibendo ulteriori interazioni concorrenti sul bottone.
         Platform.runLater(() -> {
+            statoLabel.setText("Ricerca statistiche in corso...");
             labelTotale180.setText(TESTO_CARICAMENTO);
             labelMediaPunti.setText(TESTO_CARICAMENTO);
-            statoLabel.setText("Recupero dati dal server in corso...");
-            bottoneAggiorna.setDisable(true); // Previene chiamate multiple involontarie
+            bottoneAggiorna.setDisable(true); 
         });
 
-        // Esecuzione chiamata di rete su un thread asincrono separato
-        restClient.faiChiamataGet(API_ENDPOINT_STATISTICHE, StatisticheFreccette.class)
+        // Avvia la catena di discovery asincrona partendo dalla root dell'API.
+        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
+                .thenCompose(root -> {
+                    // Controlla la presenza effettiva del link richiesto prima di tentare l'accesso.
+                    if (root == null || root.getLinks() == null || !root.getLinks().containsKey("freccette-stats")) {
+                        throw new RuntimeException("Endpoint freccette non disponibile nella Root HATEOAS.");
+                    }
+                    
+                    String statsUrl = root.getLinks().get("freccette-stats").getHref();
+                    
+                    // Concatena la chiamata effettiva verso la risorsa statistica identificata.
+                    return restClient.getAsync(statsUrl, StatisticheFreccette.class);
+                })
                 .thenAccept(statistiche -> {
-                    // Riversamento risultati dal thread di rete al thread grafico
+                    // Elabora la risposta positiva allineando i dati sul thread UI di JavaFX.
                     Platform.runLater(() -> {
-                        labelTotale180.setText(String.valueOf(statistiche.getTotale180()));
-                        // Formattazione a due decimali per una lettura più pulita
-                        labelMediaPunti.setText(String.format("%.2f", statistiche.getMediaPuntiTorneo()));
-                        statoLabel.setText("Dati aggiornati con successo.");
+                        if (statistiche != null) {
+                            labelTotale180.setText(String.valueOf(statistiche.getTotale180()));
+                            // Applica una formattazione a due decimali per mantenere l'interfaccia ordinata.
+                            labelMediaPunti.setText(String.format("%.2f", statistiche.getMediaPuntiTorneo()));
+                            statoLabel.setText("Dati aggiornati con successo.");
+                        } else {
+                            statoLabel.setText("Nessun dato statistico disponibile.");
+                        }
                         bottoneAggiorna.setDisable(false);
                     });
                 })
                 .exceptionally(errore -> {
-                    // Controllo integrità per evitare crash. Notifichiamo l'utente dell'errore.
+                    // Gestisce i fallimenti a qualsiasi livello della catena (discovery o fetch dati),
+                    // notificando l'utente e ripristinando lo stato interattivo.
                     Platform.runLater(() -> {
                         labelTotale180.setText(TESTO_ERRORE);
                         labelMediaPunti.setText(TESTO_ERRORE);
                         statoLabel.setText("Errore di rete: impossibile recuperare le statistiche.");
                         bottoneAggiorna.setDisable(false);
+                        System.err.println("[FreccetteDashboard] " + errore.getMessage());
                     });
-                    return null; // Necessario per la firma di exceptionally
+                    return null; 
                 });
     }
 }
