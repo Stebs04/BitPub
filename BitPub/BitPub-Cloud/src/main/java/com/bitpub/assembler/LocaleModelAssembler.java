@@ -1,7 +1,7 @@
 package com.bitpub.assembler;
 
 import com.bitpub.controllers.LocaleController;
-import com.bitpub.models.Locale;
+import com.bitpub.dto.LocaleDTO;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
 import org.springframework.stereotype.Component;
@@ -10,40 +10,40 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
- * Assembler dedicato alla risorsa {@link Locale}.
- * <p>
- * Trasforma il dominio {@link Locale} in un modello ipertestuale, 
- * facilitando la navigazione verso le risorse correlate, come i dispositivi 
- * associati al punto vendita o alla sala.
- * </p>
+ * Componente d'assemblaggio HATEOAS preposto all'incapsulamento della risorsa Locale
+ * Disaccoppiando l'Entity fisica attraverso l'utilizzo di LocaleDTO, la classe espone un payload
+ * ripulito e arricchito con marcatori di navigazione. Questi puntatori ipermediali sollevano
+ * i client dall'onere di conoscere a priori la mappatura delle dipendenze (es. i dispositivi
+ * installati in sede), promuovendo un'architettura API autodescrittiva e altamente navigabile.
+ *
  * @author Stefano Bellan 20054330
  */
 @Component
-public class LocaleModelAssembler implements RepresentationModelAssembler<Locale, EntityModel<Locale>> {
+public class LocaleModelAssembler implements RepresentationModelAssembler<LocaleDTO, EntityModel<LocaleDTO>> {
 
     /**
-     * Mappa l'entità Locale in un {@link EntityModel} arricchito.
-     * <p>
-     * Oltre al link di autodescrizione (self), viene fornito il link relazionale 
-     * "dispositivi" per permettere al client di scoprire gli apparati hardware 
-     * collegati a questo specifico locale.
-     * </p>
+     * Applica la trasformazione dal Data Transfer Object a un nodo HATEOAS navigabile [cite:23].
+     * Anziché esporre un oggetto statico, fornisce alla controparte un grafo relazionale
+     * pronto per la discovery automatica delle risorse figlie.
      *
-     * @param locale L'istanza dell'entità di dominio.
-     * @return EntityModel contenente i dati e i link di navigazione.
+     * @param localeDto La rappresentazione decontestualizzata della sede fisica
+     * @return Una struttura Spring EntityModel confezionata con i link di riferimento
      */
     @Override
-    public EntityModel<Locale> toModel(Locale locale) {
-        // Estrazione dell'identificativo per il binding dei link
-        Long id = locale.getId();
+    public EntityModel<LocaleDTO> toModel(LocaleDTO localeDto) {
+        Long id = localeDto.getId();
 
         /*
-         * Costruzione del modello:
-         * - self: Punta al dettaglio della risorsa corrente.
-         * - dispositivi: Punto di accesso alla sotto-risorsa (One-to-Many).
+         * COSTRUZIONE DELL'INVOLUCRO IPERTESTUALE
+         * Utilizza la factory statica WebMvcLinkBuilder per mappare retrospettivamente
+         * i metodi del controller sui percorsi fisici generati dal dispatcher HTTP.
          */
-        return EntityModel.of(locale,
-                linkTo(methodOn(LocaleController.class).getById(id)).withSelfRel(),
+        return EntityModel.of(localeDto,
+                // Relazione identitaria (Self) per ricaricare la singola istanza
+                linkTo(methodOn(LocaleController.class).getLocaleById(id)).withSelfRel(),
+
+                // Relazione di scoperta (Discovery) per l'attraversamento della collezione
+                // One-To-Many, guidando i client verso la mappa hardware censita in questa sede
                 linkTo(methodOn(LocaleController.class).getDispositiviLocale(id)).withRel("dispositivi")
         );
     }

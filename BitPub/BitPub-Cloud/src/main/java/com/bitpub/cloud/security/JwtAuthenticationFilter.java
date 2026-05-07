@@ -17,10 +17,11 @@ import java.util.Collections;
 
 /**
  * Filtro custom per l'autenticazione stateless basata su JWT.
- * Intercetta le richieste e valida il token presente nell'header Authorization.
+ * Intercetta ogni richiesta e valida il token nell'header Authorization.
+ * Estende OncePerRequestFilter per garantire l'esecuzione una sola volta per richiesta.
  *
  * @author BitPub Team
- * @version 1.0
+ * @version 1.1
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -29,16 +30,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         final String authorizationHeader = request.getHeader("Authorization");
 
         String username = null;
         String jwt = null;
         String role = null;
 
-        // Estrai il token JWT dall'header
+        // Estrai e valida il token JWT dall'header Authorization
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
             try {
@@ -47,20 +50,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     role = jwtUtil.extractRole(jwt);
                 }
             } catch (Exception e) {
-                // Token non valido o scaduto
+                // Token non valido o scaduto: il filtro prosegue senza autenticare
+                logger.warn("JWT non valido o scaduto: " + e.getMessage());
             }
         }
 
-        // Se l'utente è valido e non è già autenticato nel contesto di Spring Security
+        // Imposta l'autenticazione nel SecurityContext solo se il token è valido
+        // e l'utente non è già autenticato nella richiesta corrente (stateless: niente sessione)
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            
-            // Creiamo un token di autenticazione di Spring Security
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                    username, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
-            
-            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            
-            // Impostiamo l'autenticazione nel contesto di sicurezza
+
+            UsernamePasswordAuthenticationToken authenticationToken =
+                    new UsernamePasswordAuthenticationToken(
+                            username,
+                            null,
+                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                    );
+
+            authenticationToken.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+            );
+
+            // Il contesto viene popolato per questa richiesta soltanto;
+            // nessuna sessione HTTP viene creata (SessionCreationPolicy.STATELESS).
             SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         }
 
