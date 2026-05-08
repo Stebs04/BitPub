@@ -1,164 +1,66 @@
 package com.bitpub;
 
-import com.bitpub.utils.MqttFreccetteTopics;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 
 /**
- * Simulatore software di un bersaglio per il gioco delle freccette.
- * <p>
- * Questa classe implementa l'interfaccia {@link Runnable} per permettere l'esecuzione
- * parallela di più simulatori. Simula una partita standard "501", calcolando i punteggi
- * e inviando gli aggiornamenti in tempo reale tramite il protocollo MQTT.
- * </p>
- * @author Timothy Giolito 20054431
+ * Simulatore software puro per le Freccette.
+ * Genera un singolo step (lancio) di una partita ogni volta che viene eseguito.
  */
 public class SimFreccette implements Runnable {
 
-    private String idLocale;
-    private String idDispositivo;
-    private String brokerIp;
-    private int punteggio;
-    private Random random;
+    private final String idLocale;
+    private final String idDispositivo;
+    private final Random random;
 
-    /**
-     * Crea una nuova istanza del simulatore per un bersaglio specifico.
-     *
-     * @param idLocale Identificativo del locale in cui si trova il dispositivo.
-     * @param idDispositivo Nome univoco del bersaglio (es. "Bersaglio_01").
-     * @param brokerIp Indirizzo IP del server MQTT (Broker) a cui inviare i dati.
-     */
-    public SimFreccette(String idLocale, String idDispositivo, String brokerIp) {
+    // Ecco la nostra coda
+    private final BlockingQueue<Object> codaEventi;
+
+    // Lo stato del gioco viene salvato qui
+    private int punteggio;
+
+    // CORREZIONE 1: Aggiunto BlockingQueue<Object> codaEventi ai parametri!
+    public SimFreccette(String idLocale, String idDispositivo, BlockingQueue<Object> codaEventi) {
         this.idLocale = idLocale;
         this.idDispositivo = idDispositivo;
-        this.brokerIp = brokerIp;
-        this.punteggio = 501;
+        this.codaEventi = codaEventi; // Ora questo assegnamento funziona
         this.random = new Random();
+        this.punteggio = 501;
     }
 
-    /**
-     * Logica principale della simulazione:
-     * <p>
-     * Il metodo esegue le seguenti operazioni:
-     * 1. Si connette al broker MQTT.
-     * 2. Entra in un ciclo in cui simula il lancio di 3 freccette ogni 5 secondi.
-     * 3. Calcola il nuovo punteggio gestendo i casi di vittoria (0) o "Bust" (punteggio negativo).
-     * 4. Pubblica i dati sui topic corretti.
-     * 5. Si disconnette al termine della partita.
-     * </p>
-     */
     @Override
     public void run() {
-        // L'indirizzo "tcp://" indica una connessione non criptata (Senza TLS)
-        String brokerUrl = "tcp://" + brokerIp + ":1883";
-        MqttClient mqttClient = null;
-
-        try {
-            // 1. Connessione al broker Edge tramite Eclipse Paho
-            mqttClient = new MqttClient(brokerUrl, MqttClient.generateClientId(), new MemoryPersistence());
-            MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);
-
-            System.out.println("SimFreccette [" + idDispositivo + "] in connessione a " + brokerUrl);
-            mqttClient.connect(connOpts);
-            System.out.println("SimFreccette [" + idDispositivo + "] Connesso!");
-
-            // Invia evento di inizio partita
-            pubblicaEvento(mqttClient, "Inizio Partita (501)");
-
-            // 2. Ciclo di gioco principale
-            while (punteggio > 0) {
-                // Aspettiamo 2 secondi per simulare il tempo del lancio
-                Thread.sleep(2000);
-
-                // Generiamo un punteggio realistico per un lancio (es. da 0 a 60, il massimo con un triplo 20)
-                int puntiLancio = random.nextInt(61);
-                System.out.println("[" + idDispositivo + "] Freccetta lanciata! Punti: " + puntiLancio);
-
-                // 3. Logica del gioco: Busto, Bullseye o Lancio Normale
-                if (puntiLancio == 50) {
-                    pubblicaEvento(mqttClient, "Bullseye!");
-                    punteggio -= puntiLancio;
-                }
-                else if (punteggio - puntiLancio < 0 || punteggio - puntiLancio == 1) {
-                    // Se va sotto zero o rimane a 1 (non posso chiudere con un doppio)
-                    pubblicaEvento(mqttClient, "Busto! Lancio annullato.");
-                    // Il punteggio ritorna a quello di inizio turno.
-                }
-                else {
-                    // Lancio normale
-                    punteggio -= puntiLancio;
-                }
-
-                // 4. Pubblica il punteggio aggiornato
-                pubblicaScore(mqttClient);
-            }
-
-            // Fine partita
-            pubblicaEvento(mqttClient, "Partita Terminata! Vittoria.");
-            System.out.println("SimFreccette [" + idDispositivo + "] Partita Conclusa.");
-
-            // Disconnessione pulita
-            mqttClient.disconnect();
-
-        } catch (MqttException | InterruptedException e) {
-            System.out.println("Errore nel simulatore freccette: " + e.getMessage());
-            e.printStackTrace();
+        // Se la partita precedente è finita, ne iniziamo una nuova in automatico
+        if (punteggio <= 0) {
+            punteggio = 501;
+            System.out.println("\n[SimFreccette " + idDispositivo + "] --- NUOVA PARTITA 501 INIZIATA ---");
         }
-    }
 
-    // --- METODI DI SUPPORTO PER LA PUBBLICAZIONE MQTT ---
+        // Generiamo i punti del singolo lancio
+        int puntiLancio = random.nextInt(61);
+        String tipoEvento = "LANCIO_NORMALE";
 
-    /**
-     * Invia il punteggio corrente al broker MQTT.
-     * <p>
-     * Utilizza la utility {@link MqttFreccetteTopics} per determinare il topic corretto
-     * in base al locale e al dispositivo.
-     * </p>
-     *
-     * @param client Il client MQTT attivo da utilizzare per la pubblicazione.
-     * @throws MqttException In caso di problemi di comunicazione con il broker.
-     */
-    private void pubblicaScore(MqttClient client) throws MqttException {
-        // Recuperiamo il topic usando la TUA classe Utility!
-        String topic = MqttFreccetteTopics.getScoreTopic(idLocale, idDispositivo);
+        // Logica del gioco
+        if (puntiLancio == 50) {
+            tipoEvento = "BULLSEYE";
+            punteggio -= puntiLancio;
+        } else if (punteggio - puntiLancio < 0 || punteggio - puntiLancio == 1) {
+            tipoEvento = "BUSTO";
+            // In caso di busto il punteggio non scende
+        } else {
+            punteggio -= puntiLancio;
+        }
 
-        // Creiamo un semplice JSON manuale (potrai sostituirlo con il tuo JsonManager)
-        String payload = "{ \"punteggioRimasto\": " + punteggio + " }";
+        if (punteggio == 0) {
+            tipoEvento = "VITTORIA";
+        }
 
-        inviaMessaggioMqtt(client, topic, payload);
-    }
+        // Creiamo l'oggetto Dati
+        EventoFreccette evento = new EventoFreccette(tipoEvento, puntiLancio, punteggio);
 
-    /**
-     * Invia la notifica di un evento di gioco (es. Vittoria o Sballo).
-     *
-     * @param client Il client MQTT attivo.
-     * @param tipoEvento Stringa che descrive l'evento (es. "WIN", "BUST").
-     * @throws MqttException In caso di errore MQTT.
-     */
-    private void pubblicaEvento(MqttClient client, String tipoEvento) throws MqttException {
-        String topic = MqttFreccetteTopics.getEventiTopic(idLocale, idDispositivo);
-        String payload = "{ \"evento\": \"" + tipoEvento + "\" }";
+        // CORREZIONE 2: Inseriamo 'evento' nella coda, non 'partitaCorrente'
+        codaEventi.offer(evento);
 
-        inviaMessaggioMqtt(client, topic, payload);
-    }
-
-    /**
-     * Metodo di utilità interno per l'invio fisico del messaggio MQTT.
-     *
-     * @param client Il client MQTT.
-     * @param topic Il canale su cui pubblicare.
-     * @param payload Il contenuto del messaggio (formato JSON).
-     * @throws MqttException Se l'invio fallisce.
-     */
-    private void inviaMessaggioMqtt(MqttClient client, String topic, String payload) throws MqttException {
-        MqttMessage message = new MqttMessage(payload.getBytes());
-        message.setQos(1); // QoS 1: Assicura che il messaggio venga consegnato almeno una volta
-        // client.publish(topic, message); // Muted Simulator
+        System.out.println("[SimFreccette " + idDispositivo + "] " + tipoEvento + "! Lancio: " + puntiLancio + " | Rimanenti: " + punteggio);
     }
 }
