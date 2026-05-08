@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.bitpub.models.Partita;
 import java.lang.reflect.Type;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -14,14 +15,25 @@ public class JsonManager {
     private static JsonManager instance;
     private final Gson gson;
 
-    // Formattatore standard ISO (es: 2026-05-03) per compatibilità con Spring Boot
+    // Formattatore standard ISO (es: 2026-05-03)
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
 
     private JsonManager() {
         this.gson = new GsonBuilder()
-                // 1. RIMOSSO excludeFieldsWithoutExposeAnnotation per inviare tutti i dati del Torneo
-
-                // 2. ADAPTER PER LOCALDATE: Gestisce la scrittura (serialize) e lettura (deserialize) delle date
+                // 1. TRADUTTORI PER LOCAL-DATE-TIME (Data e Ora)
+                .registerTypeAdapter(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
+                    @Override
+                    public JsonElement serialize(LocalDateTime src, Type typeOfSrc, JsonSerializationContext context) {
+                        return new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                    }
+                })
+                .registerTypeAdapter(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
+                    @Override
+                    public LocalDateTime deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+                        return LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+                    }
+                })
+                // 2. TRADUTTORI PER LOCAL-DATE (Solo Data) <-- AGGIUNTI ORA!
                 .registerTypeAdapter(LocalDate.class, new JsonSerializer<LocalDate>() {
                     @Override
                     public JsonElement serialize(LocalDate src, Type typeOfSrc, JsonSerializationContext context) {
@@ -34,8 +46,6 @@ public class JsonManager {
                         return LocalDate.parse(json.getAsString(), DATE_FORMATTER);
                     }
                 })
-
-                // 3. Manteniamo l'adattatore esistente per le partite
                 .registerTypeAdapter(Partita.class, new PartitaDeserializer())
                 .create();
     }
