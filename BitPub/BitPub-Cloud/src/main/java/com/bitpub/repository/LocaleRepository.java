@@ -12,7 +12,7 @@ import java.util.Optional; // Container per prevenire ritorni nulli e gestire fl
  * Repository per la gestione della persistenza dell'entità {@link Locale}.
  * Sviluppato per la gestione dei nodi locali.
  * Estende JpaRepository fornendo l'astrazione sopra l'EntityManager.
- * @author Stefano Bellan 20054330
+ * * @author Stefano Bellan 20054330
  */
 @Repository // Registra il componente nel contesto Spring per l'Auto-Configuration
 public interface LocaleRepository extends JpaRepository<Locale, Long> {
