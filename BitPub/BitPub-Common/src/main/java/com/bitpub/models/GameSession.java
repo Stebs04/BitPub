@@ -1,51 +1,38 @@
-package com.bitpub.models;
+package com.bitpub.repository;
 
-import com.google.gson.annotations.Expose;
+import jakarta.persistence.*;
+import lombok.Data;
+import java.time.LocalDateTime;
 
 /**
- * Rappresenta una sessione di gioco attiva all'interno di una sede (Biliardo, Calciobalilla, Freccette).
- * Estende {@link ResourceModel} per l'integrazione con le logiche di risorsa del sistema BitPub.
- *
- * @author Stefano Bellan 20054330
- * @since 2024
+ * GameSessionEntity - Rappresenta una sessione di gioco attiva o conclusa su un tavolo.
+ * * Refactoring Senior Note:
+ * L'aggiunta di @Version è qui fondamentale perché lo stato della sessione (ACTIVE, FINISHED)
+ * viene aggiornato sia dai task di timeout che dai segnali MQTT provenienti dall'hardware.
  */
-public class GameSession extends ResourceModel {
+@Entity
+@Table(name = "game_sessions")
+@Data
+public class GameSessionEntity {
 
-    /** Identificativo univoco della sessione di gioco */
-    @Expose private String sessionId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    /** Identificativo della sede in cui si svolge la sessione */
-    @Expose private String venueId;
+    private String venueId;
 
-    /** Identificativo del tavolo o della postazione fisica utilizzata */
-    @Expose private String tableId;
+    private Integer tableId;
 
-    /** Marca temporale di inizio della sessione */
-    @Expose private String startTime;
+    private Long userId;
 
-    /** Stato operativo attuale: STARTING (In avvio), IN_PROGRESS (Attiva), PAUSED (In pausa) */
-    @Expose private String status;
+    private String gameType; // CALCIOBALILLA, BILIARDO, FRECCETTE
 
-    /**
-     * Costruttore predefinito per la libreria GSON.
-     * Necessario per la deserializzazione dei dati provenienti dalle API Cloud.
-     */
-    public GameSession() {
-        // Costruttore vuoto per riflessione
-    }
+    private LocalDateTime startTime;
 
-    /** @return L'ID univoco della sessione */
-    public String getSessionId() { return sessionId; }
+    private LocalDateTime endTime;
 
-    /** @return L'ID della sede di riferimento */
-    public String getVenueId() { return venueId; }
+    private String status; // ACTIVE, FINISHED, FORCE_STOPPED
 
-    /** @return L'ID del tavolo o risorsa fisica */
-    public String getTableId() { return tableId; }
-
-    /** @return Il timestamp di inizio sessione */
-    public String getStartTime() { return startTime; }
-
-    /** @return Lo stato attuale della sessione di gioco */
-    public String getStatus() { return status; }
+    @Version
+    private Long version;
 }
