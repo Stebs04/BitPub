@@ -1,44 +1,27 @@
-package com.bitpub.models;
+package com.bitpub.repository;
 
-import com.google.gson.annotations.Expose;
+import jakarta.persistence.*;
+import lombok.Data;
+import java.time.LocalDateTime;
 
 /**
- * Modello che rappresenta lo stato di connessione di un nodo Edge (Locale).
- * Fornisce informazioni in tempo reale sulla disponibilità delle sedi fisiche.
- *
- * @author Stefano Bellan 20054330
+ * EdgeStatusEntity - Monitoraggio dello stato di connettività dei nodi locali.
+ * * Refactoring Senior Note:
+ * Questa entità riceve aggiornamenti frequenti (heartbeat). L'uso del locking
+ * ottimistico evita deadlock nel database PostgreSQL durante picchi di traffico MQTT.
  */
-public class EdgeStatus {
+@Entity
+@Table(name = "edge_status")
+@Data
+public class EdgeStatusEntity {
 
-    /** Identificativo univoco della sede (Venue) */
-    @Expose private String venueId;
+    @Id
+    private String venueId;
 
-    /** Nome descrittivo della sede locale */
-    @Expose private String venueName;
+    private String status; // ONLINE, OFFLINE
 
-    /** Stato operativo attuale della connessione (es. ONLINE o OFFLINE) */
-    @Expose private String status;
+    private LocalDateTime lastSeen;
 
-    /** Marca temporale dell'ultima comunicazione ricevuta dal nodo (Heartbeat) */
-    @Expose private String lastSeen;
-
-    /**
-     * Costruttore predefinito.
-     * Utilizzato dalla libreria GSON per l'istanziazione tramite reflection.
-     */
-    public EdgeStatus() {
-        // Costruttore vuoto per deserializzazione JSON
-    }
-
-    /** @return L'identificativo della sede */
-    public String getVenueId() { return venueId; }
-
-    /** @return Il nome della sede */
-    public String getVenueName() { return venueName; }
-
-    /** @return Lo stato attuale (ONLINE/OFFLINE) */
-    public String getStatus() { return status; }
-
-    /** @return Il timestamp dell'ultimo ping ricevuto */
-    public String getLastSeen() { return lastSeen; }
+    @Version
+    private Long version;
 }
