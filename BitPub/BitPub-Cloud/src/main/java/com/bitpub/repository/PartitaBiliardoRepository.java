@@ -15,6 +15,7 @@ import java.util.List;
  */
 @Repository
 public interface PartitaBiliardoRepository extends JpaRepository<PartitaBiliardo, Long> {
+    
     @Query("SELECT p FROM PartitaBiliardo p WHERE p.localeId = :localeId AND (:stato = 'IN_CORSO' AND p.orarioFine IS NULL)")
     List<PartitaBiliardo> findByLocaleIdAndStato(@Param("localeId") Long localeId, @Param("stato") String stato);
     
@@ -24,6 +25,11 @@ public interface PartitaBiliardoRepository extends JpaRepository<PartitaBiliardo
     @Query("SELECT p FROM PartitaBiliardo p WHERE p.localeId = :localeId AND p.orarioFine IS NOT NULL")
     List<PartitaBiliardo> findConcluseByLocaleId(@Param("localeId") Long localeId);
 
+    /**
+     * Calcola la durata media (in minuti) delle partite concluse per uno specifico locale.
+     * L'uso del metodo default garantisce la flessibilità per computazioni non nativamente 
+     * supportate dal dialetto SQL sottostante, sfruttando lo stream API di Java.
+     */
     default Double calculateAverageDuration(Long id) {
         List<PartitaBiliardo> partite = findConcluseByLocaleId(id);
         if (partite.isEmpty()) return null;

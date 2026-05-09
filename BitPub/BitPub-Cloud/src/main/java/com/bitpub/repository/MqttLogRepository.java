@@ -15,9 +15,14 @@ import java.util.List;
  */
 @Repository
 public interface MqttLogRepository extends JpaRepository<MqttLog, Long> {
+    
     // Qui potresti aggiungere metodi personalizzati, es:
     // List<MqttLog> findByTopic(String topic);
 
+    /**
+     * Recupera i seriali distinti associati a un determinato locale a partire da un timestamp specifico.
+     * Implementazione JPQL ottimizzata per filtrare log MQTT in base alla struttura del topic.
+     */
     @Query("SELECT DISTINCT m.topic FROM MqttLog m WHERE m.topic LIKE CONCAT('locali/', :localeId, '/%') AND m.timestamp >= :timestamp")
     List<String> findDistinctSerialiByLocaleAndTimestampAfter(@Param("localeId") Long localeId, @Param("timestamp") LocalDateTime timestamp);
 }
