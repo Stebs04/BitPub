@@ -1,10 +1,10 @@
 package com.bitpub.cloud.security;
 
 import com.bitpub.repository.AuditLogEntity;
-import com.bitpub.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -20,9 +20,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class AuditInterceptor implements HandlerInterceptor {
 
-    /** Repository per la persistenza dei record di audit. */
+    /** Publisher per generare eventi applicativi in modo asincrono. */
     @Autowired
-    private AuditLogRepository auditLogRepository;
+    private ApplicationEventPublisher eventPublisher;
 
     /**
      * Esegue la logica di logging dopo il completamento della richiesta HTTP.
@@ -55,7 +55,7 @@ public class AuditInterceptor implements HandlerInterceptor {
             log.setLevel("INFO"); // Codici di successo o redirect
         }
 
-        // 3. Persistenza del record nel database tramite Spring Data JPA
-        auditLogRepository.save(log);
+        // 3. Pubblicazione asincrona dell'evento per evitare blocchi lato HTTP
+        eventPublisher.publishEvent(new AuditApplicationEvent(this, log));
     }
 }
