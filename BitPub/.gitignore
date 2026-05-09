@@ -64,3 +64,5 @@ BitPub-Security/certs/
 BitPub-Cloud/logs/
 
 /BitPub-Cloud-Admin-*
+
+/BitPub-Edge/Edge*
