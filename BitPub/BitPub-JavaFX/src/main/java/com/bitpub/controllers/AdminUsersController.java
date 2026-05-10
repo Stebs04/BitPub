@@ -87,7 +87,7 @@ public class AdminUsersController {
         // Fase di discovery ipermediale partendo dal punto di ingresso noto dell'API
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String usersUrl = root.getLinks().get("users").getHref();
+                String usersUrl = root.getLinkSafe("users");
                 
                 // Sanitizzazione e accodamento del parametro di ricerca se l'utente ha inserito un filtro
                 if (!query.isEmpty()) {
@@ -133,7 +133,7 @@ public class AdminUsersController {
             return;
         }
 
-        String toggleUrl = selezionato.getLinks().get("toggle-role").getHref();
+        String toggleUrl = selezionato.getLinkHref("toggle-role");
 
         // Richiesta di conferma esplicita per prevenire operazioni distruttive non intenzionali
         Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Vuoi cambiare il ruolo di " + selezionato.getUsername() + "?");

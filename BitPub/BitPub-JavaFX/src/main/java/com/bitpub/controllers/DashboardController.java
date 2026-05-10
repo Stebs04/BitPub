@@ -52,7 +52,7 @@ public class DashboardController {
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
                 // Estrazione dinamica dell'URL utente tramite la relazione "me"
-                String userUrl = root.getLinks().get("me").getHref();
+                String userUrl = root.getLinkSafe("me");
                 return restClient.getAsync(userUrl, JsonObject.class);
             })
             .thenAccept(userData -> {

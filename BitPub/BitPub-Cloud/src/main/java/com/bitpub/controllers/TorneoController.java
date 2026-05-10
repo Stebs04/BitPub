@@ -19,7 +19,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
-@RequestMapping("/api/tornei")
+@RequestMapping("/api/v1/tornei")
+@CrossOrigin(origins = "*")
 public class TorneoController {
 
     private static final Logger log = LoggerFactory.getLogger(TorneoController.class);

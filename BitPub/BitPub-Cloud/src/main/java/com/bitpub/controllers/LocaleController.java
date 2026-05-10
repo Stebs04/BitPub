@@ -28,7 +28,7 @@ public class LocaleController {
     private LocaleModelAssembler assembler;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE_BASE')")
     public ResponseEntity<CollectionModel<EntityModel<LocaleDTO>>> getAllLocali() {
         List<LocaleDTO> locali = localeService.getAllLocali();
 
@@ -43,7 +43,7 @@ public class LocaleController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE_BASE')")
     public ResponseEntity<EntityModel<LocaleDTO>> getLocaleById(@PathVariable("id") Long id) {
         return localeService.getLocaleById(id)
                 .map(assembler::toModel)
