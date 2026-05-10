@@ -78,8 +78,6 @@ public class GameSessionService {
             throw new IllegalStateException("Hai già una partita in corso (ID: " + activeSession.get().getId() + "). Termina quella prima di iniziarne una nuova.");
         }
 
-        BigDecimal fixedCost = new BigDecimal("1.00");
-
         GameSessionEntity newSession = new GameSessionEntity();
         newSession.setGameType("FOOSBALL");
         newSession.setTableId(tableId);
