@@ -81,7 +81,7 @@ public class AdminDashboardController {
         // 1. DISCOVERY: Risoluzione dinamica dell'endpoint dalla Root
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String linkLocali = root.getLinks().get("locali").getHref();
+                String linkLocali = root.getLinkSafe("locali");
                 // 2. AZIONE: Recupero asincrono dell'array di oggetti
                 return restClient.getAsync(linkLocali, Locale[].class);
             })
@@ -115,7 +115,7 @@ public class AdminDashboardController {
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
                 // Costruzione URL con parametro di filtro per ruolo
-                String usersUrl = root.getLinks().get("users").getHref() + "?role=GESTORE";
+                String usersUrl = root.getLinkSafe("users") + "?role=GESTORE";
                 return restClient.getAsync(usersUrl, Utente[].class);
             })
             .thenAccept(gestori -> {
@@ -145,7 +145,7 @@ public class AdminDashboardController {
         // Fase di persistenza: invio del nuovo locale al server
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String createUrl = root.getLinks().get("locali").getHref();
+                String createUrl = root.getLinkSafe("locali");
                 Locale nuovoLocale = new Locale(); // Dati popolati dal Dialog
                 return restClient.postAsync(createUrl, nuovoLocale, Locale.class);
             })
@@ -158,10 +158,10 @@ public class AdminDashboardController {
     @FXML
     public void handleModifica() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null || selezionato.get_links() == null) return;
+        if (selezionato == null || selezionato.getLinks().isEmpty()) return;
 
         // HATEOAS: L'oggetto stesso contiene l'URL per la propria modifica (pattern self-link)
-        String updateUrl = selezionato.get_links().get("self").getHref();
+        String updateUrl = selezionato.getLinkHref("self");
 
         // [Logica Dialog di modifica omessa]
 
@@ -176,7 +176,7 @@ public class AdminDashboardController {
     @FXML
     public void handleElimina() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null || selezionato.get_links() == null) return;
+        if (selezionato == null || selezionato.getLinks().isEmpty()) return;
 
         Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Eliminare " + selezionato.getName() + "?");
         conferma.showAndWait().ifPresent(risposta -> {
@@ -184,7 +184,7 @@ public class AdminDashboardController {
                 Platform.runLater(() -> progressIndicator.setVisible(true));
                 
                 // HATEOAS: Navigazione dinamica del link di cancellazione fornito dalla risorsa
-                String deleteUrl = selezionato.get_links().get("self").getHref();
+                String deleteUrl = selezionato.getLinkHref("self");
                 
                 restClient.deleteAsync(deleteUrl)
                     .thenAccept(v -> Platform.runLater(() -> {

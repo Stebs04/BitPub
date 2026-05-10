@@ -39,14 +39,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String role = jwtService.extractRole(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                // Se il ruolo è nullo nel token, assegniamo un ruolo di default per evitare NPE
+                String effectiveRole = (role != null) ? role : "UTENTE_BASE";
+                
+                // Spring Security si aspetta che i ruoli inizino con "ROLE_"
+                String authority = effectiveRole.startsWith("ROLE_") ? effectiveRole : "ROLE_" + effectiveRole;
+
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         username,
                         null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                        Collections.singletonList(new SimpleGrantedAuthority(authority))
                 );
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                
+                System.out.println("[JWT SECURITY] Autenticato utente: " + username + " con ruolo: " + authority);
             }
         }
 

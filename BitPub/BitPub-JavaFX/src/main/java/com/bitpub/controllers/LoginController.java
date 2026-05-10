@@ -57,13 +57,8 @@ public class LoginController {
         // Interroga la root per identificare dinamicamente l'URL del servizio di login
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
                 .thenCompose(root -> {
-                    // Validazione ipermediale: verifica l'esistenza del link "login"
-                    if (root == null || root.getLinks() == null || !root.getLinks().containsKey("login")) {
-                        throw new RuntimeException("Metadati HATEOAS mancanti: link 'login' non trovato.");
-                    }
-                    
-                    // Estrazione URL ipermediale (es: /api/v1/auth/login)
-                    String loginUrl = root.getLinks().get("login").getHref();
+                    // Estrazione URL ipermediale tramite discovery sicura
+                    String loginUrl = root.getLinkSafe("login");
 
                     // --- FASE 2: AZIONE (POST) ---
                     // Inoltra le credenziali all'indirizzo ottenuto dalla discovery

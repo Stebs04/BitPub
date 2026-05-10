@@ -84,12 +84,7 @@ public class AdminLogsController {
         // Fase di discovery: navigazione dell'albero HATEOAS partendo dall'entry point noto dell'API
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                // Verifica dell'integrità del contratto ipermediale esposto dal server
-                if (root.getLinks() == null || !root.getLinks().containsKey("system-logs")) {
-                    throw new RuntimeException("Link 'system-logs' non esposto dal server.");
-                }
-
-                String logsUrl = root.getLinks().get("system-logs").getHref();
+                String logsUrl = root.getLinkSafe("system-logs");
 
                 // Costruzione parametrica della query string rispettando lo standard REST per il filtraggio delle collezioni
                 if (level != null && !"ALL".equals(level)) {

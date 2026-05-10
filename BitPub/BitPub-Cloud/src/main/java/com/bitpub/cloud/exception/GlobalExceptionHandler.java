@@ -67,7 +67,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errore);
     }
 
-    // 5. Fallback Globale (Protezione contro stack trace esposti)
+    // 5. Credenziali Errate (Security)
+    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> handleBadCredentials(org.springframework.security.authentication.BadCredentialsException ex) {
+        ApiErrorResponse errore = new ApiErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Credenziali Errate",
+                "Lo username o la password inseriti non sono corretti."
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errore);
+    }
+
+    // 6. Accesso Negato (Security - Ruolo insufficiente)
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        ApiErrorResponse errore = new ApiErrorResponse(
+                HttpStatus.FORBIDDEN.value(),
+                "Accesso Negato",
+                "Non hai i permessi necessari per eseguire questa operazione o accedere a questa risorsa."
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errore);
+    }
+
+    // 7. Fallback Globale (Protezione contro stack trace esposti)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(Exception ex) {
         // Loggare l'errore reale nel server (importante per il debug interno)

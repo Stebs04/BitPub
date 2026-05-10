@@ -77,11 +77,7 @@ public class AdminNetworkStatusController {
         // Avvio della catena di promesse interrogando l'entry point predefinito dell'architettura
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                // Valida l'esistenza del link operativo richiesto prima di tentare la risoluzione
-                if (!root.getLinks().containsKey("network-status")) {
-                    throw new RuntimeException("Link 'network-status' non trovato nella Root.");
-                }
-                String networkUrl = root.getLinks().get("network-status").getHref();
+                String networkUrl = root.getLinkSafe("network-status");
                 
                 // Redirezione della richiesta asincrona verso il percorso operativo scoperto
                 return restClient.getAsync(networkUrl, EdgeStatus[].class);

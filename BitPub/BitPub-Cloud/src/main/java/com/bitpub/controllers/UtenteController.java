@@ -17,7 +17,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
-@RequestMapping("/api/utenti")
+@RequestMapping("/api/v1/utenti")
+@CrossOrigin(origins = "*")
 public class UtenteController {
 
     @Autowired
@@ -52,6 +53,18 @@ public class UtenteController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EntityModel<UtenteDTO>> getCurrentUser(org.springframework.security.core.Authentication authentication) {
+        String username = authentication.getName();
+        return utenteService.getAllUtenti(null).stream()
+                .filter(u -> u.getUsername().equals(username))
+                .findFirst()
+                .map(assembler::toModel)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     public ResponseEntity<EntityModel<UtenteDTO>> creaUtente(@RequestBody UtenteDTO nuovoUtente) {
         UtenteDTO utenteSalvato = utenteService.creaUtente(nuovoUtente);
@@ -59,7 +72,7 @@ public class UtenteController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('UTENTE')")
+    @PreAuthorize("hasRole('UTENTE_BASE')")
     public ResponseEntity<EntityModel<UtenteDTO>> aggiornaUtente(@PathVariable Long id, @RequestBody UtenteDTO utenteAggiornato) {
         return utenteService.aggiornaUtente(id, utenteAggiornato)
                 .map(assembler::toModel)
