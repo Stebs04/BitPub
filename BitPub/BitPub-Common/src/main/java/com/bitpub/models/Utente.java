@@ -20,7 +20,7 @@ import com.google.gson.annotations.SerializedName;
  * Implementa UserDetails per l'integrazione nativa con Spring Security,
  * consentendo all'entità di agire direttamente come Principal nel contesto di sicurezza.
  *
- * @author Senior Software Engineer
+ * @author Stefano Bellan 20054330
  */
 @Entity
 @Table(name = "utenti")
@@ -114,7 +114,7 @@ public class Utente implements UserDetails {
             try {
                 this.role = Ruolo.valueOf(roleName.toUpperCase());
             } catch (IllegalArgumentException e) {
-                this.role = Ruolo.UTENTE; // Default fallback
+                this.role = Ruolo.UTENTE_BASE; // Default fallback
             }
         }
     }
@@ -125,7 +125,7 @@ public class Utente implements UserDetails {
      */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + (role != null ? role.name() : "UTENTE")));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + (role != null ? role.name() : "UTENTE_BASE")));
     }
 
     /**
@@ -157,7 +157,7 @@ public class Utente implements UserDetails {
     }
 
     public enum Ruolo {
-        UTENTE,
+        UTENTE_BASE,
         GESTORE,
         ADMIN
     }

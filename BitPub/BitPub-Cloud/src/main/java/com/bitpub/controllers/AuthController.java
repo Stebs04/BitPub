@@ -2,6 +2,7 @@ package com.bitpub.controllers;
 
 import com.bitpub.models.AuthRequest;
 import com.bitpub.models.AuthResponse;
+import com.bitpub.models.RegisterRequest;
 import com.bitpub.services.AuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * Supporta nativamente tutti i ruoli definiti nel sistema.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 @CrossOrigin(origins = "*") // Permette l'accesso da client JavaFX e Web
 public class AuthController {
 
@@ -37,6 +38,20 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
         // La logica è centralizzata nel service per garantire coerenza
         AuthResponse response = authService.authenticate(request);
+        return ResponseEntity.ok()
+                .header("Authorization", "Bearer " + response.getToken())
+                .body(response);
+    }
+
+    /**
+     * Endpoint di registrazione universale.
+     * Registra un nuovo utente con ruolo UTENTE_BASE.
+     * @param request Credenziali per la registrazione (username, email, password).
+     * @return ResponseEntity con i dettagli dell'utente registrato e link HATEOAS.
+     */
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
+        AuthResponse response = authService.register(request);
         return ResponseEntity.ok(response);
     }
 
