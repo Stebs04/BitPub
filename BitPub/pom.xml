@@ -18,22 +18,20 @@
         <module>BitPub-Cloud</module>
         <module>BitPub-JavaFX</module>
         <module>BitPub-Simulators</module>
-
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <!-- Versioni centralizzate -->
         <spring-boot.version>3.2.4</spring-boot.version>
         <gson.version>2.10.1</gson.version>
         <paho.mqtt.version>1.2.5</paho.mqtt.version>
+        <lombok.version>1.18.32</lombok.version> 
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- Spring Boot BOM -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -42,7 +40,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Dipendenze Terze Parti -->
             <dependency>
                 <groupId>com.google.code.gson</groupId>
                 <artifactId>gson</artifactId>
@@ -51,10 +48,9 @@
             <dependency>
                 <groupId>org.eclipse.paho</groupId>
                 <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
-                <version>1.2.5</version>
+                <version>${paho.mqtt.version}</version>
             </dependency>
 
-            <!-- Gestione moduli interni (permettono ai figli di citarsi tra loro) -->
             <dependency>
                 <groupId>com.bitpub</groupId>
                 <artifactId>BitPub-Common</artifactId>
@@ -73,7 +69,6 @@
 
     <build>
         <plugins>
-            <!-- Modifica effettuata da Stefano Bellan 20054330: aggiunto flag -parameters al compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -82,6 +77,13 @@
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

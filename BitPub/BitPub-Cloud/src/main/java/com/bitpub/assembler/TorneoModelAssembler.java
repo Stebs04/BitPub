@@ -39,7 +39,7 @@ public class TorneoModelAssembler implements RepresentationModelAssembler<Torneo
         EntityModel<TorneoDTO> torneoModel = EntityModel.of(torneoDto,
                 linkTo(methodOn(TorneoController.class).getTorneoById(id)).withSelfRel(),
                 linkTo(methodOn(TorneoController.class).aggiornaTorneo(id, null)).withRel("aggiorna_torneo"),
-                linkTo(methodOn(TorneoController.class).eliminaTorneo(id, null)).withRel("elimina_torneo")
+                linkTo(methodOn(TorneoController.class).eliminaTorneo(id)).withRel("elimina_torneo")
         );
 
         /*
