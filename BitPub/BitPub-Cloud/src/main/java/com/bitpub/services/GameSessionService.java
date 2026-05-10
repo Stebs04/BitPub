@@ -14,7 +14,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -63,6 +62,10 @@ public class GameSessionService {
         eventPublisher.publishEvent(new SessionForceStoppedEvent(this, session.getTableId(), id));
 
         return convertToDTO(session);
+    }
+
+    public Optional<GameSessionDTO> getSessionById(Long id) {
+        return gameSessionRepository.findById(id).map(this::convertToDTO);
     }
 
     @Transactional

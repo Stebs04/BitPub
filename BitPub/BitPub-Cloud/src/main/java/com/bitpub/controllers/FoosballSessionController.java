@@ -56,7 +56,7 @@ public class FoosballSessionController {
             EntityModel<GameSessionDTO> entityModel = EntityModel.of(dto);
 
             // Link "self"
-            entityModel.add(linkTo(methodOn(FoosballSessionController.class).getCurrentSession()).withSelfRel());
+            entityModel.add(linkTo(methodOn(FoosballSessionController.class).getSessionById(dto.getId())).withSelfRel());
 
             // Link "force-stop" per gli admin
             entityModel.add(Link.of("/api/v1/admin/sessions/" + dto.getId() + "/force-stop").withRel("force-stop"));
@@ -73,6 +73,22 @@ public class FoosballSessionController {
             // L'utente ha già una sessione attiva
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getSessionById(@PathVariable Long id) {
+        // [In un sistema reale qui verificheremmo che l'utente abbia diritto di vedere questa sessione]
+        Optional<GameSessionDTO> sessionOpt = gameSessionService.getSessionById(id);
+
+        if (sessionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        EntityModel<GameSessionDTO> entityModel = EntityModel.of(sessionOpt.get());
+        entityModel.add(linkTo(methodOn(FoosballSessionController.class).getSessionById(id)).withSelfRel());
+
+        return ResponseEntity.ok(entityModel);
     }
 
     @GetMapping("/current")

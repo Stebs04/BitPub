@@ -2,6 +2,8 @@ package com.bitpub.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 import java.time.LocalDateTime;
 
 /**
@@ -14,24 +16,38 @@ import java.time.LocalDateTime;
 public class GameSessionDTO {
 
     @JsonProperty("id")
+    @SerializedName("id")
+    @Expose
     private Long id;
 
     @JsonProperty("locale_id")
+    @SerializedName("locale_id")
+    @Expose
     private Long localeId;
 
     @JsonProperty("tavolo_id")
+    @SerializedName("tavolo_id")
+    @Expose
     private String tavoloId;
 
     @JsonProperty("utente_id")
+    @SerializedName("utente_id")
+    @Expose
     private Long utenteId;
 
     @JsonProperty("start_time")
+    @SerializedName("start_time")
+    @Expose
     private LocalDateTime startTime;
 
     @JsonProperty("end_time")
+    @SerializedName("end_time")
+    @Expose
     private LocalDateTime endTime;
 
     @JsonProperty("status")
+    @SerializedName("status")
+    @Expose
     private String status;
 
     /**

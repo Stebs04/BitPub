@@ -53,10 +53,10 @@ public class Main {
 
                 @Override
                 public void messageArrived(String topic, org.eclipse.paho.client.mqttv3.MqttMessage message) {
-                    String msg = new String(message.getPayload());
+                    String msg = new String(message.getPayload()).toLowerCase();
                     String idLocale = "pub_centrale";
 
-                    if (topic.contains("calciobalilla") || msg.toLowerCase().contains("calciobalilla")) {
+                    if (topic.contains("calciobalilla") || topic.contains("foosball") || msg.contains("calciobalilla") || msg.contains("foosball")) {
                         if (taskCalciobalilla == null || taskCalciobalilla.isDone()) {
                             System.out.println("Avviando simulatore Calciobalilla...");
                             // MODIFICA: Passiamo 'codaLocale' al costruttore

@@ -212,8 +212,12 @@ public class FoosballScoreboardController implements MqttCallback {
              sessionUrlFuture = restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
                     .thenApply(root -> {
                         Long sid = SessionContext.getCurrentSessionId();
-                        if (sid != null && root.getLinks().containsKey("sessions")) {
-                            return root.getLinks().get("sessions").getHref() + "/" + sid;
+                        if (sid != null) {
+                            // Tenta di usare il link specifico per il calciobalilla, altrimenti usa il generico sessions
+                            String baseUrl = root.getLinks().containsKey("foosball-sessions") ? 
+                                             root.getLinkSafe("foosball-sessions") : 
+                                             root.getLinkSafe("sessions");
+                            return baseUrl + "/" + sid;
                         }
                         throw new RuntimeException("URL Sessione non determinabile.");
                     });
