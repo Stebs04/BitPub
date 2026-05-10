@@ -26,9 +26,10 @@ public class HomeController {
         root.addLink("me", "http://localhost:8080/api/v1/utenti/me");
         
         // Game and System Services
-        root.addLink("foosball-start", "http://localhost:8080/api/v1/calciobalilla/start");
-        root.addLink("foosball-current", "http://localhost:8080/api/v1/calciobalilla/current");
-        root.addLink("foosball-personal-stats", "http://localhost:8080/api/v1/calciobalilla/stats/me");
+        root.addLink("foosball-start", "http://localhost:8080/api/v1/sessions/foosball/start");
+        root.addLink("foosball-current", "http://localhost:8080/api/v1/sessions/foosball/current");
+        root.addLink("sessions", "http://localhost:8080/api/v1/sessions/foosball");
+        root.addLink("foosball-sessions", "http://localhost:8080/api/v1/sessions/foosball");
         root.addLink("tornei-calciobalilla", "http://localhost:8080/api/v1/tornei?game=FOOSBALL");
         root.addLink("billiards-stats", "http://localhost:8080/api/v1/biliardo/stats/me");
         root.addLink("freccette-stats", "http://localhost:8080/api/v1/freccette/stats/me");

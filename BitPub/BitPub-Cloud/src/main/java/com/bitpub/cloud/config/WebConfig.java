@@ -1,21 +1,21 @@
 package com.bitpub.cloud.config;
 
 import com.bitpub.cloud.security.AuditInterceptor;
-import com.google.gson.*;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.lang.reflect.Type;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.TimeZone;
 
 /**
  * Configurazione Web MVC centralizzata.
  * Gestisce la registrazione degli intercettori di sicurezza.
- * Ripristina Jackson per le API REST (supporto HATEOAS nativo) e mantiene GSON per MQTT.
+ * Utilizza Jackson (default di Spring Boot) per le API REST (supporto HATEOAS nativo).
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -33,26 +33,15 @@ public class WebConfig implements WebMvcConfigurer {
     }
 
     /**
-     * Bean GSON centralizzato con supporto per Java 8 date types.
-     * Utilizzato per la comunicazione MQTT e compatibilità interna.
+     * Personalizza Jackson per gestire correttamente le date Java 8 (LocalDateTime).
      */
     @Bean
-    public Gson gson() {
-        return new GsonBuilder()
-                .setDateFormat("yyyy-MM-dd HH:mm:ss")
-                .registerTypeAdapter(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
-                    @Override
-                    public JsonElement serialize(LocalDateTime src, Type typeOfSrc, JsonSerializationContext context) {
-                        return new JsonPrimitive(src.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-                    }
-                })
-                .registerTypeAdapter(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
-                    @Override
-                    public LocalDateTime deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-                        return LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                    }
-                })
-                .serializeNulls()
-                .create();
+    public Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
+        return builder -> {
+            builder.modules(new JavaTimeModule());
+            builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            builder.simpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            builder.timeZone(TimeZone.getTimeZone("Europe/Rome"));
+        };
     }
 }

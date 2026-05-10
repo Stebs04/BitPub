@@ -84,7 +84,7 @@ public class DashboardController {
         // Fase 1: DISCOVERY - Recupera l'endpoint per lo start della sessione
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String startUrl = root.getLinks().get("foosball-start").getHref();
+                String startUrl = root.getLinkSafe("foosball-start");
                 
                 // Fase 2: ACTION - Esegue il POST per la creazione della risorsa sessione
                 JsonObject payload = new JsonObject();
@@ -119,7 +119,7 @@ public class DashboardController {
     private void recuperaSessioneAttiva(ActionEvent event) {
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String currentUrl = root.getLinks().get("foosball-current").getHref();
+                String currentUrl = root.getLinkSafe("foosball-current");
                 return restClient.getAsync(currentUrl, JsonObject.class);
             })
             .thenAccept(session -> {
