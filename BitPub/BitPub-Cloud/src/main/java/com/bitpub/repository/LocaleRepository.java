@@ -1,12 +1,11 @@
-/**
- * Package per i componenti di accesso ai dati del dominio BitPub.
- */
-package com.bitpub.repository; // Definizione del package per la persistenza
+package com.bitpub.repository;
 
-import com.bitpub.models.Locale; // Entity Locale che rappresenta la tabella nel database
-import org.springframework.data.jpa.repository.JpaRepository; // Interfaccia core per le operazioni CRUD standard
-import org.springframework.stereotype.Repository; // Annotation per definire il bean come repository Spring
-import java.util.Optional; // Container per prevenire ritorni nulli e gestire flussi funzionali
+import com.bitpub.models.Locale;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository per la gestione della persistenza dell'entità {@link Locale}.
@@ -39,4 +38,11 @@ public interface LocaleRepository extends JpaRepository<Locale, Long> {
      * @return true se l'IP è già registrato nel database.
      */
     boolean existsByIpAddressEdge(String ipAddressEdge); // Controllo di integrità per la rete dei nodi locali
+
+    /**
+     * Recupera tutti i locali gestiti da un utente specifico.
+     * @param gestoreId L'ID del gestore.
+     * @return una lista di locali.
+     */
+    List<Locale> findByGestoreId(Long gestoreId);
 }

@@ -22,7 +22,7 @@ public class BitPubCloudApplication {
 
     /**
      * Avvia l'applicazione Spring Boot.
-     * * @param args Argomenti passati da riga di comando.
+     * @param args Argomenti passati da riga di comando.
      */
     public static void main(String[] args) {
         SpringApplication.run(BitPubCloudApplication.class, args);

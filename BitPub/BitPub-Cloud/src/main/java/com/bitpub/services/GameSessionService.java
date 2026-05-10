@@ -1,12 +1,12 @@
-﻿package com.bitpub.services;
+package com.bitpub.services;
 
 import com.bitpub.dto.GameSessionDTO;
 import com.bitpub.events.SessionForceStoppedEvent;
 import com.bitpub.events.SessionStartedEvent;
 import com.bitpub.models.Utente;
-import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.models.AuditLogEntity;
+import com.bitpub.models.GameSessionEntity;
 import com.bitpub.repository.AuditLogRepository;
-import com.bitpub.repository.GameSessionEntity;
 import com.bitpub.repository.GameSessionRepository;
 import com.bitpub.repository.UtenteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +37,7 @@ public class GameSessionService {
 
     public List<GameSessionDTO> getActiveSessions() {
         return gameSessionRepository.findAllByStatus("IN_PROGRESS").stream()
-                .map(GameSessionDTO::new)
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
@@ -49,7 +49,7 @@ public class GameSessionService {
         }
 
         session.setStatus("FORCE_STOPPED");
-        session.setFinishedAt(LocalDateTime.now());
+        session.setEndTime(LocalDateTime.now());
         gameSessionRepository.save(session);
 
         AuditLogEntity log = new AuditLogEntity();
@@ -62,7 +62,7 @@ public class GameSessionService {
         // Pubblica l'evento locale
         eventPublisher.publishEvent(new SessionForceStoppedEvent(this, session.getTableId(), id));
 
-        return new GameSessionDTO(session);
+        return convertToDTO(session);
     }
 
     @Transactional
@@ -80,15 +80,12 @@ public class GameSessionService {
 
         BigDecimal fixedCost = new BigDecimal("1.00");
 
-        GameSessionEntity newSession = GameSessionEntity.builder()
-                .gameType("FOOSBALL")
-                .tableId(tableId)
-                .userId(userId)
-                .status("IN_PROGRESS")
-                .scoreBlue(0)
-                .scoreRed(0)
-                .costDeducted(fixedCost)
-                .build();
+        GameSessionEntity newSession = new GameSessionEntity();
+        newSession.setGameType("FOOSBALL");
+        newSession.setTableId(tableId);
+        newSession.setUserId(userId);
+        newSession.setStatus("IN_PROGRESS");
+        newSession.setStartTime(LocalDateTime.now());
 
         newSession = gameSessionRepository.save(newSession);
 
@@ -102,7 +99,7 @@ public class GameSessionService {
         // Pubblica evento locale per MQTT
         eventPublisher.publishEvent(new SessionStartedEvent(this, tableId, newSession.getId()));
 
-        return new GameSessionDTO(newSession);
+        return convertToDTO(newSession);
     }
 
     public Optional<GameSessionDTO> getCurrentSession(String username) {
@@ -113,6 +110,17 @@ public class GameSessionService {
         Long userId = userOpt.get().getId();
 
         return gameSessionRepository.findByUserIdAndStatus(userId, "IN_PROGRESS")
-                .map(GameSessionDTO::new);
+                .map(this::convertToDTO);
+    }
+
+    private GameSessionDTO convertToDTO(GameSessionEntity entity) {
+        GameSessionDTO dto = new GameSessionDTO();
+        dto.setId(entity.getId());
+        dto.setTavoloId(String.valueOf(entity.getTableId()));
+        dto.setUtenteId(entity.getUserId());
+        dto.setStartTime(entity.getStartTime());
+        dto.setEndTime(entity.getEndTime());
+        dto.setStatus(entity.getStatus());
+        return dto;
     }
 }

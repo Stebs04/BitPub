@@ -1,4 +1,4 @@
-package com.bitpub.models;
+package com.bitpub.model;
 
 /**
  * Modello che rappresenta le statistiche di gioco di un utente al Calciobalilla.

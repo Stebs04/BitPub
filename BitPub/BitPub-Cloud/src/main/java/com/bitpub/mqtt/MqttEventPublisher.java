@@ -1,4 +1,4 @@
-﻿package com.bitpub.mqtt;
+package com.bitpub.mqtt;
 
 import com.bitpub.events.SessionForceStoppedEvent;
 import com.bitpub.events.SessionStartedEvent;

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  */
 @RestController
 @RequestMapping("/api/gestore")
+@PreAuthorize("hasRole('GESTORE')")
 public class GestoreController {
 
     private final LocaleService localeService;
@@ -49,7 +51,7 @@ public class GestoreController {
     @GetMapping("/locali/{idGestore}")
     public ResponseEntity<CollectionModel<EntityModel<LocaleDTO>>> getLocaliPerGestore(@PathVariable Long idGestore) {
         // Delega al service la logica di filtraggio e recupero
-        List<Locale> locali = localeService.getLocaliByGestore(idGestore);
+        List<LocaleDTO> locali = localeService.getLocaliByGestoreId(idGestore);
 
         // Trasformazione in DTO tramite l'assembler dedicato per isolare il layer di persistenza
         List<EntityModel<LocaleDTO>> localeResources = locali.stream()
@@ -70,7 +72,7 @@ public class GestoreController {
     @GetMapping("/locale/{id}")
     public ResponseEntity<EntityModel<LocaleDTO>> getLocaleDettaglio(@PathVariable Long id) {
         // Il service si occupa di gestire l'eventuale EntityNotFoundException
-        Locale locale = localeService.getLocaleById(id);
+        LocaleDTO locale = localeService.getLocaleById(id).orElseThrow(() -> new RuntimeException("Locale non trovato"));
         
         return ResponseEntity.ok(localeAssembler.toModel(locale));
     }

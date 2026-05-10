@@ -1,7 +1,7 @@
 package com.bitpub.controllers;
 
 import com.bitpub.Main;
-import com.bitpub.models.StatisticheCalciobalilla;
+import com.bitpub.model.StatisticheCalciobalilla;
 import com.bitpub.models.Torneo;
 import com.bitpub.network.RestClient;
 import com.bitpub.network.RispostaHateoas;

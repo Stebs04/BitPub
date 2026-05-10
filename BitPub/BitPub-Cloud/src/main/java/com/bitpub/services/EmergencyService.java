@@ -39,6 +39,6 @@ public class EmergencyService {
         String topic = String.format("bitpub/locale/%d/tavolo/%s/admin/command", localeId, tavoloId);
         
         // Invio del comando grezzo tramite il gateway hardware
-        mqttAdminGateway.sendToMqtt(topic, "FORCE_UNLOCK");
+        mqttAdminGateway.publish(topic, "FORCE_UNLOCK");
     }
 }

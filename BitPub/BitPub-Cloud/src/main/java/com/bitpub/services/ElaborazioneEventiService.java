@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 // import com.bitpub.cloud.repository.EventoBiliardoRepository;
 
+import java.util.List;
+
 @Service
 public class ElaborazioneEventiService {
 
@@ -23,6 +25,14 @@ public class ElaborazioneEventiService {
 
     @Autowired
     private PartitaCalciobalillaRepository calciobalillaRepo;
+
+    public com.bitpub.dto.GameEventDTO getEventDtoById(Long id) {
+        return null;
+    }
+
+    public List<com.bitpub.dto.GameEventDTO> getEventsBySession(Long sessionId) {
+        return java.util.Collections.emptyList();
+    }
 
     /**
      * Metodo asincrono: viene eseguito in un thread separato dal Thread Pool.

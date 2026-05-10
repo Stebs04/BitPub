@@ -1,4 +1,4 @@
-﻿package com.bitpub.services;
+package com.bitpub.services;
 
 import com.bitpub.dto.LocaleDTO;
 import com.bitpub.models.Locale;
@@ -34,7 +34,7 @@ public class LocaleService {
 
     public Optional<LocaleDTO> aggiornaLocale(Long id, LocaleDTO dto) {
         return localeRepository.findById(id).map(esistente -> {
-            if (dto.getNome() != null) esistente.setNome(dto.getNome());
+            if (dto.getNome() != null) esistente.setName(dto.getNome());
             if (dto.getIpAddressEdge() != null) esistente.setIpAddressEdge(dto.getIpAddressEdge());
             if (dto.getIndirizzo() != null) esistente.setIndirizzo(dto.getIndirizzo());
             if (dto.getCitta() != null) esistente.setCitta(dto.getCitta());
@@ -63,7 +63,7 @@ public class LocaleService {
     private LocaleDTO convertToDTO(Locale entity) {
         LocaleDTO dto = new LocaleDTO();
         dto.setId(entity.getId());
-        dto.setNome(entity.getNome());
+        dto.setNome(entity.getName());
         dto.setIpAddressEdge(entity.getIpAddressEdge());
         dto.setIndirizzo(entity.getIndirizzo());
         dto.setCitta(entity.getCitta());
@@ -75,7 +75,7 @@ public class LocaleService {
     private Locale convertToEntity(LocaleDTO dto) {
         Locale entity = new Locale();
         entity.setId(dto.getId());
-        entity.setNome(dto.getNome());
+        entity.setName(dto.getNome());
         entity.setIpAddressEdge(dto.getIpAddressEdge());
         entity.setIndirizzo(dto.getIndirizzo());
         entity.setCitta(dto.getCitta());

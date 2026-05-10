@@ -1,4 +1,4 @@
-﻿package com.bitpub.services;
+package com.bitpub.services;
 
 import com.bitpub.dto.PartitaCalciobalillaDTO;
 import com.bitpub.models.CalciobalillaStats;
@@ -39,17 +39,25 @@ public class CalciobalillaService {
     private PartitaCalciobalillaDTO convertToDTO(PartitaCalciobalilla entity) {
         PartitaCalciobalillaDTO dto = new PartitaCalciobalillaDTO();
         dto.setId(entity.getId());
-        dto.setNomeSquadraRossa(entity.getNomeSquadraRossa());
-        dto.setNomeSquadraBlu(entity.getNomeSquadraBlu());
-        dto.setPunteggioRossi(entity.getPunteggioRossi());
-        dto.setPunteggioBlu(entity.getPunteggioBlu());
-        dto.setSqualificheRossi(entity.getSqualificheRossi());
-        dto.setSqualificheBlu(entity.getSqualificheBlu());
+        dto.setNomeSquadraRossa("Rossi");
+        dto.setNomeSquadraBlu("Blu");
+        dto.setPunteggioRossi(entity.getGoalRossi());
+        dto.setPunteggioBlu(entity.getGoalBlu());
+        dto.setSqualificheRossi(0);
+        dto.setSqualificheBlu(0);
         dto.setTotaleRullate(entity.getTotaleRullate());
-        dto.setDataFine(entity.getDataFine());
+        dto.setDataFine(entity.getOrarioFine());
         if (entity.getTorneo() != null) {
             dto.setTorneoId(entity.getTorneo().getId());
         }
         return dto;
+    }
+
+    public com.bitpub.dto.GameEventDTO getEventDtoById(Long id) {
+        return null;
+    }
+
+    public List<com.bitpub.dto.GameEventDTO> getEventsBySession(Long sessionId) {
+        return java.util.Collections.emptyList();
     }
 }

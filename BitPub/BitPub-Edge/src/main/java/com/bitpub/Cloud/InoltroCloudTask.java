@@ -1,13 +1,14 @@
-package com.bitpub.edge;
+package com.bitpub.Cloud;
 
-import com.bitpub.buffer.BufferDatiEdge;
+import java.nio.charset.StandardCharsets;
+
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
+import com.bitpub.buffer.BufferDatiEdge;
 
 /**
  * Worker thread preposto all'estrazione e all'esportazione dei pacchetti telemetrici

@@ -1,7 +1,6 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.events.MqttScoreEvent;
-import com.bitpub.events.MqttSimulatorEvent;
+import com.bitpub.services.ElaborazioneEventiService;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -36,6 +35,9 @@ public class CloudMqttGateway implements MqttCallback {
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
+
+    @Autowired
+    private ElaborazioneEventiService elaborazioneEventiService;
 
     /** Monitoraggio heartbeat (mantenuto in memoria per diagnostica rapida) */
     private final Map<String, Instant> edgeLastSeen = new ConcurrentHashMap<>();
@@ -80,10 +82,10 @@ public class CloudMqttGateway implements MqttCallback {
                 handleHeartbeat(json);
             } else if (topic.matches("bitpub/edge/.+/score")) {
                 // Pubblica l'evento di score per l'elaborazione asincrona
-                eventPublisher.publishEvent(new MqttScoreEvent(this, topic, payload));
+                elaborazioneEventiService.processaESalvaEvento(topic, payload);
             } else if (topic.matches("bitpub/locali/.+/calciobalilla/.+/eventi")) {
                 // Pubblica l'evento simulator per il salvataggio dei risultati
-                eventPublisher.publishEvent(new MqttSimulatorEvent(this, topic, payload));
+                elaborazioneEventiService.processaESalvaEvento(topic, payload);
             }
 
         } catch (Exception e) {
@@ -102,6 +104,13 @@ public class CloudMqttGateway implements MqttCallback {
         json.addProperty("tableId", tableId);
         json.addProperty("sessionId", sessionId);
         publishMessage("bitpub/cloud/foosball/start", json.toString(), 1);
+    }
+
+    public void publishForceStop(Integer tableId) {
+        JsonObject json = new JsonObject();
+        json.addProperty("tableId", tableId);
+        json.addProperty("command", "FORCE_STOP");
+        publishMessage("bitpub/cloud/foosball/stop", json.toString(), 1);
     }
 
     private void publishMessage(String topic, String payload, int qos) {
