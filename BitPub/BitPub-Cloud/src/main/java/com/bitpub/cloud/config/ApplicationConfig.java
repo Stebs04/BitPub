@@ -38,8 +38,8 @@ public class ApplicationConfig {
      */
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> repository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Utente con email " + username + " non trovato nel sistema."));
+        return username -> repository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Utente con username " + username + " non trovato nel sistema."));
     }
 
     /**
