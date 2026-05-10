@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 
@@ -11,9 +12,9 @@ import com.bitpub.repository.PartitaFreccetteRepository;
 import com.bitpub.models.PartitaFreccette;
 
 @SpringBootTest
+@ActiveProfiles("test") // Isola i test sul database in memoria (H2)
 public class MqttToDbIntegrationTest {
 
-    // Sostituisci questo con il nome reale del tuo servizio che gestisce i messaggi
     @Autowired
     private ElaborazioneEventiService elaborazioneEventiService;
 
@@ -35,7 +36,7 @@ public class MqttToDbIntegrationTest {
         // 2. ESECUZIONE: Chiamiamo il metodo che normalmente scatta al `messageArrived`
         elaborazioneEventiService.processaESalvaEvento(topicWildcard, jsonPayload);
 
-        // 3. VERIFICA: Controlliamo se il DAO ha scritto fisicamente su PostgreSQL (o DB in memoria)
+        // 3. VERIFICA: Controlliamo se il DAO ha scritto fisicamente sul DB (in memoria in questo caso)
         List<PartitaFreccette> partiteSalvate = freccetteRepository.findAll();
 
         // Ci aspettiamo esattamente 1 record
