@@ -6,3 +6,22 @@
 20:12:33.918 [com.bitpub.Main.main()] INFO  com.bitpub.edge.EdgeMqttClient - [EDGE MQTT] Connesso e sottoscritto ai canali di comando.
 20:12:33.919 [com.bitpub.Main.main()] INFO  com.bitpub.Main - Sistema Edge operativo. Heartbeat avviato ogni 15s.
 20:12:33.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:12:48.924 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:13:03.926 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:13:18.921 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:13:33.925 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:13:48.924 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:14:03.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:14:18.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:14:33.933 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:14:48.923 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:15:03.921 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:15:18.926 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:15:33.923 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:15:48.923 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:16:03.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:16:18.923 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:16:33.924 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:16:48.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:17:03.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
+20:17:18.922 [pool-2-thread-1] DEBUG com.bitpub.edge.HeartbeatTask - [HEARTBEAT] Segnale ONLINE inviato correttamente su bitpub/locali/Locale_Esempio_01/status
