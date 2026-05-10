@@ -1,5 +1,6 @@
 package com.bitpub.repository;
 
+import com.bitpub.models.GameSessionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

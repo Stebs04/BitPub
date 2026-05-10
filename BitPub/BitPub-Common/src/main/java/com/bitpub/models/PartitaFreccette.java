@@ -21,6 +21,24 @@ import jakarta.persistence.Table;
 public class PartitaFreccette extends Partita {
 
     /**
+     * Il nome del giocatore che ha vinto la partita.
+     */
+    @Expose
+    private String giocatoreVincitore;
+
+    /**
+     * Il punteggio finale o la variante di punteggio raggiunta.
+     */
+    @Expose
+    private int punteggio;
+
+    /**
+     * Il numero di mosse (lanci) effettuati nella partita.
+     */
+    @Expose
+    private int mosse;
+
+    /**
      * Indica la variante del gioco utilizzata per la partita.
      * Esempi comuni sono: "501", "301", "Cricket" o "Around the Clock".
      */
@@ -65,6 +83,30 @@ public class PartitaFreccette extends Partita {
     }
 
     // --- GETTER E SETTER ---
+
+    public String getGiocatoreVincitore() {
+        return giocatoreVincitore;
+    }
+
+    public void setGiocatoreVincitore(String giocatoreVincitore) {
+        this.giocatoreVincitore = giocatoreVincitore;
+    }
+
+    public int getPunteggio() {
+        return punteggio;
+    }
+
+    public void setPunteggio(int punteggio) {
+        this.punteggio = punteggio;
+    }
+
+    public int getMosse() {
+        return mosse;
+    }
+
+    public void setMosse(int mosse) {
+        this.mosse = mosse;
+    }
 
     /** @return La modalità di gioco (es. "501"). */
     public String getModalita() {

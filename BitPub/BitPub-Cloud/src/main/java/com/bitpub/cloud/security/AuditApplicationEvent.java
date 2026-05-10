@@ -1,6 +1,6 @@
 package com.bitpub.cloud.security;
 
-import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.models.AuditLogEntity;
 import org.springframework.context.ApplicationEvent;
 
 public class AuditApplicationEvent extends ApplicationEvent {

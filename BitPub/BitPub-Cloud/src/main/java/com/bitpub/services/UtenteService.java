@@ -46,7 +46,7 @@ public class UtenteService {
 
     public UtenteDTO creaUtente(UtenteDTO dto) {
         Utente utente = convertToEntity(dto);
-        if(utente.getRole() == null) utente.setRole("USER");
+        if(utente.getRole() == null) utente.setRole("UTENTE");
         if(utente.getCredito() == null) utente.setCredito(0.0);
         if(utente.isAttivo() == null) utente.setAttivo(true);
 
@@ -94,7 +94,7 @@ public class UtenteService {
             if ("ADMIN".equalsIgnoreCase(utente.getRole())) {
                 return "ADMIN_ROLE_PROTECTED";
             }
-            String nuovoRuolo = "GESTORE".equalsIgnoreCase(utente.getRole()) ? "USER" : "GESTORE";
+            String nuovoRuolo = "GESTORE".equalsIgnoreCase(utente.getRole()) ? "UTENTE" : "GESTORE";
             utente.setRole(nuovoRuolo);
             utenteRepository.save(utente);
             return "SUCCESS";

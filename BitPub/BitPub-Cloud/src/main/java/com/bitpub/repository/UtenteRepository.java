@@ -58,7 +58,11 @@ public interface UtenteRepository extends JpaRepository<Utente, Long> {
      * @param role Il nome del ruolo (es: "ADMIN", "GESTORE", "UTENTE").
      * @return Una {@link List} di utenti appartenenti al ruolo specificato.
      */
-    List<Utente> findByRole(String role);
+    @Query("SELECT u FROM Utente u WHERE u.ruolo = " +
+           "(CASE WHEN :role = 'ADMIN' THEN com.bitpub.models.Utente.Ruolo.ADMIN " +
+           "WHEN :role = 'GESTORE' THEN com.bitpub.models.Utente.Ruolo.GESTORE " +
+           "ELSE com.bitpub.models.Utente.Ruolo.USER END)")
+    List<Utente> findByRole(@Param("role") String role);
 
     /**
      * Esegue una ricerca testuale parziale (fuzzy search) e case-insensitive su più campi.
