@@ -1,4 +1,4 @@
-﻿package com.bitpub.controllers;
+package com.bitpub.controllers;
 
 import com.bitpub.assembler.UtenteModelAssembler;
 import com.bitpub.dto.UtenteDTO;
@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class UtenteController {
     private UtenteModelAssembler assembler;
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CollectionModel<EntityModel<UtenteDTO>>> getAllUtenti(
             @RequestParam(required = false) String ruolo) {
 
@@ -42,6 +44,7 @@ public class UtenteController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<EntityModel<UtenteDTO>> getUtenteById(@PathVariable Long id) {
         return utenteService.getUtenteById(id)
                 .map(assembler::toModel)
@@ -56,6 +59,7 @@ public class UtenteController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('UTENTE')")
     public ResponseEntity<EntityModel<UtenteDTO>> aggiornaUtente(@PathVariable Long id, @RequestBody UtenteDTO utenteAggiornato) {
         return utenteService.aggiornaUtente(id, utenteAggiornato)
                 .map(assembler::toModel)
@@ -64,6 +68,7 @@ public class UtenteController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminaUtente(@PathVariable Long id) {
         if(utenteService.eliminaUtente(id)) {
             return ResponseEntity.noContent().build();

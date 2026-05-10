@@ -1,17 +1,20 @@
-﻿package com.bitpub.controllers;
+package com.bitpub.controllers;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.bitpub.assembler.TorneoModelAssembler;
 import com.bitpub.dto.TorneoDTO;
 import com.bitpub.services.TorneoService;
-import com.bitpub.assembler.TorneoModelAssembler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Optional;
+
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
@@ -57,9 +60,8 @@ public class TorneoController {
     }
 
     @PostMapping
-    public ResponseEntity<?> creaTorneo(
-            @RequestBody TorneoDTO nuovoTorneo,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    @PreAuthorize("hasRole('GESTORE')")
+    public ResponseEntity<?> creaTorneo(@RequestBody TorneoDTO nuovoTorneo) {
 
         try {
             TorneoDTO torneoSalvato = torneoService.creaTorneo(nuovoTorneo);
@@ -71,6 +73,7 @@ public class TorneoController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('GESTORE')")
     public ResponseEntity<?> aggiornaTorneo(@PathVariable("id") Long id, @RequestBody TorneoDTO datiAggiornati) {
         return torneoService.aggiornaTorneo(id, datiAggiornati)
                 .map(salvato -> ResponseEntity.ok(assembler.toModel(salvato)))
@@ -78,9 +81,8 @@ public class TorneoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> eliminaTorneo(
-            @PathVariable("id") Long id,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    @PreAuthorize("hasRole('GESTORE')")
+    public ResponseEntity<String> eliminaTorneo(@PathVariable("id") Long id) {
 
         if (torneoService.eliminaTorneo(id)) {
             return ResponseEntity.ok("Torneo " + id + " eliminato.");
@@ -100,6 +102,7 @@ public class TorneoController {
     }
 
     @PostMapping("/{id}/iscrivi")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> iscriviUtente(
             @PathVariable("id") Long id,
             @RequestParam("utenteId") Long utenteId) {

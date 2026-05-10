@@ -1,4 +1,4 @@
-﻿package com.bitpub.dto;
+package com.bitpub.dto;
 
 public class UtenteDTO {
     private Long id;

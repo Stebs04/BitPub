@@ -7,6 +7,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +37,7 @@ public class FoosballSessionController {
     private GameSessionService gameSessionService;
 
     @PostMapping("/start")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> startSession(@RequestBody Map<String, Integer> payload) {
         Integer tableId = payload.get("table_id");
         if (tableId == null) {
@@ -52,13 +54,13 @@ public class FoosballSessionController {
 
             // Costruzione risposta HATEOAS
             EntityModel<GameSessionDTO> entityModel = EntityModel.of(dto);
-            
+
             // Link "self"
             entityModel.add(linkTo(methodOn(FoosballSessionController.class).getCurrentSession()).withSelfRel());
-            
+
             // Link "force-stop" per gli admin
             entityModel.add(Link.of("/api/v1/admin/sessions/" + dto.getId() + "/force-stop").withRel("force-stop"));
-            
+
             // Link "dashboard" per navigazione base
             entityModel.add(Link.of("/api/v1/dashboard").withRel("dashboard"));
 
@@ -74,6 +76,7 @@ public class FoosballSessionController {
     }
 
     @GetMapping("/current")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getCurrentSession() {
         // Estrazione username dal Security Context
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -81,7 +84,7 @@ public class FoosballSessionController {
 
         // Delega la lettura al service
         Optional<GameSessionDTO> sessionOpt = gameSessionService.getCurrentSession(username);
-        
+
         if (sessionOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Nessuna partita in corso per l'utente.");
@@ -90,7 +93,7 @@ public class FoosballSessionController {
         // Mapping e HATEOAS
         EntityModel<GameSessionDTO> entityModel = EntityModel.of(sessionOpt.get());
         entityModel.add(linkTo(methodOn(FoosballSessionController.class).getCurrentSession()).withSelfRel());
-        
+
         return ResponseEntity.ok(entityModel);
     }
 }

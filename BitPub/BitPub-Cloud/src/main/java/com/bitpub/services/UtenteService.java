@@ -1,9 +1,10 @@
-﻿package com.bitpub.services;
+package com.bitpub.services;
 
 import com.bitpub.dto.UtenteDTO;
 import com.bitpub.models.Utente;
 import com.bitpub.repository.UtenteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,6 +16,9 @@ public class UtenteService {
 
     @Autowired
     private UtenteRepository utenteRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     public Optional<UtenteDTO> getUtenteById(Long id) {
         return utenteRepository.findById(id).map(this::convertToDTO);
@@ -44,7 +48,11 @@ public class UtenteService {
         Utente utente = convertToEntity(dto);
         if(utente.getRole() == null) utente.setRole("USER");
         if(utente.getCredito() == null) utente.setCredito(0.0);
-        if(utente.getAttivo() == null) utente.setAttivo(true);
+        if(utente.isAttivo() == null) utente.setAttivo(true);
+
+        if (dto.getPassword() != null) {
+            utente.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
 
         Utente salvato = utenteRepository.save(utente);
         return convertToDTO(salvato);
@@ -56,6 +64,9 @@ public class UtenteService {
             if (dto.getCognome() != null) esistente.setCognome(dto.getCognome());
             if (dto.getEmail() != null) esistente.setEmail(dto.getEmail());
             if (dto.getAttivo() != null) esistente.setAttivo(dto.getAttivo());
+            if (dto.getPassword() != null) {
+                esistente.setPassword(passwordEncoder.encode(dto.getPassword()));
+            }
             
             Utente salvato = utenteRepository.save(esistente);
             return convertToDTO(salvato);
@@ -72,7 +83,7 @@ public class UtenteService {
 
     public boolean toggleUserStatus(String username) {
         return utenteRepository.findByUsername(username).map(utente -> {
-            utente.setAttivo(!utente.getAttivo());
+            utente.setAttivo(!utente.isAttivo());
             utenteRepository.save(utente);
             return true;
         }).orElse(false);
@@ -100,7 +111,7 @@ public class UtenteService {
         dto.setAnni(utente.getAnni());
         dto.setEmail(utente.getEmail());
         dto.setCredito(utente.getCredito());
-        dto.setAttivo(utente.getAttivo());
+        dto.setAttivo(utente.isAttivo());
         return dto;
     }
 
@@ -115,9 +126,7 @@ public class UtenteService {
         utente.setEmail(dto.getEmail());
         utente.setCredito(dto.getCredito());
         utente.setAttivo(dto.getAttivo());
-        if(dto.getPassword() != null) {
-            utente.setPassword(dto.getPassword());
-        }
         return utente;
     }
 }
+

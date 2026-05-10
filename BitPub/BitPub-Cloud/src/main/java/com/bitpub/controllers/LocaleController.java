@@ -1,4 +1,4 @@
-﻿package com.bitpub.controllers;
+package com.bitpub.controllers;
 
 import com.bitpub.assembler.LocaleModelAssembler;
 import com.bitpub.dto.LocaleDTO;
@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,7 +17,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
-@RequestMapping("/api/locali")
+@RequestMapping("/api/v1/locali")
+@CrossOrigin(origins = "*")
 public class LocaleController {
 
     @Autowired
@@ -26,6 +28,7 @@ public class LocaleController {
     private LocaleModelAssembler assembler;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE')")
     public ResponseEntity<CollectionModel<EntityModel<LocaleDTO>>> getAllLocali() {
         List<LocaleDTO> locali = localeService.getAllLocali();
 
@@ -40,6 +43,7 @@ public class LocaleController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'GESTORE', 'UTENTE')")
     public ResponseEntity<EntityModel<LocaleDTO>> getLocaleById(@PathVariable("id") Long id) {
         return localeService.getLocaleById(id)
                 .map(assembler::toModel)
@@ -48,12 +52,14 @@ public class LocaleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EntityModel<LocaleDTO>> creaLocale(@RequestBody LocaleDTO nuovoLocale) {
         LocaleDTO localeSalvato = localeService.creaLocale(nuovoLocale);
         return ResponseEntity.ok(assembler.toModel(localeSalvato));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EntityModel<LocaleDTO>> aggiornaLocale(@PathVariable("id") Long id, @RequestBody LocaleDTO localeAggiornato) {
         return localeService.aggiornaLocale(id, localeAggiornato)
                 .map(assembler::toModel)
@@ -62,6 +68,7 @@ public class LocaleController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> eliminaLocale(@PathVariable("id") Long id) {
         if(localeService.eliminaLocale(id)) {
             return ResponseEntity.noContent().build();

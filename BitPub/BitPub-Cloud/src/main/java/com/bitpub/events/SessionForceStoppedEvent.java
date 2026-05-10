@@ -1,4 +1,4 @@
-﻿package com.bitpub.events;
+package com.bitpub.events;
 
 import org.springframework.context.ApplicationEvent;
 

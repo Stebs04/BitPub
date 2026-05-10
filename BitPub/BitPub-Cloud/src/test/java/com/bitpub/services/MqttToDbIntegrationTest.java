@@ -7,6 +7,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 
+import com.bitpub.repository.PartitaFreccetteRepository;
+import com.bitpub.models.PartitaFreccette;
+
 @SpringBootTest
 public class MqttToDbIntegrationTest {
 
@@ -30,7 +33,7 @@ public class MqttToDbIntegrationTest {
         String jsonPayload = "{\"giocatoreVincitore\": \"Stefano\", \"punteggio\": 301, \"mosse\": 15}";
 
         // 2. ESECUZIONE: Chiamiamo il metodo che normalmente scatta al `messageArrived`
-        elaborazioneEventiService.elaboraMessaggio(topicWildcard, jsonPayload);
+        elaborazioneEventiService.processaESalvaEvento(topicWildcard, jsonPayload);
 
         // 3. VERIFICA: Controlliamo se il DAO ha scritto fisicamente su PostgreSQL (o DB in memoria)
         List<PartitaFreccette> partiteSalvate = freccetteRepository.findAll();

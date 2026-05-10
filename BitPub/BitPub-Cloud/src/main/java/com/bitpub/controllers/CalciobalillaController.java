@@ -1,4 +1,4 @@
-﻿package com.bitpub.controllers;
+package com.bitpub.controllers;
 
 import com.bitpub.assembler.GameEventModelAssembler;
 import com.bitpub.dto.GameEventDTO;

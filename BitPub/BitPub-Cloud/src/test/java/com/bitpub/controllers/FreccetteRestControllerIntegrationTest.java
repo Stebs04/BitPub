@@ -11,6 +11,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+import com.bitpub.repository.PartitaFreccetteRepository;
+import com.bitpub.models.PartitaFreccette;
+
 @SpringBootTest // Carica tutto il contesto dell'applicazione Spring
 @AutoConfigureMockMvc // Configura MockMvc per simulare le chiamate HTTP
 public class FreccetteRestControllerIntegrationTest {

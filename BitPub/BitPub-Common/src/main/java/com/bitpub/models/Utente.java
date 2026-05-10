@@ -1,8 +1,13 @@
 package com.bitpub.models;
 
-import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import com.google.gson.annotations.Expose;
 import jakarta.persistence.*;
+
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Rappresenta un Utente all'interno del dominio applicativo BitPub.
@@ -14,7 +19,7 @@ import jakarta.persistence.*;
  */
 @Entity
 @Table(name = "utenti")
-public class Utente extends ResourceModel {
+public class Utente extends ResourceModel implements UserDetails {
 
     /** Identificativo univoco generato automaticamente dal sistema di persistenza. */
     @Id
@@ -86,14 +91,18 @@ public class Utente extends ResourceModel {
         this.credito = 0.0;
         this.attivo = true;
 
-        // Cifratura della password tramite salt dinamico
-        this.password = BCrypt.hashpw(password, BCrypt.gensalt());
+        this.password = password;
     }
 
     /**
      * Costruttore predefinito richiesto dai framework di persistenza (JPA) e serializzazione (GSON).
      */
     public Utente() {}
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role));
+    }
 
     /** @return Il nome utente. */
     public String getUsername() { return username; }
@@ -122,25 +131,32 @@ public class Utente extends ResourceModel {
     /** @return L'hash della password memorizzato. */
     public String getPassword() { return password; }
 
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return attivo;
+    }
+
     /**
      * Aggiorna la password applicando l'hashing BCrypt.
      * @param password La nuova password in chiaro.
      */
     public void setPassword(String password) {
-        this.password = BCrypt.hashpw(password, BCrypt.gensalt());
-    }
-
-    /**
-     * Confronta una password in chiaro con l'hash presente nel database.
-     *
-     * @param passwordInChiaro La password fornita in fase di login.
-     * @return true se la password coincide, false altrimenti.
-     */
-    public boolean checkPassword(String passwordInChiaro) {
-        if (passwordInChiaro == null || passwordInChiaro.isBlank()) {
-            return false;
-        }
-        return BCrypt.checkpw(passwordInChiaro, this.password);
+        this.password = password;
     }
 
     /** @return Il cognome dell'utente. */
@@ -178,3 +194,4 @@ public class Utente extends ResourceModel {
         return "Utente{" + "id=" + id + ", username='" + username + '\'' + ", role='" + role + '\'' + '}';
     }
 }
+

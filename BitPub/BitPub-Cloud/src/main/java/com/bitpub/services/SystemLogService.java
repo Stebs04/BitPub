@@ -1,16 +1,20 @@
-﻿package com.bitpub.services;
+package com.bitpub.services;
 
 import com.bitpub.dto.AuditLogDTO;
 import com.bitpub.dto.EdgeStatusDTO;
-import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.models.AuditLogEntity;
 import com.bitpub.repository.AuditLogRepository;
-import com.bitpub.cloud.repository.EdgeStatusEntity;
+import com.bitpub.models.EdgeStatusEntity;
 import com.bitpub.repository.EdgeStatusRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
+import com.bitpub.events.EdgeStatusUpdateEvent;
 
 @Service
 public class SystemLogService {
@@ -20,6 +24,17 @@ public class SystemLogService {
 
     @Autowired
     private EdgeStatusRepository edgeStatusRepository;
+
+    @Async("mqttDbTaskExecutor")
+    @EventListener
+    public void handleEdgeStatusUpdate(EdgeStatusUpdateEvent event) {
+        EdgeStatusEntity entity = edgeStatusRepository.findById(event.getVenueId())
+            .orElse(new EdgeStatusEntity());
+        entity.setVenueId(event.getVenueId());
+        entity.setStatus(event.getStatus());
+        entity.setLastSeen(LocalDateTime.now());
+        edgeStatusRepository.save(entity);
+    }
 
     public List<AuditLogDTO> getLogs(String level) {
         List<AuditLogEntity> entities;
@@ -50,7 +65,7 @@ public class SystemLogService {
 
     private EdgeStatusDTO convertEdgeToDTO(EdgeStatusEntity entity) {
         EdgeStatusDTO dto = new EdgeStatusDTO();
-        dto.setEdgeId(entity.getEdgeId());
+        dto.setEdgeId(entity.getVenueId());
         dto.setStatus(entity.getStatus());
         dto.setLastSeen(entity.getLastSeen());
         return dto;

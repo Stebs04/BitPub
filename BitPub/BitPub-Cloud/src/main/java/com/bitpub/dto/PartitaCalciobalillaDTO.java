@@ -1,4 +1,4 @@
-﻿package com.bitpub.dto;
+package com.bitpub.dto;
 
 import java.time.LocalDateTime;
 

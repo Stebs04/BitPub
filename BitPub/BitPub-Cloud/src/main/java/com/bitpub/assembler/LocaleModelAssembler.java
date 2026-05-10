@@ -1,4 +1,4 @@
-﻿package com.bitpub.assembler;
+package com.bitpub.assembler;
 
 import com.bitpub.controllers.LocaleController;
 import com.bitpub.dto.LocaleDTO;
