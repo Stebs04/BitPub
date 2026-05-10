@@ -1,5 +1,6 @@
 package com.bitpub.repository;
 
+import com.bitpub.models.GameSessionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,6 +9,8 @@ import java.util.Optional;
 
 /**
  * Interfaccia Spring Data JPA per le operazioni CRUD sulla tabella game_session.
+ * Architetturalmente, questo componente deve essere richiamato esclusivamente dal Service Layer dedicato
+ * e non iniettato direttamente nei Controller, per garantire la corretta gestione transazionale.
  */
 @Repository
 public interface GameSessionRepository extends JpaRepository<GameSessionEntity, Long> {

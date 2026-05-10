@@ -41,6 +41,12 @@ public interface PartitaCalciobalillaRepository extends JpaRepository<PartitaCal
     Integer countVittorieBlu();
 
     /**
+     * Recupera le partite concluse all'interno di un determinato locale.
+     */
+    @Query("SELECT p FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.orarioFine IS NOT NULL")
+    java.util.List<PartitaCalciobalilla> findConcluseByLocaleId(@Param("localeId") Long localeId);
+
+    /**
      * Calcola la durata media (in minuti) delle partite di calciobalilla completate 
      * all'interno di un determinato locale.
      * La query estrae la differenza in secondi tra l'inizio e la fine della partita,
@@ -49,9 +55,6 @@ public interface PartitaCalciobalillaRepository extends JpaRepository<PartitaCal
      * @param localeId L'ID univoco del locale di cui si vogliono calcolare le statistiche.
      * @return La durata media delle partite (in minuti). Restituisce null se non ci sono partite concluse.
      */
-    @Query("SELECT p FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.orarioFine IS NOT NULL")
-    java.util.List<PartitaCalciobalilla> findConcluseByLocaleId(@Param("localeId") Long localeId);
-
     default Double calculateAverageDuration(Long localeId) {
         java.util.List<PartitaCalciobalilla> partite = findConcluseByLocaleId(localeId);
         if (partite.isEmpty()) return null;

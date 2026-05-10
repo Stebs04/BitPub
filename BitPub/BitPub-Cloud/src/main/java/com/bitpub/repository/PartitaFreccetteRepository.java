@@ -11,10 +11,11 @@ import java.util.List;
 
 /**
  * Repository per la gestione della persistenza delle partite di Freccette.
- * * @author Timothy Giolito
+ * @author Timothy Giolito
  */
 @Repository
 public interface PartitaFreccetteRepository extends JpaRepository<PartitaFreccette, Long> {
+    
     @Query("SELECT p FROM PartitaFreccette p WHERE p.localeId = :localeId AND (:stato = 'IN_CORSO' AND p.orarioFine IS NULL)")
     List<PartitaFreccette> findByLocaleIdAndStato(@Param("localeId") Long localeId, @Param("stato") String stato);
     
@@ -24,6 +25,9 @@ public interface PartitaFreccetteRepository extends JpaRepository<PartitaFreccet
     @Query("SELECT p FROM PartitaFreccette p WHERE p.localeId = :localeId AND p.orarioFine IS NOT NULL")
     List<PartitaFreccette> findConcluseByLocaleId(@Param("localeId") Long localeId);
 
+    /**
+     * Calcola la durata media (in minuti) delle partite concluse per uno specifico locale.
+     */
     default Double calculateAverageDuration(Long id) {
         List<PartitaFreccette> partite = findConcluseByLocaleId(id);
         if (partite.isEmpty()) return null;

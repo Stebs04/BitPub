@@ -1,6 +1,7 @@
-<!--Author: Stefano Bellan 20054330-->
 <?xml version="1.0" encoding="UTF-8"?>
+<!--Author: Stefano Bellan 20054330-->
 
+<?import java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
