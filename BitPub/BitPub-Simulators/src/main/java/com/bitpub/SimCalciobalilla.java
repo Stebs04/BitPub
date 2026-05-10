@@ -1,5 +1,6 @@
 package com.bitpub;
 
+import com.bitpub.models.PartitaCalciobalilla;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
@@ -18,7 +19,7 @@ public class SimCalciobalilla implements Runnable {
     private PartitaCalciobalilla partitaCorrente;
     private final int MAX_GOL = 10;
 
-    public SimCalciobalilla(String idLocale, String idDispositivo) {
+    public SimCalciobalilla(String idLocale, String idDispositivo, BlockingQueue<Object> codaEventi) {
         this.idLocale = idLocale;
         this.idDispositivo = idDispositivo;
         this.codaEventi = codaEventi;

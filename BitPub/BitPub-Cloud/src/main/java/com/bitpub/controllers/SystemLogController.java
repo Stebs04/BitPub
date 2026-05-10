@@ -1,7 +1,7 @@
 package com.bitpub.controllers;
 
 import com.bitpub.dto.AuditLogDTO;
-import com.bitpub.dto.EdgeStatusDTO;
+import com.bitpub.models.EdgeStatus;
 import com.bitpub.services.SystemLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,7 +23,7 @@ public class SystemLogController {
     }
 
     @GetMapping(value = "/network-status", produces = "application/resources.v1+json")
-    public List<EdgeStatusDTO> getNetworkStatus() {
+    public List<EdgeStatus> getNetworkStatus() {
         return systemLogService.getNetworkStatus();
     }
 }

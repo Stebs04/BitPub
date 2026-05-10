@@ -1,7 +1,7 @@
 package com.bitpub.services;
 
 import com.bitpub.dto.AuditLogDTO;
-import com.bitpub.dto.EdgeStatusDTO;
+import com.bitpub.models.EdgeStatus;
 import com.bitpub.models.AuditLogEntity;
 import com.bitpub.repository.AuditLogRepository;
 import com.bitpub.models.EdgeStatusEntity;
@@ -46,9 +46,9 @@ public class SystemLogService {
         return entities.stream().map(this::convertAuditToDTO).collect(Collectors.toList());
     }
 
-    public List<EdgeStatusDTO> getNetworkStatus() {
+    public List<EdgeStatus> getNetworkStatus() {
         return edgeStatusRepository.findAll().stream()
-                .map(this::convertEdgeToDTO)
+                .map(this::convertEdgeToModel)
                 .collect(Collectors.toList());
     }
 
@@ -63,11 +63,11 @@ public class SystemLogService {
         return dto;
     }
 
-    private EdgeStatusDTO convertEdgeToDTO(EdgeStatusEntity entity) {
-        EdgeStatusDTO dto = new EdgeStatusDTO();
-        dto.setEdgeId(entity.getVenueId());
-        dto.setStatus(entity.getStatus());
-        dto.setLastSeen(entity.getLastSeen());
-        return dto;
+    private EdgeStatus convertEdgeToModel(EdgeStatusEntity entity) {
+        EdgeStatus model = new EdgeStatus();
+        model.setVenueName(entity.getVenueId());
+        model.setStatus(entity.getStatus());
+        model.setLastSeen(entity.getLastSeen());
+        return model;
     }
 }

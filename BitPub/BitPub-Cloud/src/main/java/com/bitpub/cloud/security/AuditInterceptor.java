@@ -1,6 +1,6 @@
 package com.bitpub.cloud.security;
 
-import com.bitpub.repository.AuditLogEntity;
+import com.bitpub.models.AuditLogEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
