@@ -1,48 +1,46 @@
 package com.bitpub.network;
 
 import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Data Transfer Object (DTO) progettato per incapsulare e deserializzare le risposte 
  * ipermediali standard fornite dal backend Spring Boot. 
- * Il suo scopo strutturale è fornire al RestClient un modello tipizzato per l'estrazione 
- * e l'analisi della mappa dei link (_links), abilitando di fatto la navigazione 
- * dinamica degli endpoint e l'implementazione del pattern architetturale HATEOAS.
  */
 public class RispostaHateoas {
 
-    // Mappa la struttura JSON nativa di Spring Data REST isolando il blocco _links,
-    // dove la chiave identifica il tipo di relazione (rel) e il valore l'indirizzo
     @Expose
+    @SerializedName("_links")
     private Map<String, LinkDettaglio> _links;
 
     /**
      * Fornisce l'accesso al dizionario dei collegamenti ipermediali disponibili.
-     * 
-     * @return La mappa delle relazioni scoperte a runtime per la risorsa interrogata
      */
     public Map<String, LinkDettaglio> getLinks() {
+        if (_links == null) {
+            _links = new HashMap<>();
+        }
         return _links;
     }
 
     /**
-     * Sottoclasse statica che riflette la struttura formale di un singolo nodo di navigazione.
-     * Permette alla libreria Gson di isolare e proiettare in memoria gli attributi 
-     * specifici del link omettendo eventuali metadati aggiuntivi ignorati dal client.
+     * Recupera l'URL di un link specifico per relazione, lanciando un'eccezione descrittiva se mancante.
      */
+    public String getLinkSafe(String rel) {
+        LinkDettaglio link = getLinks().get(rel);
+        if (link == null) {
+            throw new RuntimeException("Link HATEOAS '" + rel + "' non trovato nella risposta del server.");
+        }
+        return link.getHref();
+    }
+
     public static class LinkDettaglio {
-        
-        // Proprietà fondamentale che conserva l'URI (Uniform Resource Identifier)
-        // a cui la logica di business dovrà indirizzare la successiva transazione HTTP
+
         @Expose
         private String href;
 
-        /**
-         * Restituisce l'indirizzo operativo associato alla specifica relazione.
-         * 
-         * @return L'URL assoluto o relativo pronto per essere processato dal RestClient
-         */
         public String getHref() {
             return href;
         }

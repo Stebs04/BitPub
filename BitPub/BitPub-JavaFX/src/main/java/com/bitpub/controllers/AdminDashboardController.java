@@ -11,9 +11,14 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 /**
  * Controller per la Dashboard Amministratore dedicata alla gestione dei Locali.
@@ -81,16 +86,15 @@ public class AdminDashboardController {
         // 1. DISCOVERY: Risoluzione dinamica dell'endpoint dalla Root
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String linkLocali = root.getLinks().get("locali").getHref();
-                // 2. AZIONE: Recupero asincrono dell'array di oggetti
-                return restClient.getAsync(linkLocali, Locale[].class);
+                String linkLocali = root.getLinkSafe("locali");
+                // 2. AZIONE: Recupero asincrono dell'oggetto JSON per supportare HAL
+                return restClient.getAsync(linkLocali, JsonObject.class);
             })
-            .thenAccept(localiArray -> {
+            .thenAccept(response -> {
+                List<Locale> listaEstratta = extractArrayFromHateoas(response, Locale.class);
                 // 3. UI UPDATE: Aggiornamento della lista osservabile sul thread grafico
                 Platform.runLater(() -> {
-                    if (localiArray != null) {
-                        listaLocaliObservable.setAll(Arrays.asList(localiArray));
-                    }
+                    listaLocaliObservable.setAll(listaEstratta);
                     progressIndicator.setVisible(false);
                 });
             })
@@ -115,13 +119,14 @@ public class AdminDashboardController {
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
                 // Costruzione URL con parametro di filtro per ruolo
-                String usersUrl = root.getLinks().get("users").getHref() + "?role=GESTORE";
-                return restClient.getAsync(usersUrl, Utente[].class);
+                String usersUrl = root.getLinkSafe("users") + "?role=GESTORE";
+                return restClient.getAsync(usersUrl, JsonObject.class);
             })
-            .thenAccept(gestori -> {
+            .thenAccept(response -> {
+                List<Utente> gestori = extractArrayFromHateoas(response, Utente.class);
                 Platform.runLater(() -> {
                     progressIndicator.setVisible(false);
-                    mostraDialogCreazione(gestori != null ? Arrays.asList(gestori) : List.of());
+                    mostraDialogCreazione(gestori);
                 });
             })
             .exceptionally(ex -> {
@@ -145,7 +150,7 @@ public class AdminDashboardController {
         // Fase di persistenza: invio del nuovo locale al server
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
             .thenCompose(root -> {
-                String createUrl = root.getLinks().get("locali").getHref();
+                String createUrl = root.getLinkSafe("locali");
                 Locale nuovoLocale = new Locale(); // Dati popolati dal Dialog
                 return restClient.postAsync(createUrl, nuovoLocale, Locale.class);
             })
@@ -158,10 +163,10 @@ public class AdminDashboardController {
     @FXML
     public void handleModifica() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null || selezionato.get_links() == null) return;
+        if (selezionato == null || selezionato.getLinks().isEmpty()) return;
 
         // HATEOAS: L'oggetto stesso contiene l'URL per la propria modifica (pattern self-link)
-        String updateUrl = selezionato.get_links().get("self").getHref();
+        String updateUrl = selezionato.getLinkHref("self");
 
         // [Logica Dialog di modifica omessa]
 
@@ -176,7 +181,7 @@ public class AdminDashboardController {
     @FXML
     public void handleElimina() {
         Locale selezionato = localiTable.getSelectionModel().getSelectedItem();
-        if (selezionato == null || selezionato.get_links() == null) return;
+        if (selezionato == null || selezionato.getLinks().isEmpty()) return;
 
         Alert conferma = new Alert(Alert.AlertType.CONFIRMATION, "Eliminare " + selezionato.getName() + "?");
         conferma.showAndWait().ifPresent(risposta -> {
@@ -184,7 +189,7 @@ public class AdminDashboardController {
                 Platform.runLater(() -> progressIndicator.setVisible(true));
                 
                 // HATEOAS: Navigazione dinamica del link di cancellazione fornito dalla risorsa
-                String deleteUrl = selezionato.get_links().get("self").getHref();
+                String deleteUrl = selezionato.getLinkHref("self");
                 
                 restClient.deleteAsync(deleteUrl)
                     .thenAccept(v -> Platform.runLater(() -> {
@@ -199,6 +204,37 @@ public class AdminDashboardController {
                     });
             }
         });
+    }
+
+    /**
+     * Isolatore architetturale per la deserializzazione di payload complessi.
+     * Analizza l'albero JSON per supportare lo standard HAL (Hypertext Application Language)
+     * utilizzato da Spring Data REST.
+     *
+     * @param response L'oggetto JSON grezzo ricevuto dal backend
+     * @param clazz La classe del DTO da mappare
+     * @return Una lista tipizzata di istanze
+     */
+    private <T> List<T> extractArrayFromHateoas(JsonObject response, Class<T> clazz) {
+        List<T> items = new ArrayList<>();
+        try {
+            if (response.has("_embedded")) {
+                JsonObject embedded = response.getAsJsonObject("_embedded");
+                String key = embedded.keySet().iterator().next();
+                JsonArray array = embedded.getAsJsonArray(key);
+                for (JsonElement el : array) {
+                    items.add(restClient.getGson().fromJson(el, clazz));
+                }
+            } else if (response.has("content")) {
+                JsonArray array = response.getAsJsonArray("content");
+                for (JsonElement el : array) {
+                    items.add(restClient.getGson().fromJson(el, clazz));
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Errore parsing HATEOAS array: " + e.getMessage());
+        }
+        return items;
     }
 
     /**

@@ -1,127 +1,74 @@
 package com.bitpub.controllers;
 
-import com.bitpub.models.CalciobalillaStats;
-import com.bitpub.models.PartitaCalciobalilla;
-import com.bitpub.repository.PartitaCalciobalillaRepository;
+import com.bitpub.assembler.GameEventModelAssembler;
+import com.bitpub.dto.GameEventDTO;
+import com.bitpub.services.CalciobalillaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Import statici fondamentali per la generazione dinamica dei link
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
-import com.bitpub.models.PartitaCalciobalilla;
-import com.bitpub.models.Utente;
-import com.bitpub.repository.AuditLogEntity;
-import com.bitpub.repository.AuditLogRepository;
-import com.bitpub.repository.PartitaCalciobalillaRepository;
-import com.bitpub.repository.UtenteRepository;
-import com.bitpub.services.PersistenceService;
-import com.bitpub.mqtt.CloudMqttGateway;
-import com.bitpub.utils.MqttCalciobalillaTopics;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.LocalDateTime;
-import java.util.Map;
-import java.util.Optional;
-
 /**
- * REST Controller per la gestione delle risorse relative alle partite di calciobalilla.
- * <p>
- * Implementa il livello HATEOAS esponendo i metodi per recuperare tutte le partite,
- * ottenere i dettagli di una singola partita e aggregare le statistiche generali.
- * I risultati sono incapsulati in {@code CollectionModel} e {@code EntityModel}.
- * </p>
+ * CalciobalillaController - Gestione eventi real-time del gioco Calciobalilla.
  *
- * @author Stefano Bellan (Implementazione Core e Logica di Dominio)
+ * Refactoring Senior Note:
+ * Il controller è stato allineato al nuovo standard architetturale del progetto.
+ * Restituisce esclusivamente GameEventDTO validati tramite GameEventModelAssembler,
+ * garantendo coerenza totale con gli altri moduli di gioco (es. Biliardo) e
+ * disaccoppiando l'API REST dalle Entity del database.
  */
 @RestController
-@RequestMapping(value = "/api/calciobalilla")
-@CrossOrigin(origins = "*") // Risolve eventuali conflitti di permessi legati alle policy CORS
+@RequestMapping("/api/v1/calciobalilla")
 public class CalciobalillaController {
+
+    private final CalciobalillaService calciobalillaService;
+    private final GameEventModelAssembler assembler;
+
     @Autowired
-    private PartitaCalciobalillaRepository repository;
+    public CalciobalillaController(CalciobalillaService calciobalillaService, GameEventModelAssembler assembler) {
+        this.calciobalillaService = calciobalillaService;
+        this.assembler = assembler;
+    }
 
     /**
-     * Recupera l'elenco completo delle partite di calciobalilla.
-     * <p>
-     * Ogni entità restituita è arricchita con link HATEOAS per la navigazione
-     * verso la singola partita, lo storico, e le informazioni del torneo associato (se presente).
-     * </p>
-     *
-     * @return un {@link ResponseEntity} contenente un {@link CollectionModel} di partite
+     * Recupera il dettaglio di un singolo evento di gioco tramite il suo identificativo.
      */
-    @GetMapping
-    public ResponseEntity<CollectionModel<EntityModel<PartitaCalciobalilla>>> getAllPartite() {
-        List<EntityModel<PartitaCalciobalilla>> partite = repository.findAll().stream()
-                .map(this::aggiungiLinkHateoas)
+    @GetMapping("/event/{id}")
+    public ResponseEntity<EntityModel<GameEventDTO>> getEventById(@PathVariable Long id) {
+        // Il service si occupa del recupero e della conversione iniziale in DTO
+        GameEventDTO dto = calciobalillaService.getEventDtoById(id);
+        
+        // L'assembler inietta i link HATEOAS per la navigabilità
+        return ResponseEntity.ok(assembler.toModel(dto));
+    }
+
+    /**
+     * Recupera l'intero storico degli eventi associati a una specifica sessione di gioco.
+     */
+    @GetMapping("/session/{sessionId}/events")
+    public ResponseEntity<CollectionModel<EntityModel<GameEventDTO>>> getEventsBySession(@PathVariable Long sessionId) {
+        // Delega la lettura massiva al layer di servizio
+        List<GameEventDTO> eventi = calciobalillaService.getEventsBySession(sessionId);
+
+        // Mappatura della collezione tramite lo standard assembler
+        List<EntityModel<GameEventDTO>> resources = eventi.stream()
+                .map(assembler::toModel)
                 .collect(Collectors.toList());
 
-        // 1. Creiamo il CollectionModel avvolgendo la lista
-        CollectionModel<EntityModel<PartitaCalciobalilla>> collectionModel = CollectionModel.of(partite);
-
-        // 2. Aggiungiamo un link "self" alla collezione stessa
-        collectionModel.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withSelfRel());
-
-        return ResponseEntity.ok(collectionModel);
-    }
-
-    /**
-     * Recupera una singola partita per ID con link ipertestuali dinamici.
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<EntityModel<PartitaCalciobalilla>> getPartitaById(@PathVariable("id") Long id) {
-        return repository.findById(id)
-                .map(partita -> ResponseEntity.ok(aggiungiLinkHateoas(partita)))
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Endpoint per le statistiche aggregate.
-     */
-    @GetMapping("/stats")
-    public ResponseEntity<CalciobalillaStats> getGlobalStats() {
-        int rullate = repository.findAll().stream()
-                .mapToInt(PartitaCalciobalilla::getTotaleRullate)
-                .sum();
-        int vRossi = repository.countVittorieRossi();
-        int vBlu = repository.countVittorieBlu();
-
-        return ResponseEntity.ok(new CalciobalillaStats(rullate, vRossi, vBlu));
-    }
-
-    /**
-     * Arricchisce l'entità PartitaCalciobalilla con i metadati ipertestuali (Fase
-     * 22).
-     */
-    private EntityModel<PartitaCalciobalilla> aggiungiLinkHateoas(PartitaCalciobalilla partita) {
-        EntityModel<PartitaCalciobalilla> risorsa = EntityModel.of(partita);
-
-        // Link "self": punta alla risorsa corrente
-        risorsa.add(linkTo(methodOn(CalciobalillaController.class).getPartitaById(partita.getId())).withSelfRel());
-
-        // Link "storico": punta all'elenco completo
-        risorsa.add(linkTo(methodOn(CalciobalillaController.class).getAllPartite()).withRel("storico"));
-
-        // Link al Torneo: assicura il salto tra moduli in modo dinamico
-        if (partita.getTorneo() != null) {
-            risorsa.add(linkTo(methodOn(TorneoController.class).getTorneoById(partita.getTorneo().getId()))
-                    .withRel("dettagli_torneo"));
-        }
-
-        return risorsa;
+        // Costruzione del contenitore HATEOAS con il link self
+        return ResponseEntity.ok(
+                CollectionModel.of(resources, 
+                        linkTo(methodOn(CalciobalillaController.class).getEventsBySession(sessionId)).withSelfRel())
+        );
     }
 }

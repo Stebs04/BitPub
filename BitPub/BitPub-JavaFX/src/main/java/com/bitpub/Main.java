@@ -107,21 +107,25 @@ public class Main extends Application {
      * dopo un login riuscito.
      */
     public static void redirectDopoLogin() {
-        String role = com.bitpub.network.SessionManager.getInstance().getUserRole();
-        if (role == null) {
+        String rawRole = com.bitpub.network.SessionManager.getInstance().getUserRole();
+        if (rawRole == null) {
             navigaVerso("/LoginView.fxml", "BitPub - Login");
             return;
         }
         
+        // Normalizzazione del ruolo: rimuove il prefisso "ROLE_" se presente e converte in maiuscolo
+        String role = rawRole.replace("ROLE_", "").toUpperCase();
+        
         switch (role) {
             case "ADMIN":
-                navigaVerso("/AdminDashboardView.fxml", "Generale");
+                navigaVerso("/AdminMainLayout.fxml", "BitPub - Admin Dashboard");
                 break;
             case "GESTORE":
-                navigaVerso("/GestoreDashboardView.fxml", "Generale");
+                navigaVerso("/GestoreDashboardView.fxml", "BitPub - Gestore Dashboard");
                 break;
+            case "UTENTE_BASE":
             default:
-                navigaVerso("/DashboardView.fxml", "Generale");
+                navigaVerso("/DashboardView.fxml", "BitPub - Dashboard Utente");
                 break;
         }
     }

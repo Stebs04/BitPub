@@ -1,51 +1,53 @@
 package com.bitpub.controllers;
 
-import com.bitpub.mqtt.MqttAdminGateway;
+import com.bitpub.services.EmergencyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
- * Controller REST specializzato nella gestione delle operazioni critiche di amministrazione.
- * Agisce come bridge tecnologico convertendo le richieste HTTP provenienti dalla Dashboard
- * in comandi di controllo per il protocollo MQTT diretti ai nodi Edge locali.
- *
+ * AdminEmergencyController - Endpoint per la gestione delle situazioni critiche.
+ * * Refactoring Note:
+ * Rimosso l'accoppiamento diretto con MqttAdminGateway.
+ * Il controller ora inietta EmergencyService seguendo le best practices di Spring
+ * e i principi architetturali del progetto, delegando la logica hardware al service.
  * @author Stefano Bellan 20054330
- * @since 2024
  */
 @RestController
-@RequestMapping("/api/v1/admin/emergency")
-@CrossOrigin(origins = "*") // Abilita l'interazione con client esterni (es: Dashboard JavaFX)
+@RequestMapping("/api/admin/emergency")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminEmergencyController {
 
-    /** Gateway centralizzato per la comunicazione asincrona verso il broker MQTT. */
+    private final EmergencyService emergencyService;
+
     @Autowired
-    private MqttAdminGateway mqttGateway;
+    public AdminEmergencyController(EmergencyService emergencyService) {
+        this.emergencyService = emergencyService;
+    }
 
     /**
-     * Endpoint dedicato allo sblocco forzato delle risorse fisiche (es. Tavoli da biliardo).
-     * Invia un pacchetto di comando al nodo Edge specifico per risolvere stati di blocco hardware.
-     *
-     * Endpoint: POST /api/v1/admin/emergency/unlock/{venueId}/{tableId}
-     * Sicurezza: Accesso ristretto esclusivamente agli utenti con privilegio 'ADMIN'.
-     *
-     * @param venueId L'identificativo univoco della sede (es. Milano-01).
-     * @param tableId L'identificativo della risorsa locale da sbloccare.
-     * @return ResponseEntity con lo stato dell'operazione e messaggio di conferma invio.
+     * Esegue lo sblocco forzato di un tavolo.
+     * Riceve i parametri necessari nel corpo della richiesta per identificare il target.
+     * * @param payload Map contenente 'localeId' e 'tavoloId'.
+     * @return ResponseEntity con esito dell'operazione.
      */
-    @PostMapping("/unlock/{venueId}/{tableId}")
-    @PreAuthorize("hasRole('ADMIN')") // Intercettazione JWT per la verifica dei privilegi amministrativi
-    public ResponseEntity<?> forceUnlock(@PathVariable String venueId, @PathVariable String tableId) {
+    @PostMapping("/unlock")
+    public ResponseEntity<String> emergencyUnlock(@RequestBody Map<String, Object> payload) {
+        try {
+            Long localeId = Long.valueOf(payload.get("localeId").toString());
+            String tavoloId = payload.get("tavoloId").toString();
 
-        // Costruzione del topic gerarchico conforme alle specifiche di routing del sistema Edge
-        String topic = "bitpub/locali/" + venueId + "/biliardo/" + tableId + "/cmd";
+            // Delega al service l'esecuzione del comando hardware
+            emergencyService.forceUnlockTable(localeId, tavoloId);
 
-        // Pubblicazione del comando "FORCE_UNLOCK" tramite il gateway MQTT.
-        // Nota tecnica: L'operazione utilizza il QoS 2 per garantire l'esecuzione del comando critico.
-        mqttGateway.publish(topic, "FORCE_UNLOCK");
-
-        // Risposta immediata al client JavaFX per segnalare l'avvenuta presa in carico della richiesta
-        return ResponseEntity.ok("Comando di sblocco inviato con successo al locale: " + venueId);
+            return ResponseEntity.ok("Comando di sblocco inviato con successo.");
+        } catch (NullPointerException | IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Parametri 'localeId' o 'tavoloId' mancanti o non validi.");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Errore durante l'invio del comando di emergenza.");
+        }
     }
 }

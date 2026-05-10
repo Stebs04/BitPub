@@ -1,44 +1,45 @@
 package com.bitpub.models;
 
-import com.google.gson.annotations.Expose;
+import java.time.LocalDateTime;
 
 /**
- * Modello che rappresenta lo stato di connessione di un nodo Edge (Locale).
- * Fornisce informazioni in tempo reale sulla disponibilità delle sedi fisiche.
- *
- * @author Stefano Bellan 20054330
+ * Modello per lo stato di un Edge Node.
+ * Utilizzato per il monitoraggio della rete nella dashboard amministrativa.
  */
 public class EdgeStatus {
+    private String venueName;
+    private String status;
+    private LocalDateTime lastSeen;
 
-    /** Identificativo univoco della sede (Venue) */
-    @Expose private String venueId;
+    public EdgeStatus() {}
 
-    /** Nome descrittivo della sede locale */
-    @Expose private String venueName;
-
-    /** Stato operativo attuale della connessione (es. ONLINE o OFFLINE) */
-    @Expose private String status;
-
-    /** Marca temporale dell'ultima comunicazione ricevuta dal nodo (Heartbeat) */
-    @Expose private String lastSeen;
-
-    /**
-     * Costruttore predefinito.
-     * Utilizzato dalla libreria GSON per l'istanziazione tramite reflection.
-     */
-    public EdgeStatus() {
-        // Costruttore vuoto per deserializzazione JSON
+    public EdgeStatus(String venueName, String status, LocalDateTime lastSeen) {
+        this.venueName = venueName;
+        this.status = status;
+        this.lastSeen = lastSeen;
     }
 
-    /** @return L'identificativo della sede */
-    public String getVenueId() { return venueId; }
+    public String getVenueName() {
+        return venueName;
+    }
 
-    /** @return Il nome della sede */
-    public String getVenueName() { return venueName; }
+    public void setVenueName(String venueName) {
+        this.venueName = venueName;
+    }
 
-    /** @return Lo stato attuale (ONLINE/OFFLINE) */
-    public String getStatus() { return status; }
+    public String getStatus() {
+        return status;
+    }
 
-    /** @return Il timestamp dell'ultimo ping ricevuto */
-    public String getLastSeen() { return lastSeen; }
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getLastSeen() {
+        return lastSeen;
+    }
+
+    public void setLastSeen(LocalDateTime lastSeen) {
+        this.lastSeen = lastSeen;
+    }
 }

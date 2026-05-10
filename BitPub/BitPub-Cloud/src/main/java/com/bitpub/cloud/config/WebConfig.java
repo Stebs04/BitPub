@@ -1,36 +1,47 @@
 package com.bitpub.cloud.config;
 
 import com.bitpub.cloud.security.AuditInterceptor;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.util.TimeZone;
+
 /**
- * Configurazione personalizzata del framework Web MVC per l'ecosistema BitPub.
- * Questa classe registra i componenti necessari per il monitoraggio del traffico
- * e la gestione del ciclo di vita delle richieste HTTP.
- *
- * @author Stefano Bellan 20054330
+ * Configurazione Web MVC centralizzata.
+ * Gestisce la registrazione degli intercettori di sicurezza.
+ * Utilizza Jackson (default di Spring Boot) per le API REST (supporto HATEOAS nativo).
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    /** Intercettore dedicato alla registrazione automatica degli eventi di Audit. */
     @Autowired
     private AuditInterceptor auditInterceptor;
 
     /**
-     * Registra gli intercettori nel registro globale di Spring MVC.
-     * Configura i path pattern specifici per i quali l'audit trail deve essere attivo.
-     *
-     * @param registry Il registro degli intercettori fornito dal framework.
+     * Registra l'AuditInterceptor per monitorare il traffico API v1.
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Applichiamo la logica di tracciamento (Audit Trail) esclusivamente alle rotte API v1
-        // Questo garantisce che ogni chiamata verso gli endpoint REST venga loggata nel DB PostgreSQL
         registry.addInterceptor(auditInterceptor)
                 .addPathPatterns("/api/v1/**");
+    }
+
+    /**
+     * Personalizza Jackson per gestire correttamente le date Java 8 (LocalDateTime).
+     */
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
+        return builder -> {
+            builder.modules(new JavaTimeModule());
+            builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            builder.simpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            builder.timeZone(TimeZone.getTimeZone("Europe/Rome"));
+        };
     }
 }

@@ -4,12 +4,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * Configurazione per la gestione della concorrenza asincrona.
- * @EnableAsync attiva la capacità di Spring di eseguire metodi in background.
+ * Configurazione avanzata della concorrenza per BitPub Cloud.
+ * Risolve la perdita del contesto di sicurezza tra thread e implementa
+ * una policy di backpressure per la resilienza dei dati MQTT.
  */
 @Configuration
 @EnableAsync
@@ -18,17 +20,28 @@ public class AsyncConfig {
     @Bean(name = "mqttDbTaskExecutor")
     public Executor threadPoolTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        // Numero di thread sempre attivi (i nostri lavoratori di base)
+
+        // --- Dimensionamento del Pool ---
         executor.setCorePoolSize(10);
-        // Numero massimo di thread se c'è un picco di dati in arrivo
         executor.setMaxPoolSize(50);
-        // Dimensione della coda di attesa prima di rifiutare i messaggi
         executor.setQueueCapacity(1000);
-        // Diamo un nome ai thread per facilitare la lettura dei log
         executor.setThreadNamePrefix("MqttDbWorker-");
+
+        /**
+         * REF: CallerRunsPolicy
+         * Se la coda è piena, il thread che invoca il task (es. il Gateway MQTT)
+         * eseguirà lui stesso il salvataggio. Questo crea un naturale 'backpressure',
+         * rallentando la ricezione ma garantendo ZERO PERDITE di log.
+         */
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+
         executor.initialize();
 
-        System.out.println("[AsyncConfig] Thread Pool per salvataggi DB inizializzato.");
-        return executor;
+        /**
+         * REF: DelegatingSecurityContextAsyncTaskExecutor
+         * Avvolge l'executor per copiare automaticamente il SecurityContext (JWT/User)
+         * dal thread principale al thread worker asincrono.
+         */
+        return new DelegatingSecurityContextAsyncTaskExecutor(executor);
     }
 }
