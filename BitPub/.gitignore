@@ -68,3 +68,5 @@ BitPub-Cloud/logs/
 /BitPub-Edge/Edge*
 
 BitPub-Cloud/src/main/resources/*.yml
+
+/BitPub-Edge/logs/edge*
