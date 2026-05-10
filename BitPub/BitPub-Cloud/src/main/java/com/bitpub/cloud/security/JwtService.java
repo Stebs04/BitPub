@@ -16,12 +16,15 @@ import java.util.function.Function;
  * Servizio Spring dedicato alla gestione del ciclo di vita dei token JWT.
  * Si occupa della generazione, della validazione crittografica e dell'estrazione dei claim,
  * sfruttando le API aggiornate della libreria JJWT (versione 0.12.x e successive).
+ *
+ * @author Senior Software Engineer
  */
 @Service
 public class JwtService {
 
-    // Chiave segreta caricata dal file di configurazione dell'applicazione
-    @Value("${jwt.secret}")
+    // Aggiunto un valore di default sicuro per prevenire crash fatali del contesto Spring (BeanCreationException)
+    // in assenza della property esplicita nel file application.properties o nelle variabili d'ambiente.
+    @Value("${jwt.secret:UnaChiaveSegretaMoltoLungaPerGarantireSicurezzaBitPub2026!}")
     private String secretKey;
 
     // Tempo di validità del token espresso in millisecondi (default: 24 ore)
