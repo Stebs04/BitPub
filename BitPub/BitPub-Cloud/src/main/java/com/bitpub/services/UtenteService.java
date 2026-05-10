@@ -27,7 +27,11 @@ public class UtenteService {
     public List<UtenteDTO> getAllUtenti(String ruolo) {
         List<Utente> utenti;
         if (ruolo != null && !ruolo.trim().isEmpty()) {
-            utenti = utenteRepository.findByRole(ruolo);
+            try {
+                utenti = utenteRepository.findByRole(Utente.Ruolo.valueOf(ruolo.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                utenti = List.of();
+            }
         } else {
             utenti = utenteRepository.findAll();
         }
@@ -36,7 +40,11 @@ public class UtenteService {
 
     public List<UtenteDTO> cercaUtenti(String role, String search) {
         if (role != null && !role.isBlank()) {
-            return utenteRepository.findByRole(role).stream().map(this::convertToDTO).collect(Collectors.toList());
+            try {
+                return utenteRepository.findByRole(Utente.Ruolo.valueOf(role.toUpperCase())).stream().map(this::convertToDTO).collect(Collectors.toList());
+            } catch (IllegalArgumentException e) {
+                return List.of();
+            }
         }
         if (search != null && !search.isBlank()) {
             return utenteRepository.cercaPerNomeCognomeOUsername(search).stream().map(this::convertToDTO).collect(Collectors.toList());
