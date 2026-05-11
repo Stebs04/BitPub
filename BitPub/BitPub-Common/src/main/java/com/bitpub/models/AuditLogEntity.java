@@ -8,13 +8,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Column;
 
 /**
  * AuditLogEntity - Registro delle operazioni di sistema e sicurezza.
  * * Refactoring Senior Note:
- * Sebbene l'audit sia prevalentemente inserimento, l'aggiunta della versione 
- * mantiene la coerenza con il resto del modello di dominio per eventuali 
- * riconciliazioni o modifiche amministrative post-registrazione.
+ * È stato aggiunto un metodo @PrePersist per garantire che ogni log abbia 
+ * un timestamp di sistema valido senza delegare la responsabilità al chiamante.
+ * La colonna timestamp è marcata come non nullable per integrità dei dati.
+ * * @author Stefano Bellan 20054330
  */
 @Entity
 @Table(name = "audit_logs")
@@ -30,12 +33,24 @@ public class AuditLogEntity {
 
     private String level;
 
+    @Column(length = 1000)
     private String message;
 
+    @Column(name = "timestamp", nullable = false, updatable = false)
     private LocalDateTime timestamp;
 
     @Version
     private Long version;
+
+    /**
+     * Ciclo di vita JPA: Assicura che la data di registrazione sia sempre presente.
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (this.timestamp == null) {
+            this.timestamp = LocalDateTime.now();
+        }
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
