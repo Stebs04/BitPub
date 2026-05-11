@@ -19,6 +19,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * GameSessionService - Logica di business per la gestione delle sessioni.
+ * * Refactoring Senior Note:
+ * Le operazioni di scrittura nel DB e la creazione dei log di audit sono ora 
+ * atomiche grazie alla gestione transazionale. I log vengono popolati con 
+ * metadati corretti per evitare eccezioni di persistenza.
+ */
 @Service
 public class GameSessionService {
 
@@ -40,25 +47,32 @@ public class GameSessionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Interrompe forzatamente una sessione aggiornando DB, Log e segnalando l'evento all'hardware.
+     */
     @Transactional
     public GameSessionDTO forceStopSession(Long id) {
-        GameSessionEntity session = gameSessionRepository.findById(id).orElse(null);
-        if (session == null || !"IN_PROGRESS".equals(session.getStatus())) {
-            throw new IllegalStateException("Sessione non trovata o non in corso.");
+        GameSessionEntity session = gameSessionRepository.findById(id)
+                .orElseThrow(() -> new IllegalStateException("Sessione con ID " + id + " non trovata."));
+
+        if (!"IN_PROGRESS".equals(session.getStatus())) {
+            throw new IllegalStateException("La sessione selezionata non è in corso (Stato attuale: " + session.getStatus() + ").");
         }
 
+        // 1. Aggiornamento stato sessione
         session.setStatus("FORCE_STOPPED");
         session.setEndTime(LocalDateTime.now());
         gameSessionRepository.save(session);
 
+        // 2. Registrazione operazione di sicurezza nell'Audit Log
         AuditLogEntity log = new AuditLogEntity();
         log.setLevel("WARN");
-        log.setSource("Cloud-Admin");
+        log.setSource("Cloud-Admin-Controller");
         log.setAction("SESSION_FORCE_STOPPED");
-        log.setMessage("Sessione " + id + " interrotta forzatamente da Admin");
+        log.setMessage("L'amministratore ha forzato la chiusura della sessione #" + id + " sul tavolo " + session.getTableId());
         auditLogRepository.save(log);
 
-        // Pubblica l'evento locale
+        // 3. Pubblicazione evento interno per il bridge MQTT
         eventPublisher.publishEvent(new SessionForceStoppedEvent(this, session.getTableId(), id));
 
         return convertToDTO(session);
@@ -70,15 +84,14 @@ public class GameSessionService {
 
     @Transactional
     public GameSessionDTO startSession(String username, Integer tableId) {
-        Optional<Utente> userOpt = utenteRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new IllegalArgumentException("Utente non trovato.");
-        }
-        Long userId = userOpt.get().getId();
+        Utente user = utenteRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("Utente '" + username + "' non trovato."));
+        
+        Long userId = user.getId();
 
         Optional<GameSessionEntity> activeSession = gameSessionRepository.findByUserIdAndStatus(userId, "IN_PROGRESS");
         if (activeSession.isPresent()) {
-            throw new IllegalStateException("Hai già una partita in corso (ID: " + activeSession.get().getId() + "). Termina quella prima di iniziarne una nuova.");
+            throw new IllegalStateException("Impossibile avviare: hai già una partita attiva (ID: " + activeSession.get().getId() + ").");
         }
 
         GameSessionEntity newSession = new GameSessionEntity();
@@ -92,25 +105,19 @@ public class GameSessionService {
 
         AuditLogEntity log = new AuditLogEntity();
         log.setLevel("INFO");
-        log.setSource("Cloud-Foosball");
+        log.setSource("Cloud-Foosball-Service");
         log.setAction("SESSION_STARTED");
-        log.setMessage("Partita avviata su tavolo " + tableId + " da utente ID " + userId);
+        log.setMessage("Nuova sessione avviata su tavolo " + tableId + " per utente " + username);
         auditLogRepository.save(log);
 
-        // Pubblica evento locale per MQTT
         eventPublisher.publishEvent(new SessionStartedEvent(this, tableId, newSession.getId()));
 
         return convertToDTO(newSession);
     }
 
     public Optional<GameSessionDTO> getCurrentSession(String username) {
-        Optional<Utente> userOpt = utenteRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        Long userId = userOpt.get().getId();
-
-        return gameSessionRepository.findByUserIdAndStatus(userId, "IN_PROGRESS")
+        return utenteRepository.findByUsername(username)
+                .flatMap(u -> gameSessionRepository.findByUserIdAndStatus(u.getId(), "IN_PROGRESS"))
                 .map(this::convertToDTO);
     }
 
