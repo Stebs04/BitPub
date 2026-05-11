@@ -67,3 +67,6 @@ BitPub-Cloud/logs/
 BitPub-Cloud-Admin-*
 
 BitPub/BitPub-Edge/logs/edge.log
+BitPub/BitPub-Security/.devcontainer/devcontainer.json
+BitPub/.devcontainer/devcontainer.json
+.devcontainer/devcontainer.json
