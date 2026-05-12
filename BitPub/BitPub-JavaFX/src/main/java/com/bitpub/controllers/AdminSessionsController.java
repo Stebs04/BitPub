@@ -235,21 +235,23 @@ public class AdminSessionsController {
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             
-            // Preferiamo il link ipermediale esposto direttamente sulla risorsa
             if (session.has("_links") && session.getAsJsonObject("_links").has("force-stop")) {
                 String forceStopUrl = session.getAsJsonObject("_links").getAsJsonObject("force-stop").get("href").getAsString();
                 eseguiForceStopAsincrono(forceStopUrl);
             } else {
-                // Fallback: lo scopriamo dalla Root
-                // Componiamo l'URI se il backend non fornisce il link di azione diretta sulla sessione
-                restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
-                    .thenCompose(root -> {
-                        String fallbackUrl = root.getLinks().get("sessions").getHref() + "/" + sessionId + "/force-stop";
-                        return restClient.postAsync(fallbackUrl, null, JsonObject.class);
-                    })
+                // SOLUZIONE DEFINITIVA: Costruiamo l'URL "estraendo" la base e forzando il percorso /admin
+                String rootUrl = restClient.getRootUrl(); 
+                
+                // Troviamo la base dell'indirizzo (es. http://localhost:8080) tagliando via /api/v1/...
+                int apiIndex = rootUrl.indexOf("/api/v1");
+                String baseUrl = (apiIndex != -1) ? rootUrl.substring(0, apiIndex) : "http://localhost:8080";
+                
+                // Assembliamo l'URL esatto del controller Admin
+                String fallbackUrl = baseUrl + "/api/v1/admin/sessions/" + sessionId + "/force-stop";
+                
+                restClient.postAsync(fallbackUrl, null, JsonObject.class)
                     .thenAccept(res -> gestisciSuccessoChiusura())
                     .exceptionally(this::gestisciErroreChiusura);
-                return;
             }
         }
     }
