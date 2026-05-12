@@ -245,7 +245,7 @@ public class AdminSessionsController {
                 restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
                     .thenCompose(root -> {
                         String fallbackUrl = root.getLinks().get("sessions").getHref() + "/" + sessionId + "/force-stop";
-                        return restClient.postAsync(fallbackUrl, new JsonObject(), JsonObject.class);
+                        return restClient.postAsync(fallbackUrl, null, JsonObject.class);
                     })
                     .thenAccept(res -> gestisciSuccessoChiusura())
                     .exceptionally(this::gestisciErroreChiusura);
@@ -260,7 +260,7 @@ public class AdminSessionsController {
      * @param url L'endpoint finale risolto per l'azione di force-stop
      */
     private void eseguiForceStopAsincrono(String url) {
-        restClient.postAsync(url, new JsonObject(), JsonObject.class)
+        restClient.postAsync(url, null, JsonObject.class)
             .thenAccept(res -> gestisciSuccessoChiusura())
             .exceptionally(this::gestisciErroreChiusura);
     }

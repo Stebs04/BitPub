@@ -64,13 +64,15 @@ public class AdminSessionController {
             
         } catch (IllegalArgumentException | IllegalStateException e) {
             logger.warn("Impossibile interrompere sessione {}: {}", id, e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            Map<String, String> errorBody = new java.util.HashMap<>();
+            errorBody.put("error", e.getMessage() != null ? e.getMessage() : "Richiesta non valida");
+            return ResponseEntity.badRequest().body(errorBody);
         } catch (Exception e) {
             logger.error("Errore critico durante force-stop sessione {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(Map.of(
-                "error", "Errore interno durante la chiusura.",
-                "details", e.getMessage()
-            ));
+            Map<String, String> errorBody = new java.util.HashMap<>();
+            errorBody.put("error", "Errore interno durante la chiusura.");
+            errorBody.put("details", e.getMessage() != null ? e.getMessage() : "Nessun dettaglio disponibile");
+            return ResponseEntity.internalServerError().body(errorBody);
         }
     }
 
