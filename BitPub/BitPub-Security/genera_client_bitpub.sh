@@ -42,6 +42,10 @@ echo -e "${GREEN}[1/3] Generazione chiave privata del Client (2048 bit)...${NC}"
 openssl genrsa -out "$CLIENT_KEY" 2048
 chmod 400 "$CLIENT_KEY"
 
+echo -e "${GREEN}[+] Conversione della chiave in formato PKCS8 per Java...${NC}"
+openssl pkcs8 -topk8 -inform PEM -in "$CLIENT_KEY" -out "client_pkcs8.key" -nocrypt
+chmod 400 "client_pkcs8.key"
+
 # --- STEP 2: Richiesta di firma (CSR) ---
 echo -e "${GREEN}[2/3] Generazione richiesta di certificato (CSR)...${NC}"
 openssl req -new \
