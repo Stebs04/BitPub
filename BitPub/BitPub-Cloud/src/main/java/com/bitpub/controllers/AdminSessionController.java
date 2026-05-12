@@ -62,7 +62,7 @@ public class AdminSessionController {
             GameSessionDTO dto = gameSessionService.forceStopSession(id);
             return ResponseEntity.ok(EntityModel.of(dto));
             
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             logger.warn("Impossibile interrompere sessione {}: {}", id, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

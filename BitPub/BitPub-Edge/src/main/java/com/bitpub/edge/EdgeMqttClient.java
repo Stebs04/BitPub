@@ -71,7 +71,7 @@ public class EdgeMqttClient implements MqttCallback {
         } catch (Exception e) {
             // Fail-safe intercettato dal logger senza causare lo spegnimento forzato
             // poiché il sistema bufferizzato potrebbe ancora raccogliere e accantonare dati locali
-            logger.error("[EDGE MQTT] Errore critico durante la connessione: {}", e.getMessage());
+            logger.error("[EDGE MQTT] Errore critico durante la connessione", e);
         }
     }
 
