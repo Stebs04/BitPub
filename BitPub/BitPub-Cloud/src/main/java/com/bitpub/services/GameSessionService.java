@@ -129,6 +129,17 @@ public class GameSessionService {
         dto.setStartTime(entity.getStartTime());
         dto.setEndTime(entity.getEndTime());
         dto.setStatus(entity.getStatus());
+        dto.setGameType(entity.getGameType());
+        
+        // Tentativo di conversione sicura di venueId (String) in localeId (Long)
+        if (entity.getVenueId() != null) {
+            try {
+                dto.setLocaleId(Long.parseLong(entity.getVenueId()));
+            } catch (NumberFormatException e) {
+                // Se non è un numero (es. è un nome), lo lasciamo null nel DTO numerico
+            }
+        }
+        
         return dto;
     }
 }

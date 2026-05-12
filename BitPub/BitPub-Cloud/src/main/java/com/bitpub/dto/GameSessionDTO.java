@@ -50,6 +50,11 @@ public class GameSessionDTO {
     @Expose
     private String status;
 
+    @JsonProperty("game_type")
+    @SerializedName("game_type")
+    @Expose
+    private String gameType;
+
     /**
      * Costruttore di default obbligatorio per la corretta deserializzazione 
      * tramite Jackson (es. quando il framework converte il JSON in oggetto Java).
@@ -61,7 +66,7 @@ public class GameSessionDTO {
      * Costruttore completo per agevolare il mapping manuale o tramite MapStruct/ModelAssembler.
      */
     public GameSessionDTO(Long id, Long localeId, String tavoloId, Long utenteId, 
-                          LocalDateTime startTime, LocalDateTime endTime, String status) {
+                          LocalDateTime startTime, LocalDateTime endTime, String status, String gameType) {
         this.id = id;
         this.localeId = localeId;
         this.tavoloId = tavoloId;
@@ -69,6 +74,7 @@ public class GameSessionDTO {
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
+        this.gameType = gameType;
     }
 
     // ==========================================
@@ -129,5 +135,13 @@ public class GameSessionDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getGameType() {
+        return gameType;
+    }
+
+    public void setGameType(String gameType) {
+        this.gameType = gameType;
     }
 }
