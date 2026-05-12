@@ -52,28 +52,38 @@ public class GameSessionService {
      */
     @Transactional
     public GameSessionDTO forceStopSession(Long id) {
+        // 1. Recuperiamo la sessione dal DB
         GameSessionEntity session = gameSessionRepository.findById(id)
                 .orElseThrow(() -> new IllegalStateException("Sessione con ID " + id + " non trovata."));
 
+        // 2. Controlliamo che la sessione sia attiva
         if (!"IN_PROGRESS".equals(session.getStatus())) {
             throw new IllegalStateException("La sessione selezionata non è in corso (Stato attuale: " + session.getStatus() + ").");
         }
 
-        // 1. Aggiornamento stato sessione
+        // --- DIFESA: Preveniamo errori se tableId dovesse essere null ---
+        Integer tableId = session.getTableId();
+        if (tableId == null) {
+            tableId = 0; // Usiamo un valore fittizio per evitare crash
+        }
+
+        // 3. Aggiorniamo lo stato
         session.setStatus("FORCE_STOPPED");
         session.setEndTime(LocalDateTime.now());
         gameSessionRepository.save(session);
 
-        // 2. Registrazione operazione di sicurezza nell'Audit Log
+        // 4. Registrazione Audit Log
         AuditLogEntity log = new AuditLogEntity();
         log.setLevel("WARN");
         log.setSource("Cloud-Admin-Controller");
         log.setAction("SESSION_FORCE_STOPPED");
-        log.setMessage("L'amministratore ha forzato la chiusura della sessione #" + id + " sul tavolo " + session.getTableId());
+        log.setMessage("L'amministratore ha forzato la chiusura della sessione #" + id + " sul tavolo " + tableId);
+        
+        // Se il database rifiuta il salvataggio per problemi di tabella, l'errore scaturirà qui
         auditLogRepository.save(log);
 
-        // 3. Pubblicazione evento interno per il bridge MQTT
-        eventPublisher.publishEvent(new SessionForceStoppedEvent(this, session.getTableId(), id));
+        // 5. Pubblicazione evento interno usando il tableId sicuro
+        eventPublisher.publishEvent(new SessionForceStoppedEvent(this, tableId, id));
 
         return convertToDTO(session);
     }
