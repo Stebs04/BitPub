@@ -141,9 +141,9 @@ public class RestClient {
         if (status == 401 || status == 403) {
             handleAuthError();
             // Lanciare l'eccezione interrompe immediatamente la catena del CompletableFuture
-            throw new ApiException("Sessione scaduta o accesso negato (" + status + ")");
+            throw new ApiException("Sessione scaduta o accesso negato (" + status + "): " + response.body());
         } else if (status >= 500) {
-            throw new ApiException("Errore interno del server (" + status + ")");
+            throw new ApiException("Errore interno del server (" + status + "): " + response.body());
         } else if (status >= 400) {
             throw new ApiException("Richiesta errata (" + status + "): " + response.body());
         }
