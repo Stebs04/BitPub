@@ -180,7 +180,7 @@ public class FoosballScoreboardController implements MqttCallback {
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
-        // Non utilizzato dal subscriber, ignorato per design [cite:1].
+        // Non utilizzato dal subscriber, ignorato per design.
     }
 
     // =========================================================================
@@ -297,19 +297,38 @@ public class FoosballScoreboardController implements MqttCallback {
     }
 
     /**
-     * Esegue il context-switch di schermata avendo cura di invalidare le credenziali
-     * della sessione e spegnere preventivamente i task in background.
+     * Esegue il context-switch manuale durante una partita o in caso di imprevisti.
+     * Ripristina la navigazione alla vista dell'arena calciobalilla.
+     *
+     * @param event L'azione UI che ha invocato il ritorno.
+     */
+    @FXML
+    void handleBack(ActionEvent event) {
+        eseguiRitorno(event);
+    }
+
+    /**
+     * Esegue il context-switch di schermata alla fine della partita.
      *
      * @param event L'azione UI che ha invocato il ritorno.
      */
     @FXML
     void handleBackToDashboard(ActionEvent event) {
+        eseguiRitorno(event);
+    }
+
+    /**
+     * Routine di utility condivisa per invalidare la sessione e commutare la vista
+     * verso l'hub del calciobalilla in modo sicuro.
+     * * @param event L'evento JavaFX di innesco per recuperare la finestra corrente.
+     */
+    private void eseguiRitorno(ActionEvent event) {
         shutdown(); 
         SessionContext.setCurrentSessionId(null);
         SessionContext.setCurrentSessionStatusUrl(null);
         
         try {
-            Parent root = FXMLLoader.load(getClass().getResource("/DashboardView.fxml"));
+            Parent root = FXMLLoader.load(getClass().getResource("/CalciobalillaUtenteView.fxml"));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root, 1024, 768));
             stage.show();
