@@ -4,13 +4,13 @@ import com.bitpub.models.PartitaCalciobalilla;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CancellationException;
 
 /**
  * Simulatore software puro per il Calciobalilla.
  * Esegue un singolo evento di gioco (gol o fallo) a ogni chiamata.
  */
-public class SimCalciobalilla implements Runnable {
-
+public class SimCalciobalilla implements  Runnable {
     private final String idLocale;
     private final String idDispositivo;
     private final Random random;
@@ -27,19 +27,16 @@ public class SimCalciobalilla implements Runnable {
         iniziaNuovaPartita();
     }
 
-    private void iniziaNuovaPartita() {
-        // Inizializza un nuovo oggetto Partita azzerando i punteggi
-        partitaCorrente = new PartitaCalciobalilla(0, 0, 0, 0, 0);
+    private void iniziaNuovaPartita(){
+        partitaCorrente = new PartitaCalciobalilla(0,0,0,0,0);
         partitaCorrente.setOrarioInizio(LocalDateTime.now());
         System.out.println("\n[SimCalciobalilla " + idDispositivo + "] --- NUOVA PARTITA INIZIATA ---");
     }
 
     @Override
-    public void run() {
-        // Se qualcuno ha già vinto, resettiamo il tavolo per la prossima chiamata
+    public void run(){
         if (partitaCorrente.getGoalRossi() >= MAX_GOL || partitaCorrente.getGoalBlu() >= MAX_GOL) {
-            iniziaNuovaPartita();
-            return;
+            throw new CancellationException("Partita terminata.");
         }
 
         // Estraiamo casualmente l'evento che si è verificato sul tavolo
@@ -65,9 +62,19 @@ public class SimCalciobalilla implements Runnable {
         if (partitaCorrente.getGoalRossi() >= MAX_GOL || partitaCorrente.getGoalBlu() >= MAX_GOL) {
             partitaCorrente.setOrarioFine(LocalDateTime.now());
             String vincitore = partitaCorrente.getGoalRossi() == MAX_GOL ? "ROSSI" : "BLU";
-            System.out.println("[SimCalciobalilla] PARTITA TERMINATA! Vittoria " + vincitore);
+            
+            System.out.println("[SimCalciobalilla] PARTITA TERMINATA! Vittoria " + vincitore + ". In attesa di nuovo comando START.");
+            
+            // Inviamo l'ultimo pacchetto alla coda così la Dashboard si aggiorna
+            codaEventi.offer(partitaCorrente);
+            
+            // Lanciando questa eccezione spegniamo elegantemente il task programmato!
+            // Il task non ripeterà più il ciclo, e il Main capirà che il tavolo è di nuovo "libero".
+            throw new CancellationException("Partita conclusa con successo.");
+        } else {
+            // Se la partita è ancora in corso, mandiamo semplicemente l'aggiornamento
+            codaEventi.offer(partitaCorrente);
         }
-
-        codaEventi.offer(partitaCorrente);
     }
+
 }
