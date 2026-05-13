@@ -20,15 +20,12 @@ import java.io.IOException;
 
 /**
  * Controller per la Dashboard Utente principale.
- * 
- * Implementa il pattern "Passive Client" basato sui principi HATEOAS: il controller
+ * * Implementa il pattern "Passive Client" basato sui principi HATEOAS: il controller
  * non conosce staticamente gli endpoint, ma scopre le funzionalità navigando i link 
  * forniti dalla risorsa Root dell'API.
- * 
- * Gestisce l'aggiornamento dinamico del profilo utente e il workflow di attivazione
+ * * Gestisce l'aggiornamento dinamico del profilo utente e il workflow di attivazione
  * dei servizi (calciobalilla, freccette, biliardo) in modalità asincrona.
- * 
- * @author Stefano Bellan (Refactoring)
+ * * @author Stefano Bellan (Refactoring)
  */
 public class DashboardController {
 
@@ -73,8 +70,7 @@ public class DashboardController {
     /**
      * Gestisce l'evento di clic sul pulsante Calciobalilla.
      * Avvia una nuova sessione di gioco seguendo il workflow HATEOAS.
-     * 
-     * @param event L'evento ActionEvent generato dal pulsante
+     * * @param event L'evento ActionEvent generato dal pulsante
      */
     @FXML 
     void handleFoosballClick(ActionEvent event) {
@@ -96,7 +92,8 @@ public class DashboardController {
                 salvaInfoSessione(session);
                 
                 // Fase 4: NAVIGATION - Switch al controller della partita
-                Platform.runLater(() -> cambiaScena(event, "/FoosballScoreboard.fxml"));
+                // MODIFICA QUI: Sostituito /FoosballScoreboard.fxml con /CalciobalillaUtenteView.fxml
+                Platform.runLater(() -> cambiaScena(event, "/CalciobalillaUtenteView.fxml"));
             })
             .exceptionally(ex -> {
                 // Gestione specifica dell'errore di concorrenza (Sessione già esistente)
@@ -113,8 +110,7 @@ public class DashboardController {
     /**
      * Tenta di recuperare una sessione già esistente qualora il server restituisca 
      * un conflitto durante l'avvio. Naviga il link "foosball-current" dalla Root.
-     * 
-     * @param event L'evento necessario per il cambio scena successivo
+     * * @param event L'evento necessario per il cambio scena successivo
      */
     private void recuperaSessioneAttiva(ActionEvent event) {
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
@@ -124,7 +120,8 @@ public class DashboardController {
             })
             .thenAccept(session -> {
                 salvaInfoSessione(session);
-                Platform.runLater(() -> cambiaScena(event, "/FoosballScoreboard.fxml"));
+                // MODIFICA QUI: Sostituito /FoosballScoreboard.fxml con /CalciobalillaUtenteView.fxml
+                Platform.runLater(() -> cambiaScena(event, "/CalciobalillaUtenteView.fxml"));
             })
             .exceptionally(ex -> {
                 Platform.runLater(() -> mostraAlert("Errore", "Sessione attiva non trovata."));
@@ -135,8 +132,7 @@ public class DashboardController {
     /**
      * Estrae i metadati della sessione (ID e URL di stato) dal JSON di risposta 
      * e li persiste nel SessionContext dell'applicazione.
-     * 
-     * @param session L'oggetto JsonObject contenente i dati della sessione e i link
+     * * @param session L'oggetto JsonObject contenente i dati della sessione e i link
      */
     private void salvaInfoSessione(JsonObject session) {
         long sessionId = session.get("id").getAsLong();
@@ -154,8 +150,7 @@ public class DashboardController {
 
     /**
      * Esegue il logout dell'utente corrente e resetta lo stato dell'applicazione.
-     * 
-     * @param event L'evento ActionEvent generato dal pulsante
+     * * @param event L'evento ActionEvent generato dal pulsante
      */
     @FXML 
     void handleLogout(ActionEvent event) {
@@ -178,8 +173,7 @@ public class DashboardController {
 
     /**
      * Utility per il cambio scena fluido tra diversi file FXML.
-     * 
-     * @param event L'evento che ha scatenato la navigazione
+     * * @param event L'evento che ha scatenato la navigazione
      * @param fxmlPath Il percorso del file FXML della nuova vista
      */
     private void cambiaScena(ActionEvent event, String fxmlPath) {
@@ -196,8 +190,7 @@ public class DashboardController {
 
     /**
      * Helper per la visualizzazione di messaggi pop-up informativi all'utente.
-     * 
-     * @param titolo Il titolo della finestra di alert
+     * * @param titolo Il titolo della finestra di alert
      * @param messaggio Il corpo del messaggio
      */
     private void mostraAlert(String titolo, String messaggio) {
