@@ -75,43 +75,11 @@ public class CalciobalillaUtenteController {
 
     /**
      * Gestisce la richiesta dell'utente di avviare una nuova partita amichevole.
-     * Attua un blocco preventivo dell'interfaccia per evitare richieste multiple,
-     * scopre dinamicamente l'endpoint di avvio e istanzia una nuova sessione sul server.
-     *
      * @param event L'evento di click catturato dall'interfaccia grafica
      */
     @FXML
     void handleGiocaPartita(ActionEvent event) {
-        // Disabilitazione immediata del pulsante per impedire interazioni concorrenti
-        btnGiocaOra.setDisable(true);
-        btnGiocaOra.setText("Inizializzazione...");
-
-        // Interroga la root API per localizzare l'indirizzo operativo dedicato all'avvio sessione
-        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
-            .thenCompose(root -> {
-                String startUrl = root.getLinks().get("foosball-start").getHref();
-                JsonObject payload = new JsonObject();
-                payload.addProperty("tipo", "AMICHEVOLE");
-                
-                // Propaga la chiamata POST verso l'endpoint appena scoperto
-                return restClient.postAsync(startUrl, payload, JsonObject.class);
-            })
-            .thenAccept(session -> {
-                // Registra l'ID generato dal backend nel contesto globale per l'uso da parte del tabellone
-                SessionContext.setCurrentSessionId(session.get("id").getAsLong());
-                
-                // Delega il cambio di scena al thread grafico principale
-                Platform.runLater(() -> Main.navigaVerso("/FoosballScoreboard.fxml", "BitPub - Match Live"));
-            })
-            .exceptionally(ex -> {
-                // Procedura di ripristino dell'interfaccia in caso di fallimento della chiamata di rete
-                Platform.runLater(() -> {
-                    btnGiocaOra.setDisable(false);
-                    btnGiocaOra.setText("Gioca Partita");
-                    new Alert(Alert.AlertType.ERROR, "Errore avvio: " + ex.getMessage()).show();
-                });
-                return null;
-            });
+        Main.navigaVerso("/FoosballScoreboard.fxml", "BitPub - Match Live");
     }
 
     /**
