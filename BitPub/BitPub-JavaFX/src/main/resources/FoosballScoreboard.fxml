@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--Author: Stefano Bellan 20054330-->
-
 <?import java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
@@ -10,15 +8,26 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" spacing="40.0" style="-fx-background-color: #0f172a;" stylesheets="@style.css" 
+<VBox alignment="CENTER" spacing="20.0" style="-fx-background-color: #0f172a;"
+      stylesheets="@style.css" 
       xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
       fx:controller="com.bitpub.controllers.FoosballScoreboardController">
    
    <padding>
-      <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+      <Insets bottom="50.0" left="50.0" right="50.0" top="20.0" />
    </padding>
 
    <children>
+      <HBox alignment="CENTER_LEFT" prefWidth="900.0">
+         <children>
+            <Button mnemonicParsing="false" onAction="#handleBack" styleClass="button-secondary" text="⬅ Torna al Calciobalilla">
+               <font>
+                  <Font name="System Bold" size="14.0" />
+               </font>
+            </Button>
+         </children>
+      </HBox>
+
       <VBox alignment="CENTER" spacing="10.0">
          <children>
             <Label fx:id="lblStatus" text="CONNESSIONE IN CORSO..." textFill="#94a3b8">
@@ -75,7 +84,7 @@
 
       <Button fx:id="btnBackToDashboard" managed="false" visible="false" mnemonicParsing="false" 
               onAction="#handleBackToDashboard" prefHeight="60.0" prefWidth="300.0" 
-              styleClass="button-secondary" text="TORNA ALLA DASHBOARD">
+              styleClass="button-secondary" text="TORNA AL CALCIOBALILLA">
          <font>
             <Font name="System Bold" size="18.0" />
          </font>
