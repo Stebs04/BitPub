@@ -18,6 +18,10 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+
 <BorderPane prefHeight="800.0" prefWidth="1200.0" styleClass="root" stylesheets="@style.css" 
             xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="com.bitpub.controllers.GestoreDashboardController">
