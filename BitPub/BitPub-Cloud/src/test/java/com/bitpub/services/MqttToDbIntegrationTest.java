@@ -6,13 +6,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
+// Importiamo Awaitility e classi per gestire il tempo
+import org.awaitility.Awaitility;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 import com.bitpub.repository.PartitaFreccetteRepository;
 import com.bitpub.models.PartitaFreccette;
 
 @SpringBootTest
-@ActiveProfiles("test") // Isola i test sul database in memoria (H2)
+@ActiveProfiles("test")
 public class MqttToDbIntegrationTest {
 
     @Autowired
@@ -23,25 +27,29 @@ public class MqttToDbIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        freccetteRepository.deleteAll(); // Pulizia iniziale
+        freccetteRepository.deleteAll();
     }
 
     @Test
     public void testSalvataggioDaMqttADatabase() {
-        // 1. PREPARAZIONE: Simuliamo i dati che arriverebbero da Mosquitto (Edge Node)
+
         String topicWildcard = "bitpub/locali/1/freccette/bersaglio1/eventi";
-        // Simuliamo un JSON serializzato (come farebbe GSON sull'Edge)
         String jsonPayload = "{\"giocatoreVincitore\": \"Stefano\", \"punteggio\": 301, \"mosse\": 15}";
 
-        // 2. ESECUZIONE: Chiamiamo il metodo che normalmente scatta al `messageArrived`
+        // 2. ESECUZIONE: Questo metodo lancia un thread asincrono (@Async)
         elaborazioneEventiService.processaESalvaEvento(topicWildcard, jsonPayload);
 
-        // 3. VERIFICA: Controlliamo se il DAO ha scritto fisicamente sul DB (in memoria in questo caso)
-        List<PartitaFreccette> partiteSalvate = freccetteRepository.findAll();
+        // 3. VERIFICA ASINCRONA:
+        // Diciamo ad Awaitility di aspettare al massimo 5 secondi.
+        // Continuerà a controllare il database ogni 100ms finché la condizione non è vera.
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .until(() -> freccetteRepository.findAll().size() == 1);
 
-        // Ci aspettiamo esattamente 1 record
+        // A questo punto siamo sicuri che il thread in background ha finito!
+        // Possiamo fare le nostre asserzioni standard
+        List<PartitaFreccette> partiteSalvate = freccetteRepository.findAll();
         assertEquals(1, partiteSalvate.size(), "Deve esserci una sola partita salvata nel DB");
-        // Verifichiamo che i dati siano stati mappati e salvati correttamente
         assertEquals("Stefano", partiteSalvate.get(0).getGiocatoreVincitore());
     }
 }
