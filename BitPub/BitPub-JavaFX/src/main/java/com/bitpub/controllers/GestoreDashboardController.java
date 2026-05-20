@@ -337,4 +337,22 @@ public class GestoreDashboardController {
             pollingTimeline.stop();
         }
     }
+
+    /**
+     * Gestisce l'azione di logout dell'utente.
+     * Ferma il polling dei dati, pulisce la sessione e reindirizza alla schermata di login.
+     */
+    @FXML
+    public void handleLogout() {
+        System.out.println("[GestoreDashboard] Inizio procedura di logout...");
+
+        // 1. Fermiamo il ciclo continuo di aggiornamento per non sprecare risorse
+        stopPolling();
+
+        // 2. Puliamo la sessione (token, ruolo, ecc.) usando il Singleton
+        com.bitpub.network.SessionManager.getInstance().logout();
+
+        // 3. Diciamo alla classe Main di riportarci alla schermata iniziale
+        com.bitpub.Main.eseguiLogout();
+    }
 }
