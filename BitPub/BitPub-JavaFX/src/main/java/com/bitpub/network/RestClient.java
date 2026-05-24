@@ -25,8 +25,11 @@ public class RestClient {
     private final HttpClient client;
     private final Gson gson;
 
-    // L'UNICO endpoint cablato ammesso in tutta l'applicazione (Root HATEOAS)
-    private static final String ROOT_URL = "http://localhost:8080/api/v1/home";
+    // Legge l'URL dalle variabili d'ambiente (es. per Docker/Script) o usa il localhost come default
+    private static final String ROOT_URL = System.getenv("BITPUB_CLOUD_URL") !=  null
+                                           ? System.getenv("BITPUB_CLOUD_URL")
+                                           : "http://localhost:8080/api/v1/home";
+
     private static final String ACCEPT_HEADER = "application/resources.v1+json";
 
     private RestClient() {
