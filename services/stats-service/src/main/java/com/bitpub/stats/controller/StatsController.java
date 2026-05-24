@@ -19,7 +19,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.bitpub.common.security.enums.Role;
+import com.bitpub.common.security.annotations.RequireRole;
+import com.bitpub.common.security.annotations.RequireOwnership;
 
 import java.util.List;
 import java.util.UUID;
@@ -102,6 +106,8 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante o non valido.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole(Role.ADMIN)
     @PostMapping("/matches")
     public ResponseEntity<MatchResult> recordMatch(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -248,6 +254,8 @@ public class StatsController {
         @ApiResponse(responseCode = "404", description = "Utente non trovato.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.userId")
+    @RequireOwnership
     @GetMapping("/history/{userId}")
     public ResponseEntity<List<MatchResult>> getMatchHistory(
             @Parameter(
@@ -298,6 +306,8 @@ public class StatsController {
         @ApiResponse(responseCode = "404", description = "Statistiche non trovate per la combinazione utente/gioco.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.userId")
+    @RequireOwnership
     @GetMapping("/players/{userId}/game/{gameId}")
     public ResponseEntity<PlayerStats> getPlayerStats(
             @Parameter(
