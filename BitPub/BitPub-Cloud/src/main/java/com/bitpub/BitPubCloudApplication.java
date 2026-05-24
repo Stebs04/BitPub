@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Entry Point principale per l'applicazione BitPub Cloud.
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * la gestione esplicita delle transazioni sul database.
  */
 @SpringBootApplication(scanBasePackages = "com.bitpub")
+@EnableScheduling
 @EntityScan(basePackages = "com.bitpub")
 @EnableJpaRepositories(basePackages = "com.bitpub")
 @EnableAsync
