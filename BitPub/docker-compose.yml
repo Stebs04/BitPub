@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- DATABASE CLOUD ---
   db:
@@ -10,29 +8,57 @@ services:
       - POSTGRES_USER=bitpub_user
       - POSTGRES_PASSWORD=bitpub2026
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - bitpub_db_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bitpub_user -d bitpub_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # --- BROKER MQTT (MOSQUITTO) ---
   mosquitto:
     image: eclipse-mosquitto:latest
     container_name: bitpub-broker
     ports:
-      - "1883:1883"   # Porta standard (locale)
-      - "8883:8883"   # Porta TLS sicura (cloud)
+      - "1883:1883"
+      - "8883:8883"
     volumes:
-      # Mappatura della configurazione
       - ./BitPub-Cloud/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      # Mappatura dei certificati generati con OpenSSL
       - ./BitPub-Security/certs:/etc/mosquitto/certs:ro
-      # Persistenza dati e log
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     restart: unless-stopped
     depends_on:
       - db
+
+  # --- BACKEND SPRING BOOT ---
+  bitpub-cloud:
+    build:
+      context: .
+      dockerfile: BitPub-Cloud/Dockerfile
+    container_name: bitpub-cloud-container
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub_user
+      - SPRING_DATASOURCE_PASSWORD=bitpub2026
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - MQTT_CA_PATH=/etc/mosquitto/certs/ca.crt
+      - MQTT_CLIENT_CRT_PATH=/etc/mosquitto/certs/client.crt
+      - MQTT_CLIENT_KEY_PATH=/etc/mosquitto/certs/client.key
+      - MQTT_KEYSTORE_PASSWORD=bitpub2026
+    volumes:
+      - ./BitPub-Security/certs:/etc/mosquitto/certs:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   bitpub_db_data:

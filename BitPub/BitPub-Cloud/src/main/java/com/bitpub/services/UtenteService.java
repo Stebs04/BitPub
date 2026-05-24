@@ -123,6 +123,10 @@ public class UtenteService {
         return dto;
     }
 
+    public Optional<Utente> findByUsername(String username) {
+        return utenteRepository.findByUsername(username);
+    }
+
     private Utente convertToEntity(UtenteDTO dto) {
         Utente utente = new Utente();
         utente.setId(dto.getId());

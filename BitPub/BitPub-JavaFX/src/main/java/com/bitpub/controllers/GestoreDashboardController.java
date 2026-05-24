@@ -68,41 +68,35 @@ public class GestoreDashboardController {
      * di una singola macchina di gioco, semplificando il binding con la TableView.
      */
     public static class Macchina {
+        private Long id;
         private String nome;
         private String tipoGioco;
         private boolean attiva;
+        private boolean attuatoreSbloccato;
 
-        public Macchina(String nome, String tipoGioco, boolean attiva) {
-            this.nome = nome;
-            this.tipoGioco = tipoGioco;
-            this.attiva = attiva;
-        }
         public String getNome() { return nome; }
         public String getTipoGioco() { return tipoGioco; }
         public boolean isAttiva() { return attiva; }
+        public boolean isAttuatoreSbloccato() { return attuatoreSbloccato; }
     }
 
     /**
      * DTO utilizzato per mappare il payload JSON delle statistiche aggregate
-     * fornito dal backend. Contiene al suo interno la struttura per la scomposizione
-     * dei dati in base al tipo di gioco.
+     * fornito dal backend. I nomi delle variabili devono corrispondere al JSON del Cloud.
      */
     public static class StatisticheDTO {
-        private long totalePartiteOggi;
-        private double mediaDurataMinuti;
-        private Distribuzione distribuzione;
+        private Long localeId;
+        private int partiteTotali;
+        private double percentualeVittorieRossi;
+        private double percentualeVittorieBlu;
+        private double durataMediaMinuti;
+        private int totaleRullate;
 
-        public static class Distribuzione {
-            private long CALCIOBALILLA;
-            private long FRECCETTE;
-            private long BILIARDO;
-        }
-
-        public long getTotalPartiteOggi() { return totalePartiteOggi; }
-        public double getMediaDurata() { return Math.round(mediaDurataMinuti * 10.0) / 10.0; }
-        public long getCalciobalillaCount() { return distribuzione != null ? distribuzione.CALCIOBALILLA : 0; }
-        public long getFreccetteCount() { return distribuzione != null ? distribuzione.FRECCETTE : 0; }
-        public long getBiliardoCount() { return distribuzione != null ? distribuzione.BILIARDO : 0; }
+        public int getPartiteTotali() { return partiteTotali; }
+        public double getDurataMediaMinuti() { return durataMediaMinuti; }
+        public double getPercentualeVittorieRossi() { return percentualeVittorieRossi; }
+        public double getPercentualeVittorieBlu() { return percentualeVittorieBlu; }
+        public int getTotaleRullate() { return totaleRullate; }
     }
 
     /**
@@ -150,8 +144,13 @@ public class GestoreDashboardController {
     private void setupTables() {
         colMacchinaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
         colMacchinaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
-        colMacchinaStato.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().isAttiva() ? "ONLINE" : "OFFLINE"));
+
+        colMacchinaStato.setCellValueFactory(cellData -> {
+            Macchina m = cellData.getValue();
+            String statoRete = m.isAttiva() ? "🟢 ONLINE" : "🔴 OFFLINE";
+            String statoAttuatore = m.isAttuatoreSbloccato() ? "🔓 SBLOCCATO" : "🔒 BLOCCATO";
+            return new javafx.beans.property.SimpleStringProperty(statoRete + " | " + statoAttuatore);
+        });
 
         colPartitaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
         colPartitaGiocatori.setCellValueFactory(new PropertyValueFactory<>("nomiGiocatori"));
@@ -183,21 +182,13 @@ public class GestoreDashboardController {
                 String partiteUrl = root.getLinks().get("gestore-partite-attive").getHref();
 
                 // Lancia le richieste di fetch per macchine e partite in modo concorrente
-                // per minimizzare il tempo totale di attesa I/O
-                CompletableFuture<String[]> fMacchine = restClient.getAsync(macchineUrl, String[].class);
+                // Ora richiediamo direttamente un array di oggetti Macchina deserializzati
+                CompletableFuture<Macchina[]> fMacchine = restClient.getAsync(macchineUrl, Macchina[].class);
                 CompletableFuture<Partita[]> fPartite = restClient.getAsync(partiteUrl, Partita[].class);
 
-                // Aggrega i risultati dei due future in un'unica struttura dati appena entrambi terminano
-                return fMacchine.thenCombine(fPartite, (macchine, partite) -> {
-                    List<Macchina> listaMacchine = Arrays.stream(macchine)
-                        .map(ser -> {
-                            // Trasformazione della stringa grezza in un oggetto Macchina strutturato
-                            String tipo = ser.contains("Calciobalilla") ? "Calciobalilla" :
-                                          ser.contains("Freccette") ? "Freccette" :
-                                          ser.contains("Biliardo") ? "Biliardo" : "Sconosciuto";
-                            return new Macchina(ser, tipo, true);
-                        }).toList();
-                    
+                return fMacchine.thenCombine(fPartite, (macchineArray, partite) -> {
+                    // Trasforma l'array JSON deserializzato in una Lista Java
+                    List<Macchina> listaMacchine = java.util.Arrays.asList(macchineArray);
                     return new Object[]{listaMacchine, partite};
                 });
             })
@@ -220,41 +211,40 @@ public class GestoreDashboardController {
 
     /**
      * Recupera dal backend il set di dati analitici e popola il pannello statistiche.
-     * Anch'esso sfrutta la dinamica di discovery HATEOAS e gestisce lo stato di caricamento.
+     * Sfrutta HATEOAS: chiede alla root API dove si trovano le statistiche.
      */
-    private void loadStatistics() {
-        // Mostra l'indicatore di caricamento prima di iniziare l'operazione di rete
+    private void loadStatistics(){
         Platform.runLater(() -> loadingIndicator.setVisible(true));
 
         restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
-            .thenCompose(root -> {
-                String statsUrl = root.getLinks().get("gestore-statistiche").getHref();
-                return restClient.getAsync(statsUrl, StatisticheDTO.class);
-            })
-            .thenAccept(stats -> {
-                Platform.runLater(() -> {
-                    if (stats != null) {
-                        // Popola le label di sintesi e inietta la serie di dati nel grafico a torta
-                        lblPartiteOggi.setText("Partite oggi: " + stats.getTotalPartiteOggi());
-                        lblDurataMedia.setText("Durata media: " + stats.getMediaDurata() + " min");
-                        
-                        ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList(
-                            new PieChart.Data("Calciobalilla", stats.getCalciobalillaCount()),
-                            new PieChart.Data("Freccette", stats.getFreccetteCount()),
-                            new PieChart.Data("Biliardo", stats.getBiliardoCount())
-                        );
-                        tipoGiocoChart.setData(pieData);
-                    }
-                    loadingIndicator.setVisible(false);
+                .thenCompose(root -> {
+                    //Il cloud ci fornisce L'URL già compilato con l'ID del locale Corretto
+                    String statsUrl = root.getLinks().get("gestore-statistiche").getHref();
+                    return restClient.getAsync(statsUrl, StatisticheDTO.class);
+                })
+                .thenAccept(stats -> {
+                    Platform.runLater(() -> {
+                        if(stats != null)  {
+                            lblPartiteOggi.setText("Partite Totali: " + stats.getPartiteTotali());
+                            lblDurataMedia.setText("Durata media: " + stats.getDurataMediaMinuti() + " min");
+
+                            ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList(
+                                    new PieChart.Data("Vittorie Rossi (%)", stats.getPercentualeVittorieRossi()),
+                                    new PieChart.Data("Vittorie Blu (%)", stats.getPercentualeVittorieBlu())
+                            );
+                            tipoGiocoChart.setData(pieData);
+                        }
+                        loadingIndicator.setVisible(false);
+                    });
+                })
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> {
+                        loadingIndicator.setVisible(false);
+                        showAlert(Alert.AlertType.WARNING, "Dati non disponibili", "Impossibile caricare le statistiche.");
+                        System.err.println("[GestoreDashboard] Errore stats: " + ex.getMessage());
+                    });
+                    return null;
                 });
-            })
-            .exceptionally(ex -> {
-                Platform.runLater(() -> {
-                    loadingIndicator.setVisible(false);
-                    showAlert(Alert.AlertType.WARNING, "Dati non disponibili", "Impossibile caricare le statistiche.");
-                });
-                return null;
-            });
     }
 
     /**

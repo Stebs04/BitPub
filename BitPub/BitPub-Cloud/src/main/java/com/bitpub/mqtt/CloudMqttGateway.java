@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
+import org.springframework.scheduling.annotation.Scheduled;
+import java.time.temporal.ChronoUnit;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -27,7 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class CloudMqttGateway implements MqttCallback {
 
-    private static final String BROKER_URL = "tcp://localhost:1883";
+    @org.springframework.beans.factory.annotation.Value("${mqtt.broker.url:tcp://localhost:1883}")
+    private String brokerUrl;
     private final String CLIENT_ID = "BitPub-Cloud-Gateway-" + java.util.UUID.randomUUID().toString();
     
     private MqttClient client;
@@ -40,7 +43,7 @@ public class CloudMqttGateway implements MqttCallback {
     private ElaborazioneEventiService elaborazioneEventiService;
 
     /** Monitoraggio heartbeat (mantenuto in memoria per diagnostica rapida) */
-    private final Map<String, Instant> edgeLastSeen = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> edgeLastSeen = new ConcurrentHashMap<>();
 
     public Map<String, Instant> getEdgeLastSeen() {
         return edgeLastSeen;
@@ -49,7 +52,7 @@ public class CloudMqttGateway implements MqttCallback {
     @PostConstruct
     public void startGateway() {
         try {
-            client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
+            client = new MqttClient(brokerUrl, CLIENT_ID, new MemoryPersistence());
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
             options.setAutomaticReconnect(true);
@@ -97,6 +100,20 @@ public class CloudMqttGateway implements MqttCallback {
         if (json.has("nodeId")) {
             edgeLastSeen.put(json.get("nodeId").getAsString(), Instant.now());
         }
+    }
+
+    /**
+     * GARBAGE COLLECTOR: Risolve il memory leak!
+     * Viene eseguito automaticamente ogni 60 secondi (60000 ms).
+     * Scansiona la mappa in modo concorrente e rimuove tutti i nodi Edge
+     * di cui non si hanno notizie da più di 2 minuti.
+     */
+    @Scheduled(fixedRate = 60000)
+    public void pulisciNodiInattivi() {
+        Instant limiteScadenza = Instant.now().minus(2, ChronoUnit.MINUTES);
+
+        // removeIf cicla la mappa ed elimina le chiavi scadute in totale sicurezza
+        edgeLastSeen.entrySet().removeIf(entry -> entry.getValue().isBefore(limiteScadenza));
     }
 
     public void publishUnlockBalls(Integer tableId, Long sessionId) {
