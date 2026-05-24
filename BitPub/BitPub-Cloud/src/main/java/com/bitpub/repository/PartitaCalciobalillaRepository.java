@@ -69,4 +69,22 @@ public interface PartitaCalciobalillaRepository extends JpaRepository<PartitaCal
 
     @Query("SELECT COUNT(p) FROM PartitaCalciobalilla p WHERE p.localeId = :localeId AND p.orarioInizio >= :today")
     long countToday(@Param("localeId") Long localeId, @Param("today") java.time.LocalDateTime today);
+
+    /**
+     * Conta le vittorie della squadra Rossa per un locale specifico.
+     */
+    @Query("SELECT COUNT(p) FROM PartitaCalciobalilla p WHERE p.goalRossi > p.goalBlu AND p.localeId = :localeId")
+    Integer countVittorieRossiByLocale(@Param("localeId") Long localeId);
+
+    /**
+     * Conta le vittorie della squadra Blu per un locale specifico.
+     */
+    @Query("SELECT COUNT(p) FROM PartitaCalciobalilla p WHERE p.goalBlu > p.goalRossi AND p.localeId = :localeId")
+    Integer countVittorieBluByLocale(@Param("localeId") Long localeId);
+
+    /**
+     * Calcola il totale delle rullate (falli) avvenute in un locale specifico.
+     */
+    @Query("SELECT COALESCE(SUM(p.totaleRullate), 0) FROM PartitaCalciobalilla p WHERE p.localeId = :localeId")
+    Integer countRullateByLocale(@Param("localeId") Long localeId);
 }
