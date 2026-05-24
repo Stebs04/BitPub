@@ -59,34 +59,34 @@ public class HomeController {
         root.addLink("active-sessions", "http://localhost:8080/api/v1/admin/sessions/active");
 
         // --- COSTRUZIONE DINAMICA LINK GESTORE ---
-        root.addLink("gestore-macchine", "http://localhost:8080/api/v1/gestore/macchine");
         root.addLink("gestore-partite-attive", "http://localhost:8080/api/v1/gestore/partite");
         root.addLink("tornei", "http://localhost:8080/api/v1/tornei");
 
-        // Calcoliamo l'ID del locale solo se un utente è loggato
-        String statsUrl = "http://localhost:8080/api/v1/gestore/stats"; // Fallback URL
+        // Fallback URLs
+        // Fallback URLs
+        String statsUrl = "http://localhost:8080/api/v1/gestore/stats";
+        String macchineUrl = "http://localhost:8080/api/v1/gestore/macchine";
 
         if (authentication != null && authentication.isAuthenticated()) {
             try {
-                // Troviamo l'utente tramite lo username del token JWT
                 Utente user = utenteService.findByUsername(authentication.getName())
                         .orElseThrow(() -> new RuntimeException("Utente non trovato"));
 
-                // Cerchiamo i locali a lui associati
                 List<LocaleDTO> localiGestore = localeService.getLocaliByGestoreId(user.getId());
 
-                // Se ha almeno un locale, usiamo l'ID del primo per costruire l'URL corretto
                 if (!localiGestore.isEmpty()) {
                     Long idLocaleDinmico = localiGestore.get(0).getId();
                     statsUrl = "http://localhost:8080/api/v1/gestore/locale/" + idLocaleDinmico + "/statistiche";
+                    macchineUrl = "http://localhost:8080/api/v1/gestore/locale/" + idLocaleDinmico + "/macchine";
                 }
             } catch (Exception e) {
-                System.err.println("[HomeController] Errore nel calcolo del link statistiche: " + e.getMessage());
+                System.err.println("[HomeController] Errore nel calcolo dei link: " + e.getMessage());
             }
         }
 
-        // Aggiunta del link generato (o quello di fallback)
+        // Aggiungiamo i link generati dinamicamente all'oggetto HATEOAS
         root.addLink("gestore-statistiche", statsUrl);
+        root.addLink("gestore-macchine", macchineUrl);
 
         return ResponseEntity.ok(root);
     }

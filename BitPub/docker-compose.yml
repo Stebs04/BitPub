@@ -10,7 +10,7 @@ services:
       - POSTGRES_USER=bitpub_user
       - POSTGRES_PASSWORD=bitpub2026
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - bitpub_db_data:/var/lib/postgresql/data
     restart: unless-stopped

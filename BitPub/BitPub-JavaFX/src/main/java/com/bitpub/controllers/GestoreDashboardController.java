@@ -68,18 +68,16 @@ public class GestoreDashboardController {
      * di una singola macchina di gioco, semplificando il binding con la TableView.
      */
     public static class Macchina {
+        private Long id;
         private String nome;
         private String tipoGioco;
         private boolean attiva;
+        private boolean attuatoreSbloccato;
 
-        public Macchina(String nome, String tipoGioco, boolean attiva) {
-            this.nome = nome;
-            this.tipoGioco = tipoGioco;
-            this.attiva = attiva;
-        }
         public String getNome() { return nome; }
         public String getTipoGioco() { return tipoGioco; }
         public boolean isAttiva() { return attiva; }
+        public boolean isAttuatoreSbloccato() { return attuatoreSbloccato; }
     }
 
     /**
@@ -146,8 +144,13 @@ public class GestoreDashboardController {
     private void setupTables() {
         colMacchinaNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
         colMacchinaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
-        colMacchinaStato.setCellValueFactory(cellData -> 
-            new javafx.beans.property.SimpleStringProperty(cellData.getValue().isAttiva() ? "ONLINE" : "OFFLINE"));
+
+        colMacchinaStato.setCellValueFactory(cellData -> {
+            Macchina m = cellData.getValue();
+            String statoRete = m.isAttiva() ? "🟢 ONLINE" : "🔴 OFFLINE";
+            String statoAttuatore = m.isAttuatoreSbloccato() ? "🔓 SBLOCCATO" : "🔒 BLOCCATO";
+            return new javafx.beans.property.SimpleStringProperty(statoRete + " | " + statoAttuatore);
+        });
 
         colPartitaTipo.setCellValueFactory(new PropertyValueFactory<>("tipoGioco"));
         colPartitaGiocatori.setCellValueFactory(new PropertyValueFactory<>("nomiGiocatori"));
@@ -179,21 +182,13 @@ public class GestoreDashboardController {
                 String partiteUrl = root.getLinks().get("gestore-partite-attive").getHref();
 
                 // Lancia le richieste di fetch per macchine e partite in modo concorrente
-                // per minimizzare il tempo totale di attesa I/O
-                CompletableFuture<String[]> fMacchine = restClient.getAsync(macchineUrl, String[].class);
+                // Ora richiediamo direttamente un array di oggetti Macchina deserializzati
+                CompletableFuture<Macchina[]> fMacchine = restClient.getAsync(macchineUrl, Macchina[].class);
                 CompletableFuture<Partita[]> fPartite = restClient.getAsync(partiteUrl, Partita[].class);
 
-                // Aggrega i risultati dei due future in un'unica struttura dati appena entrambi terminano
-                return fMacchine.thenCombine(fPartite, (macchine, partite) -> {
-                    List<Macchina> listaMacchine = Arrays.stream(macchine)
-                        .map(ser -> {
-                            // Trasformazione della stringa grezza in un oggetto Macchina strutturato
-                            String tipo = ser.contains("Calciobalilla") ? "Calciobalilla" :
-                                          ser.contains("Freccette") ? "Freccette" :
-                                          ser.contains("Biliardo") ? "Biliardo" : "Sconosciuto";
-                            return new Macchina(ser, tipo, true);
-                        }).toList();
-                    
+                return fMacchine.thenCombine(fPartite, (macchineArray, partite) -> {
+                    // Trasforma l'array JSON deserializzato in una Lista Java
+                    List<Macchina> listaMacchine = java.util.Arrays.asList(macchineArray);
                     return new Object[]{listaMacchine, partite};
                 });
             })
