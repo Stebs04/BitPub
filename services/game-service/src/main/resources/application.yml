@@ -1,0 +1,29 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: game-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bitpub_db
+    username: bitpub_admin
+    password: secret_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: game
+  flyway:
+    enabled: true
+    schemas: game
+    baseline-on-migrate: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.web: DEBUG

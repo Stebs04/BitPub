@@ -1,0 +1,33 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bitpub_db
+    username: bitpub_admin
+    password: secret_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: auth
+  flyway:
+    enabled: true
+    schemas: auth
+    baseline-on-migrate: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  expiration: 86400000
+
+logging:
+  level:
+    org.springframework.security: DEBUG

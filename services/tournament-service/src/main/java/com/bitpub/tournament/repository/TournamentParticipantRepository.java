@@ -1,0 +1,14 @@
+package com.bitpub.tournament.repository;
+
+import com.bitpub.tournament.model.TournamentParticipant;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface TournamentParticipantRepository extends JpaRepository<TournamentParticipant, UUID> {
+    List<TournamentParticipant> findByTournamentId(UUID tournamentId);
+    boolean existsByTournamentIdAndUserId(UUID tournamentId, UUID userId);
+}

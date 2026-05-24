@@ -1,0 +1,25 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: tournament-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bitpub_db
+    username: bitpub_admin
+    password: secret_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: tournament
+  flyway:
+    enabled: true
+    schemas: tournament
+    baseline-on-migrate: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
