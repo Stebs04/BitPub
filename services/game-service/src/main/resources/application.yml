@@ -27,3 +27,22 @@ eureka:
 logging:
   level:
     org.springframework.web: DEBUG
+
+# ─────────────────────────────────────────────────────────────────
+# OpenAPI / Swagger UI  →  http://localhost:8082/swagger-ui.html
+#                          http://localhost:8082/v3/api-docs
+# ─────────────────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    filter: true
+  show-actuator: false
+  packages-to-scan: com.bitpub.game.controller
