@@ -21,7 +21,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.bitpub.common.security.enums.Role;
+import com.bitpub.common.security.annotations.RequireRole;
+import com.bitpub.common.security.annotations.RequireOwnership;
 
 import java.util.List;
 import java.util.UUID;
@@ -161,6 +165,8 @@ public class TournamentController {
         @ApiResponse(responseCode = "403", description = "Accesso negato: ruolo ADMIN richiesto.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole(Role.ADMIN)
     @PostMapping
     public ResponseEntity<Tournament> createTournament(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -224,6 +230,8 @@ public class TournamentController {
         @ApiResponse(responseCode = "404", description = "Torneo non trovato.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN') or #request.userId.toString() == authentication.principal.userId")
+    @RequireOwnership
     @PostMapping("/{id}/participants")
     public ResponseEntity<TournamentParticipant> registerParticipant(
             @Parameter(description = "UUID del torneo", example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -320,6 +328,8 @@ public class TournamentController {
         @ApiResponse(responseCode = "404", description = "Torneo non trovato.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole(Role.ADMIN)
     @PostMapping("/{id}/bracket/generate")
     public ResponseEntity<List<TournamentMatch>> generateBracket(
             @Parameter(description = "UUID del torneo", example = "550e8400-e29b-41d4-a716-446655440001", required = true)
@@ -399,6 +409,8 @@ public class TournamentController {
         @ApiResponse(responseCode = "404", description = "Incontro non trovato.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole(Role.ADMIN)
     @PostMapping("/matches/result")
     public ResponseEntity<TournamentMatch> submitResult(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(

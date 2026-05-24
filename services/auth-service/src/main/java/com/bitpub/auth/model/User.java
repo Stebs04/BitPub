@@ -30,9 +30,22 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private java.util.Set<Role> roles;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_locales", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "locale_id")
+    private java.util.Set<String> localeIds;
+
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private Integer tokenVersion = 0;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
