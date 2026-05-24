@@ -10,6 +10,8 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.bitpub.services.StatisticheService;
+import com.bitpub.dto.StatisticheLocaleDTO;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,11 +36,22 @@ public class GestoreController {
 
     private final LocaleService localeService;
     private final LocaleModelAssembler localeAssembler;
+    private final StatisticheService statisticheService;
 
     @Autowired
-    public GestoreController(LocaleService localeService, LocaleModelAssembler localeAssembler) {
+    public GestoreController(LocaleService localeService, LocaleModelAssembler localeAssembler, StatisticheService statisticheService) {
         this.localeService = localeService;
         this.localeAssembler = localeAssembler;
+        this.statisticheService = statisticheService;
+    }
+
+    /**
+     * Recupera le statistiche avanzate per il locale richiesto
+     */
+    @GetMapping("locale/{id}/statistiche")
+    public ResponseEntity<StatisticheLocaleDTO> getStatisticheLocale(@PathVariable Long id) {
+        StatisticheLocaleDTO stats = statisticheService.calcolaStatisticheCalciobalilla(id);
+        return ResponseEntity.ok(stats);
     }
 
     /**

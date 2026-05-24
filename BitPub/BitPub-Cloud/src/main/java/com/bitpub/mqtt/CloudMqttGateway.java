@@ -27,7 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class CloudMqttGateway implements MqttCallback {
 
-    private static final String BROKER_URL = "tcp://localhost:1883";
+    @org.springframework.beans.factory.annotation.Value("${mqtt.broker.url:tcp://localhost:1883}")
+    private String brokerUrl;
     private final String CLIENT_ID = "BitPub-Cloud-Gateway-" + java.util.UUID.randomUUID().toString();
     
     private MqttClient client;
@@ -49,7 +50,7 @@ public class CloudMqttGateway implements MqttCallback {
     @PostConstruct
     public void startGateway() {
         try {
-            client = new MqttClient(BROKER_URL, CLIENT_ID, new MemoryPersistence());
+            client = new MqttClient(brokerUrl, CLIENT_ID, new MemoryPersistence());
             MqttConnectOptions options = new MqttConnectOptions();
             options.setCleanSession(true);
             options.setAutomaticReconnect(true);
