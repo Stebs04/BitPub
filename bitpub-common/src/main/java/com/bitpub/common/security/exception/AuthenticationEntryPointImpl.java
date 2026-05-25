@@ -24,12 +24,15 @@ public class AuthenticationEntryPointImpl implements AuthenticationEntryPoint {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("status", HttpServletResponse.SC_UNAUTHORIZED);
-        body.put("error", "Unauthorized");
-        body.put("message", authException.getMessage());
-        body.put("path", request.getServletPath());
+        com.bitpub.common.exception.ApiError apiError = com.bitpub.common.exception.ApiError.builder()
+                .status(HttpServletResponse.SC_UNAUTHORIZED)
+                .title(com.bitpub.common.exception.ErrorCode.UNAUTHORIZED.getDefaultMessage())
+                .code(com.bitpub.common.exception.ErrorCode.UNAUTHORIZED.getCode())
+                .message(authException.getMessage())
+                .path(request.getServletPath())
+                .traceId(org.slf4j.MDC.get(com.bitpub.common.exception.TraceIdFilter.TRACE_ID_MDC_KEY))
+                .build();
 
-        mapper.writeValue(response.getOutputStream(), body);
+        mapper.writeValue(response.getOutputStream(), apiError);
     }
 }

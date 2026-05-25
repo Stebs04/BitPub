@@ -28,14 +28,14 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username is already taken");
+            throw new com.bitpub.common.exception.ConflictException("Username is already taken");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email is already taken");
+            throw new com.bitpub.common.exception.ConflictException("Email is already taken");
         }
 
         com.bitpub.auth.model.Role playerRole = roleRepository.findByName(com.bitpub.common.security.enums.Role.PLAYER)
-                .orElseThrow(() -> new RuntimeException("Error: Role PLAYER is not found."));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Error: Role PLAYER is not found."));
 
         User user = User.builder()
                 .username(request.getUsername())
@@ -66,7 +66,7 @@ public class AuthService {
         );
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow();
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("User not found"));
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
         String roleName = user.getRoles().iterator().next().getName().name();
         String jwtToken = jwtUtil.generateToken(userDetails, roleName);

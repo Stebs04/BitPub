@@ -12,9 +12,10 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Deprecated(since = "1.0", forRemoval = true)
 @Schema(
     name = "ErrorResponse",
-    description = "Struttura standardizzata per le risposte di errore dell'API BitPub."
+    description = "Struttura standardizzata per le risposte di errore dell'API BitPub. (DEPRECATED - Use ApiError invece)"
 )
 public class ErrorResponse {
 

@@ -24,12 +24,15 @@ public class AccessDeniedHandlerImpl implements AccessDeniedHandler {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("status", HttpServletResponse.SC_FORBIDDEN);
-        body.put("error", "Forbidden");
-        body.put("message", accessDeniedException.getMessage());
-        body.put("path", request.getServletPath());
+        com.bitpub.common.exception.ApiError apiError = com.bitpub.common.exception.ApiError.builder()
+                .status(HttpServletResponse.SC_FORBIDDEN)
+                .title(com.bitpub.common.exception.ErrorCode.FORBIDDEN.getDefaultMessage())
+                .code(com.bitpub.common.exception.ErrorCode.FORBIDDEN.getCode())
+                .message(accessDeniedException.getMessage())
+                .path(request.getServletPath())
+                .traceId(org.slf4j.MDC.get(com.bitpub.common.exception.TraceIdFilter.TRACE_ID_MDC_KEY))
+                .build();
 
-        mapper.writeValue(response.getOutputStream(), body);
+        mapper.writeValue(response.getOutputStream(), apiError);
     }
 }

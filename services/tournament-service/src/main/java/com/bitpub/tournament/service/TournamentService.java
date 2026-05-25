@@ -31,7 +31,7 @@ public class TournamentService {
 
     public Tournament getTournamentById(UUID id) {
         return tournamentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tournament not found: " + id));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Tournament not found: " + id));
     }
 
     @Transactional
@@ -53,12 +53,12 @@ public class TournamentService {
     public Team registerTeam(UUID tournamentId, RegisterTeamRequest request) {
         Tournament tournament = getTournamentById(tournamentId);
         if (!"REGISTRATION".equals(tournament.getStatus())) {
-            throw new IllegalStateException("Tournament is not open for registration");
+            throw new com.bitpub.common.exception.ValidationException("Tournament is not open for registration");
         }
 
         long currentCount = teamRepository.findByTournamentId(tournamentId).size();
         if (currentCount >= tournament.getMaxParticipants()) {
-            throw new IllegalStateException("Tournament is full");
+            throw new com.bitpub.common.exception.ValidationException("Tournament is full");
         }
 
         Team team = Team.builder()
@@ -94,7 +94,7 @@ public class TournamentService {
         List<Team> teams = teamRepository.findByTournamentId(tournamentId);
 
         if (teams.size() < 2) {
-            throw new IllegalStateException("At least 2 teams required to generate matches");
+            throw new com.bitpub.common.exception.ValidationException("At least 2 teams required to generate matches");
         }
 
         tournament.setStatus("ONGOING");
@@ -198,10 +198,10 @@ public class TournamentService {
     @Transactional
     public TournamentMatch submitResult(SubmitResultRequest request) {
         TournamentMatch match = matchRepository.findById(request.getMatchId())
-                .orElseThrow(() -> new RuntimeException("Match not found"));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Match not found"));
 
         if (match.getStatus() == MatchStatus.FINISHED) {
-            throw new IllegalStateException("Match already finished");
+            throw new com.bitpub.common.exception.ValidationException("Match already finished");
         }
 
         match.setScoreA(request.getScoreA());
