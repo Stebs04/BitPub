@@ -24,6 +24,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
+    private final com.bitpub.auth.repository.RoleRepository roleRepository;
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -33,22 +34,26 @@ public class AuthService {
             throw new RuntimeException("Email is already taken");
         }
 
+        com.bitpub.auth.model.Role playerRole = roleRepository.findByName(com.bitpub.common.security.enums.Role.PLAYER)
+                .orElseThrow(() -> new RuntimeException("Error: Role PLAYER is not found."));
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
-                .role(Role.USER) // Default role
+                .roles(java.util.Collections.singleton(playerRole)) // Default role
                 .build();
 
         userRepository.save(user);
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-        String jwtToken = jwtUtil.generateToken(userDetails, user.getRole().name());
+        String roleName = user.getRoles().iterator().next().getName().name();
+        String jwtToken = jwtUtil.generateToken(userDetails, roleName);
 
         return AuthResponse.builder()
                 .token(jwtToken)
                 .username(user.getUsername())
-                .role(user.getRole().name())
+                .role(roleName)
                 .build();
     }
 
@@ -63,12 +68,13 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow();
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
-        String jwtToken = jwtUtil.generateToken(userDetails, user.getRole().name());
+        String roleName = user.getRoles().iterator().next().getName().name();
+        String jwtToken = jwtUtil.generateToken(userDetails, roleName);
 
         return AuthResponse.builder()
                 .token(jwtToken)
                 .username(user.getUsername())
-                .role(user.getRole().name())
+                .role(roleName)
                 .build();
     }
 }

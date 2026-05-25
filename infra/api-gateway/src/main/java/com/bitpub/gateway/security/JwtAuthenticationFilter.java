@@ -32,11 +32,11 @@ public class JwtAuthenticationFilter implements WebFilter {
             String token = authHeader.substring(7);
             try {
                 SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-                Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(key)
+                Claims claims = Jwts.parser()
+                        .verifyWith(key)
                         .build()
-                        .parseClaimsJws(token)
-                        .getBody();
+                        .parseSignedClaims(token)
+                        .getPayload();
 
                 String username = claims.getSubject();
                 if (username != null) {

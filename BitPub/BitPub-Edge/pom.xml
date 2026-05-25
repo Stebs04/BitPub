@@ -32,6 +32,24 @@
             <groupId>com.bitpub</groupId>
             <artifactId>bitpub-common</artifactId>
         </dependency>
+        <!-- Persistenza su file per Coda Offline -->
+        <dependency>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb</artifactId>
+            <version>3.0.9</version>
+        </dependency>
+        <!-- JSON Processing per Idempotenza ed Estrazione Campi -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+        <!-- Gson usato in precedenza in altre classi -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
 
     <build>

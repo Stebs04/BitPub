@@ -25,8 +25,8 @@ public class DeviceController {
         return ResponseEntity.ok(gameService.getDevicesByLocale(localeId));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    @RequireRole(Role.ADMIN)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping
     public ResponseEntity<Device> registerDevice(@RequestBody DeviceRegistrationRequest request) {
         return ResponseEntity.ok(gameService.registerDevice(request.getLocaleId(), request.getGameId(), request.getMacAddress()));
