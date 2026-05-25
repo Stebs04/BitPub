@@ -4,7 +4,7 @@ import com.bitpub.common.dto.ErrorResponse;
 import com.bitpub.game.model.Game;
 import com.bitpub.game.service.GameService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
+
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -22,7 +22,7 @@ import com.bitpub.common.security.enums.Role;
 import com.bitpub.common.security.annotations.RequireRole;
 
 import java.util.List;
-import java.util.UUID;
+
 
 @RestController
 @RequestMapping("/api/v1/games")

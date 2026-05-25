@@ -2,7 +2,7 @@ package com.bitpub.stats.service;
 
 import com.bitpub.stats.dto.LeaderboardEntryDto;
 import com.bitpub.stats.dto.RecordMatchRequest;
-import com.bitpub.stats.model.Leaderboard;
+
 import com.bitpub.stats.model.MatchResult;
 import com.bitpub.stats.model.PlayerStats;
 import com.bitpub.stats.repository.LeaderboardRepository;
@@ -25,7 +25,7 @@ public class StatsService {
 
     private final PlayerStatsRepository playerStatsRepository;
     private final MatchResultRepository matchResultRepository;
-    private final LeaderboardRepository leaderboardRepository;
+
 
     /**
      * Registra il risultato di una partita e aggiorna le statistiche di entrambi i giocatori.

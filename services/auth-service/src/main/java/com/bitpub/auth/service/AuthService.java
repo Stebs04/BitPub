@@ -3,7 +3,7 @@ package com.bitpub.auth.service;
 import com.bitpub.auth.dto.AuthRequest;
 import com.bitpub.auth.dto.AuthResponse;
 import com.bitpub.auth.dto.RegisterRequest;
-import com.bitpub.auth.model.Role;
+
 import com.bitpub.auth.model.User;
 import com.bitpub.auth.repository.UserRepository;
 import com.bitpub.auth.security.CustomUserDetailsService;
