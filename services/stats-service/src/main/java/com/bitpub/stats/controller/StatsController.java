@@ -106,8 +106,8 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante o non valido.",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @PreAuthorize("hasRole('ADMIN')")
-    @RequireRole(Role.ADMIN)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping("/matches")
     public ResponseEntity<MatchResult> recordMatch(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(

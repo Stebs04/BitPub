@@ -162,8 +162,8 @@ public class GameController {
             )
         )
     })
-    @PreAuthorize("hasRole('ADMIN')")
-    @RequireRole(Role.ADMIN)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping
     public ResponseEntity<Game> createGame(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
