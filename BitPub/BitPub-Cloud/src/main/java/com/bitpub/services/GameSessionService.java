@@ -54,10 +54,10 @@ public class GameSessionService {
     @Transactional
     public GameSessionDTO forceStopSession(Long id) {
         GameSessionEntity session = gameSessionRepository.findById(id)
-                .orElseThrow(() -> new IllegalStateException("Sessione con ID " + id + " non trovata."));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Sessione con ID " + id + " non trovata."));
 
         if (!"IN_PROGRESS".equals(session.getStatus())) {
-            throw new IllegalStateException("La sessione selezionata non è in corso (Stato attuale: " + session.getStatus() + ").");
+            throw new com.bitpub.common.exception.ValidationException("La sessione selezionata non è in corso (Stato attuale: " + session.getStatus() + ").");
         }
 
         Integer tableId = session.getTableId();
@@ -99,13 +99,13 @@ public class GameSessionService {
     @Transactional
     public GameSessionDTO startSession(String username, Integer tableId) {
         Utente user = utenteRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("Utente '" + username + "' non trovato."));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Utente '" + username + "' non trovato."));
 
         Long userId = user.getId();
 
         Optional<GameSessionEntity> activeSession = gameSessionRepository.findByUserIdAndStatus(userId, "IN_PROGRESS");
         if (activeSession.isPresent()) {
-            throw new IllegalStateException("Impossibile avviare: hai già una partita attiva (ID: " + activeSession.get().getId() + ").");
+            throw new com.bitpub.common.exception.ConflictException("Impossibile avviare: hai già una partita attiva (ID: " + activeSession.get().getId() + ").");
         }
 
         GameSessionEntity newSession = new GameSessionEntity();

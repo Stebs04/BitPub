@@ -36,7 +36,7 @@ public class StatsService {
             log.warn("Match session {} already recorded, skipping", request.getMatchSessionId());
             return matchResultRepository
                     .findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(request.getWinnerUserId(), request.getLoserUserId())
-                    .stream().findFirst().orElseThrow();
+                    .stream().findFirst().orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Stats non trovate"));
         }
 
         MatchResult result = MatchResult.builder()
@@ -89,7 +89,7 @@ public class StatsService {
 
     public PlayerStats getPlayerStats(UUID userId, UUID gameId) {
         return playerStatsRepository.findByUserIdAndGameId(userId, gameId)
-                .orElseThrow(() -> new RuntimeException("Stats not found for user " + userId + " on game " + gameId));
+                .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("Stats not found for user " + userId + " on game " + gameId));
     }
 
     private void updatePlayerStats(UUID userId, String username, UUID gameId, boolean won, int score) {
