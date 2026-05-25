@@ -1,6 +1,8 @@
 package com.bitpub.stats.repository;
 
 import com.bitpub.stats.model.MatchResult;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,5 +12,6 @@ import java.util.UUID;
 @Repository
 public interface MatchResultRepository extends JpaRepository<MatchResult, UUID> {
     List<MatchResult> findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(UUID winnerUserId, UUID loserUserId);
+    Page<MatchResult> findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(UUID winnerUserId, UUID loserUserId, Pageable pageable);
     boolean existsByMatchSessionId(UUID matchSessionId);
 }

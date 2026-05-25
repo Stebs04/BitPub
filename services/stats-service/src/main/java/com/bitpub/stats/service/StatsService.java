@@ -1,21 +1,24 @@
 package com.bitpub.stats.service;
 
 import com.bitpub.stats.dto.LeaderboardEntryDto;
+import com.bitpub.stats.dto.PagedResponseDto;
 import com.bitpub.stats.dto.RecordMatchRequest;
 
 import com.bitpub.stats.model.MatchResult;
 import com.bitpub.stats.model.PlayerStats;
-import com.bitpub.stats.repository.LeaderboardRepository;
 import com.bitpub.stats.repository.MatchResultRepository;
 import com.bitpub.stats.repository.PlayerStatsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,14 +29,9 @@ public class StatsService {
     private final PlayerStatsRepository playerStatsRepository;
     private final MatchResultRepository matchResultRepository;
 
-
-    /**
-     * Registra il risultato di una partita e aggiorna le statistiche di entrambi i giocatori.
-     * La deduplica per matchSessionId garantisce idempotenza (sicuro da chiamare più volte).
-     */
     @Transactional
+    @CacheEvict(value = "leaderboards", allEntries = true)
     public MatchResult recordMatch(RecordMatchRequest request) {
-        // Deduplica: se la sessione è già registrata, ignora
         if (matchResultRepository.existsByMatchSessionId(request.getMatchSessionId())) {
             log.warn("Match session {} already recorded, skipping", request.getMatchSessionId());
             return matchResultRepository
@@ -41,7 +39,6 @@ public class StatsService {
                     .stream().findFirst().orElseThrow();
         }
 
-        // Salva il risultato raw
         MatchResult result = MatchResult.builder()
                 .matchSessionId(request.getMatchSessionId())
                 .gameId(request.getGameId())
@@ -52,54 +49,48 @@ public class StatsService {
                 .build();
         matchResultRepository.save(result);
 
-        // Aggiorna statistiche aggregate del vincitore
         updatePlayerStats(request.getWinnerUserId(), request.getWinnerUsername(),
                 request.getGameId(), true, request.getWinnerScore());
 
-        // Aggiorna statistiche aggregate del perdente
         updatePlayerStats(request.getLoserUserId(), request.getLoserUsername(),
                 request.getGameId(), false, request.getLoserScore());
 
         return result;
     }
 
-    /**
-     * Restituisce la classifica globale (tutti i giochi).
-     */
-    public List<LeaderboardEntryDto> getGlobalLeaderboard() {
-        AtomicInteger rank = new AtomicInteger(1);
-        return playerStatsRepository.findGlobalLeaderboard().stream()
-                .map(ps -> toLeaderboardDto(ps, rank.getAndIncrement()))
+    @Cacheable(value = "leaderboards", key = "'global_' + #pageable.pageNumber + '_' + #pageable.pageSize")
+    public PagedResponseDto<LeaderboardEntryDto> getGlobalLeaderboard(Pageable pageable) {
+        Page<PlayerStats> page = playerStatsRepository.findGlobalLeaderboard(pageable);
+        List<LeaderboardEntryDto> content = page.getContent().stream()
+                .map(ps -> {
+                    Long rank = playerStatsRepository.findGlobalRankByUserId(ps.getUserId());
+                    return toLeaderboardDto(ps, rank != null ? rank.intValue() : 0);
+                })
                 .collect(Collectors.toList());
+        return createPagedResponse(page, content);
     }
 
-    /**
-     * Restituisce la classifica per un gioco specifico.
-     */
-    public List<LeaderboardEntryDto> getLeaderboardByGame(UUID gameId) {
-        AtomicInteger rank = new AtomicInteger(1);
-        return playerStatsRepository.findLeaderboardByGame(gameId).stream()
-                .map(ps -> toLeaderboardDto(ps, rank.getAndIncrement()))
+    @Cacheable(value = "leaderboards", key = "'game_' + #gameId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
+    public PagedResponseDto<LeaderboardEntryDto> getLeaderboardByGame(UUID gameId, Pageable pageable) {
+        Page<PlayerStats> page = playerStatsRepository.findLeaderboardByGame(gameId, pageable);
+        List<LeaderboardEntryDto> content = page.getContent().stream()
+                .map(ps -> {
+                    Long rank = playerStatsRepository.findGameRankByUserId(ps.getUserId(), gameId);
+                    return toLeaderboardDto(ps, rank != null ? rank.intValue() : 0);
+                })
                 .collect(Collectors.toList());
+        return createPagedResponse(page, content);
     }
 
-    /**
-     * Restituisce lo storico delle partite di un utente.
-     */
-    public List<MatchResult> getMatchHistory(UUID userId) {
-        return matchResultRepository
-                .findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(userId, userId);
+    public PagedResponseDto<MatchResult> getMatchHistory(UUID userId, Pageable pageable) {
+        Page<MatchResult> page = matchResultRepository.findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(userId, userId, pageable);
+        return PagedResponseDto.fromPage(page);
     }
 
-    /**
-     * Restituisce le statistiche di un singolo giocatore per un gioco.
-     */
     public PlayerStats getPlayerStats(UUID userId, UUID gameId) {
         return playerStatsRepository.findByUserIdAndGameId(userId, gameId)
                 .orElseThrow(() -> new RuntimeException("Stats not found for user " + userId + " on game " + gameId));
     }
-
-    // ---- Private helpers ----
 
     private void updatePlayerStats(UUID userId, String username, UUID gameId, boolean won, int score) {
         PlayerStats stats = playerStatsRepository.findByUserIdAndGameId(userId, gameId)
@@ -133,6 +124,17 @@ public class StatsService {
                 .totalMatches(ps.getTotalMatches())
                 .totalScore(ps.getTotalScore())
                 .winRate(winRate)
+                .build();
+    }
+
+    private <T> PagedResponseDto<T> createPagedResponse(Page<?> page, List<T> content) {
+        return PagedResponseDto.<T>builder()
+                .content(content)
+                .pageNumber(page.getNumber())
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .isLast(page.isLast())
                 .build();
     }
 }
