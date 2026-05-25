@@ -8,6 +8,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,6 +26,7 @@ public class SubmitResultRequest {
         example = "b3c1a2d0-9dad-11d1-80b4-00c04fd430c8",
         requiredMode = Schema.RequiredMode.REQUIRED
     )
+    @NotNull(message = "Il matchId è obbligatorio")
     private UUID matchId;
 
     @Schema(
@@ -31,6 +35,7 @@ public class SubmitResultRequest {
         minimum = "0",
         requiredMode = Schema.RequiredMode.REQUIRED
     )
+    @Min(value = 0, message = "Il punteggio non può essere negativo")
     private int scoreA;
 
     @Schema(
@@ -39,5 +44,6 @@ public class SubmitResultRequest {
         minimum = "0",
         requiredMode = Schema.RequiredMode.REQUIRED
     )
+    @Min(value = 0, message = "Il punteggio non può essere negativo")
     private int scoreB;
 }

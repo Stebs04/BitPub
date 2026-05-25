@@ -49,7 +49,7 @@ public class StatsController {
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping("/matches")
-    public ResponseEntity<MatchResult> recordMatch(@RequestBody RecordMatchRequest request) {
+    public ResponseEntity<MatchResult> recordMatch(@jakarta.validation.Valid @RequestBody RecordMatchRequest request) {
         return ResponseEntity.ok(statsService.recordMatch(request));
     }
 

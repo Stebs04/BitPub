@@ -7,6 +7,7 @@ import com.bitpub.tournament.service.TournamentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -45,7 +46,7 @@ public class TournamentController {
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping
-    public ResponseEntity<TournamentDto> createTournament(@RequestBody CreateTournamentRequest request) {
+    public ResponseEntity<TournamentDto> createTournament(@Valid @RequestBody CreateTournamentRequest request) {
         return ResponseEntity.ok(mapper.toDto(tournamentService.createTournament(request)));
     }
 
@@ -54,7 +55,7 @@ public class TournamentController {
     @PostMapping("/{id}/teams")
     public ResponseEntity<TeamDto> registerTeam(
             @PathVariable UUID id,
-            @RequestBody RegisterTeamRequest request) {
+            @Valid @RequestBody RegisterTeamRequest request) {
         return ResponseEntity.ok(mapper.toDto(tournamentService.registerTeam(id, request)));
     }
 
@@ -78,7 +79,7 @@ public class TournamentController {
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     @RequireRole(Role.PLATFORM_ADMIN)
     @PostMapping("/matches/result")
-    public ResponseEntity<TournamentMatchDto> submitResult(@RequestBody SubmitResultRequest request) {
+    public ResponseEntity<TournamentMatchDto> submitResult(@Valid @RequestBody SubmitResultRequest request) {
         return ResponseEntity.ok(mapper.toDto(tournamentService.submitResult(request)));
     }
 
