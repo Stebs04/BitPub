@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.bitpub.controllers.LeaderboardUIController"
+            stylesheets="@style.css">
+
+    <top>
+        <HBox spacing="20" alignment="CENTER_LEFT" styleClass="header-bar">
+            <padding><Insets top="15" right="20" bottom="15" left="20"/></padding>
+            <Label fx:id="lblTournamentName" text="Classifica Torneo" styleClass="title-label" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Aggiorna" onAction="#loadLeaderboard" styleClass="secondary-button" />
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="15">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            
+            <TableView fx:id="leaderboardTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colTeam" text="Squadra" prefWidth="250"/>
+                    <TableColumn fx:id="colPoints" text="Punti" prefWidth="100"/>
+                    <TableColumn fx:id="colWins" text="V" prefWidth="70"/>
+                    <TableColumn fx:id="colDraws" text="N" prefWidth="70"/>
+                    <TableColumn fx:id="colLosses" text="P" prefWidth="70"/>
+                    <TableColumn fx:id="colGoalsFor" text="GF" prefWidth="70"/>
+                    <TableColumn fx:id="colGoalsAgainst" text="GS" prefWidth="70"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+</BorderPane>
