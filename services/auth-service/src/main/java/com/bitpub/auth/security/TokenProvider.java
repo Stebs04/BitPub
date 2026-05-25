@@ -1,8 +1,8 @@
 package com.bitpub.auth.security;
 
-import com.bitpub.auth.model.Role;
+
 import com.bitpub.auth.model.User;
-import com.bitpub.common.security.enums.Permission;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
