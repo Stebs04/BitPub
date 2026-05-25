@@ -34,6 +34,10 @@
 
     <modules>
         <module>bitpub-common</module>
+        <module>shared-contracts</module>
+        <module>shared-domain</module>
+        <module>shared-persistence</module>
+        <module>auth-contracts</module>
         <module>infra/discovery-server</module>
         <module>infra/config-server</module>
         <module>infra/api-gateway</module>
