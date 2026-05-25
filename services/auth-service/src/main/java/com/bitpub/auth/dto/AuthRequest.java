@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import jakarta.validation.constraints.NotBlank;
 @Data
 @Builder
 @AllArgsConstructor
@@ -23,6 +24,7 @@ public class AuthRequest {
         minLength = 3,
         maxLength = 50
     )
+    @NotBlank(message = "Username non può essere vuoto")
     private String username;
 
     @Schema(
@@ -32,5 +34,6 @@ public class AuthRequest {
         minLength = 8,
         format = "password"
     )
+    @NotBlank(message = "Password non può essere vuota")
     private String password;
 }
