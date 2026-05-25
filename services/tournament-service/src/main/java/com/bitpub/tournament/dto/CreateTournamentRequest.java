@@ -1,5 +1,6 @@
 package com.bitpub.tournament.dto;
 
+import com.bitpub.tournament.model.TournamentFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -33,6 +35,21 @@ public class CreateTournamentRequest {
         requiredMode = Schema.RequiredMode.REQUIRED
     )
     private String gameId;
+    
+    @Schema(
+        description = "Formato del torneo (SINGLE_ELIMINATION o ROUND_ROBIN).",
+        example = "SINGLE_ELIMINATION"
+    )
+    private TournamentFormat format;
+
+    @Schema(description = "Numero massimo di partecipanti (squadre o singoli).", example = "16")
+    private int maxParticipants;
+
+    @Schema(description = "Numero di giocatori per squadra (1 = singolo giocatore).", example = "2")
+    private int teamSize;
+
+    @Schema(description = "Lista degli ID delle location dove si svolgerà.")
+    private List<String> locationIds;
 
     @Schema(
         description = "Data e ora di inizio del torneo in formato ISO-8601 (UTC).",

@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -13,8 +15,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "tournament_participants")
-public class TournamentParticipant {
+@Table(name = "teams")
+public class Team {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -24,13 +26,14 @@ public class TournamentParticipant {
     @JoinColumn(name = "tournament_id", nullable = false)
     private Tournament tournament;
 
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
-
     @Column(nullable = false)
-    private String username;
+    private String name;
 
-    private int seed; // posizione nel bracket
+    @Builder.Default
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TournamentPlayer> players = new ArrayList<>();
+
+    private int seed;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
