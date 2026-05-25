@@ -52,13 +52,30 @@ public class AdvancedStatsController {
     }
 
     private void loadData() {
-        // Here we would use RestClient to fetch data from /api/v1/stats/leaderboard/global?page=x&size=y
-        // For demonstration, just updating UI state
-        Platform.runLater(() -> {
-            // Mock empty load for now until RestClient is updated
-            tableData.clear();
-            updatePaginationUI();
-        });
+        String endpoint = viewComboBox.getSelectionModel().getSelectedIndex() == 0 
+            ? "/api/v1/stats/leaderboard/global?page=" + currentPage + "&size=20"
+            : "/api/v1/stats/leaderboard/game/some-game-id?page=" + currentPage + "&size=20"; // Necessita selezione gioco reale
+
+        try {
+            com.bitpub.javafx.network.RestClient.get(endpoint, String.class)
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        // Deserializza PagedResponseDto e aggiorna tableData
+                        // Questo dipenderà dalla libreria JSON usata (es. Jackson/Gson)
+                        // tableData.setAll(parsedList);
+                        updatePaginationUI();
+                    });
+                })
+                .exceptionally(ex -> {
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Errore nel caricamento statistiche: " + ex.getMessage());
+                        alert.show();
+                    });
+                    return null;
+                });
+        } catch (Exception e) {
+             e.printStackTrace();
+        }
     }
 
     private void updatePaginationUI() {
