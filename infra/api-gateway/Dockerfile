@@ -22,9 +22,9 @@ COPY shared-contracts/src shared-contracts/src
 COPY shared-domain/src shared-domain/src
 COPY shared-persistence/src shared-persistence/src
 COPY auth-contracts/src auth-contracts/src
-COPY services/game-service/src services/game-service/src
+COPY infra/api-gateway/src infra/api-gateway/src
 
-RUN mvn clean package -pl services/game-service -am -DskipTests
+RUN mvn clean package -pl infra/api-gateway -am -DskipTests
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
@@ -33,11 +33,11 @@ WORKDIR /app
 RUN addgroup -S bitpub && adduser -S bitpub -G bitpub
 USER bitpub
 
-COPY --from=builder /app/services/game-service/target/*.jar app.jar
+COPY --from=builder /app/infra/api-gateway/target/*.jar app.jar
 
-EXPOSE 8082
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
