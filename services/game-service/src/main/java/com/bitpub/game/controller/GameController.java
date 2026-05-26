@@ -1,6 +1,6 @@
 package com.bitpub.game.controller;
 
-import com.bitpub.common.dto.ErrorResponse;
+import com.bitpub.common.exception.ApiError;
 import com.bitpub.game.model.Game;
 import com.bitpub.game.service.GameService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -84,7 +84,7 @@ public class GameController {
             description = "Token JWT mancante o non valido.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         ),
         @ApiResponse(
@@ -92,7 +92,7 @@ public class GameController {
             description = "Errore interno del server.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         )
     })
@@ -142,7 +142,7 @@ public class GameController {
             description = "Corpo della richiesta non valido.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         ),
         @ApiResponse(
@@ -150,7 +150,7 @@ public class GameController {
             description = "Token JWT mancante o non valido.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         ),
         @ApiResponse(
@@ -158,7 +158,7 @@ public class GameController {
             description = "Accesso negato: ruolo ADMIN richiesto.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         )
     })

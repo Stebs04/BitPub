@@ -74,7 +74,7 @@ public class AuthController {
             description = "Dati di registrazione non validi (campi mancanti o formato errato).",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class),
+                schema = @Schema(implementation = ApiError.class),
                 examples = @ExampleObject(
                     name = "Validazione fallita",
                     value = """
@@ -94,7 +94,7 @@ public class AuthController {
             description = "Username già registrato.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         )
     })
@@ -164,7 +164,7 @@ public class AuthController {
             description = "Corpo della richiesta malformato.",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class)
+                schema = @Schema(implementation = ApiError.class)
             )
         ),
         @ApiResponse(
@@ -172,7 +172,7 @@ public class AuthController {
             description = "Credenziali non valide (username o password errati).",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON_VALUE,
-                schema = @Schema(implementation = ErrorResponse.class),
+                schema = @Schema(implementation = ApiError.class),
                 examples = @ExampleObject(
                     name = "Credenziali errate",
                     value = """

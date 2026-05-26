@@ -129,23 +129,24 @@ public class GlobalExceptionHandler {
 
     private String resolveMessage(String messageKey, Object[] args) {
         try {
-            return messageSource.getMessage(messageKey, args, LocaleContextHolder.getLocale());
-        } catch (Exception e) {
+            String message = messageSource.getMessage(messageKey, args, LocaleContextHolder.getLocale());
+            return message != null ? message : messageKey;
+        } catch (org.springframework.context.NoSuchMessageException e) {
             return messageKey;
         }
     }
 
     private HttpStatus resolveStatus(ErrorCode errorCode) {
-        switch (errorCode) {
-            case BAD_REQUEST: return HttpStatus.BAD_REQUEST;
-            case UNAUTHORIZED: return HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN: return HttpStatus.FORBIDDEN;
-            case NOT_FOUND: return HttpStatus.NOT_FOUND;
-            case CONFLICT: return HttpStatus.CONFLICT;
-            case VALIDATION_FAILED: return HttpStatus.UNPROCESSABLE_ENTITY;
-            case MQTT_ERROR: return HttpStatus.SERVICE_UNAVAILABLE;
-            default: return HttpStatus.INTERNAL_SERVER_ERROR;
-        }
+        return switch (errorCode) {
+            case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
+            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+            case VALIDATION_FAILED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case MQTT_ERROR -> HttpStatus.SERVICE_UNAVAILABLE;
+            default -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
     }
 
     private String getTraceId() {
