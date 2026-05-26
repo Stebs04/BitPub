@@ -39,6 +39,7 @@
         <module>shared-domain</module>
         <module>shared-persistence</module>
         <module>auth-contracts</module>
+        <module>shared-mqtt</module>
         <module>infra/discovery-server</module>
         <module>infra/config-server</module>
         <module>infra/api-gateway</module>
