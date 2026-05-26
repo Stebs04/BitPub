@@ -1,7 +1,7 @@
 package com.bitpub.javafx.controllers;
 
 import com.bitpub.core.UIState;
-import com.bitpub.javafx.model.LeaderboardEntryModel;
+import com.bitpub.model.LeaderboardEntryModel;
 import com.bitpub.viewmodels.AdvancedStatsViewModel;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;

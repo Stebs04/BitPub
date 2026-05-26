@@ -60,9 +60,9 @@ public class TournamentDashboardController {
     private void loadTournaments() {
         new Thread(() -> {
             try {
-                String response = RestClient.get("/tournaments");
+                String response = RestClient.getInstance().get("/tournaments");
                 Type listType = new TypeToken<List<TournamentModel>>(){}.getType();
-                List<TournamentModel> list = RestClient.getGson().fromJson(response, listType);
+                List<TournamentModel> list = RestClient.getInstance().getGson().fromJson(response, listType);
                 Platform.runLater(() -> {
                     tournamentList.setAll(list);
                 });
@@ -91,7 +91,7 @@ public class TournamentDashboardController {
 
         new Thread(() -> {
             try {
-                RestClient.post("/tournaments/" + selected.getId() + "/bracket/generate", "{}");
+                RestClient.getInstance().post("/tournaments/" + selected.getId() + "/bracket/generate", "{}");
                 Platform.runLater(this::loadTournaments);
             } catch (Exception e) {
                 e.printStackTrace();

@@ -55,9 +55,9 @@ public class LeaderboardUIController {
         if (tournament == null) return;
         new Thread(() -> {
             try {
-                String response = RestClient.get("/tournaments/" + tournament.getId() + "/leaderboard");
+                String response = RestClient.getInstance().get("/tournaments/" + tournament.getId() + "/leaderboard");
                 Type listType = new TypeToken<List<LeaderboardEntryModel>>(){}.getType();
-                List<LeaderboardEntryModel> list = RestClient.getGson().fromJson(response, listType);
+                List<LeaderboardEntryModel> list = RestClient.getInstance().getGson().fromJson(response, listType);
                 Platform.runLater(() -> entriesList.setAll(list));
             } catch (Exception e) {
                 e.printStackTrace();

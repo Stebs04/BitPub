@@ -44,7 +44,7 @@
         </dependency>
         <dependency>
             <groupId>com.bitpub</groupId>
-            <artifactId>bitpub-common</artifactId>
+            <artifactId>bitpub-client-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -2,7 +2,7 @@ package com.bitpub.viewmodels;
 
 import com.bitpub.core.DialogService;
 import com.bitpub.core.UIState;
-import com.bitpub.javafx.model.LeaderboardEntryModel;
+import com.bitpub.model.LeaderboardEntryModel;
 import com.bitpub.services.StatsService;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;

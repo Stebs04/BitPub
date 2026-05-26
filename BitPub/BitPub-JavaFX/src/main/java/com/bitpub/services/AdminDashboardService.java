@@ -23,7 +23,7 @@ public class AdminDashboardService {
                 String linkLocali = root.getLinkSafe("locali");
                 return restClient.getAsync(linkLocali, JsonObject.class);
             })
-            .thenApply(response -> HateoasUtils.extractArrayFromHateoas(response, Locale.class, restClient.getGson()));
+            .thenApply(response -> HateoasUtils.extractArrayFromHateoas(response, Locale.class, RestClient.getInstance().getGson()));
     }
 
     public CompletableFuture<List<Utente>> getGestori() {
@@ -32,7 +32,7 @@ public class AdminDashboardService {
                 String usersUrl = root.getLinkSafe("users") + "?role=GESTORE";
                 return restClient.getAsync(usersUrl, JsonObject.class);
             })
-            .thenApply(response -> HateoasUtils.extractArrayFromHateoas(response, Utente.class, restClient.getGson()));
+            .thenApply(response -> HateoasUtils.extractArrayFromHateoas(response, Utente.class, RestClient.getInstance().getGson()));
     }
 
     public CompletableFuture<Locale> createLocale(Locale nuovoLocale) {

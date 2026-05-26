@@ -16,7 +16,7 @@ public class AdminNetworkViewModel {
     private final DialogService dialogService;
 
     private final ObservableList<EdgeStatus> statuses = FXCollections.observableArrayList();
-    private final ObjectProperty<UIState> state = new SimpleObjectProperty<>(UIState.IDLE);
+    private final ObjectProperty<UIState.Status> state = new SimpleObjectProperty<>(UIState.Status.IDLE);
 
     public AdminNetworkViewModel(AdminNetworkService service, DialogService dialogService) {
         this.service = service;
@@ -27,20 +27,20 @@ public class AdminNetworkViewModel {
         return statuses;
     }
 
-    public ObjectProperty<UIState> stateProperty() {
+    public ObjectProperty<UIState.Status> stateProperty() {
         return state;
     }
 
     public void refreshStatus() {
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.getNetworkStatus()
             .thenAccept(lista -> Platform.runLater(() -> {
                 statuses.setAll(lista);
-                state.set(UIState.SUCCESS);
+                state.set(UIState.Status.SUCCESS);
             }))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     System.err.println("[AdminNetworkViewModel] Errore caricamento status: " + ex.getMessage());
                 });
                 return null;

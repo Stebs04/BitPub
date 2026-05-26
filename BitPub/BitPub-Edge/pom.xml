@@ -32,6 +32,10 @@
             <groupId>com.bitpub</groupId>
             <artifactId>bitpub-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.bitpub</groupId>
+            <artifactId>bitpub-client-common</artifactId>
+        </dependency>
         <!-- Persistenza su file per Coda Offline -->
         <dependency>
             <groupId>org.mapdb</groupId>

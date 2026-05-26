@@ -50,12 +50,12 @@ public class AdminUsersService {
                 String key = embedded.keySet().iterator().next();
                 JsonArray array = embedded.getAsJsonArray(key);
                 for (JsonElement el : array) {
-                    utenti.add(restClient.getGson().fromJson(el, Utente.class));
+                    utenti.add(RestClient.getInstance().getGson().fromJson(el, Utente.class));
                 }
             } else if (response.has("content")) {
                 JsonArray array = response.getAsJsonArray("content");
                 for (JsonElement el : array) {
-                    utenti.add(restClient.getGson().fromJson(el, Utente.class));
+                    utenti.add(RestClient.getInstance().getGson().fromJson(el, Utente.class));
                 }
             }
         } catch (Exception e) {

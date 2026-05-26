@@ -41,6 +41,6 @@ public class AuthService {
     }
 
     public void logout() {
-        SessionManager.getInstance().clearSession();
+        SessionManager.getInstance().logout();
     }
 }

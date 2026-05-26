@@ -93,7 +93,7 @@ services:
       dockerfile: infra/config-server/Dockerfile
     container_name: bitpub-config
     environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - SPRING_PROFILES_ACTIVE=native,${SPRING_PROFILES_ACTIVE}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=${EUREKA_URI}
     networks:
       - bitpub-backend
