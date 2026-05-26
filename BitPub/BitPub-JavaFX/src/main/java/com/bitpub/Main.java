@@ -56,9 +56,9 @@ public class Main extends Application {
         com.bitpub.services.DashboardService dashboardService = new com.bitpub.services.DashboardService();
         container.registerSingleton(com.bitpub.services.DashboardService.class, dashboardService);
 
-        container.registerSingleton(com.bitpub.services.AdminDashboardService.class, new com.bitpub.services.AdminDashboardService());
-        container.registerSingleton(com.bitpub.services.AdminLogsService.class, new com.bitpub.services.AdminLogsService());
-        container.registerSingleton(com.bitpub.services.AdminNetworkService.class, new com.bitpub.services.AdminNetworkService());
+        container.registerSingleton(com.bitpub.services.AdminDashboardService.class, new com.bitpub.services.AdminDashboardService(RestClient.getInstance()));
+        container.registerSingleton(com.bitpub.services.AdminLogsService.class, new com.bitpub.services.AdminLogsService(RestClient.getInstance()));
+        container.registerSingleton(com.bitpub.services.AdminNetworkService.class, new com.bitpub.services.AdminNetworkService(RestClient.getInstance()));
         container.registerSingleton(com.bitpub.services.AdminSessionsService.class, new com.bitpub.services.AdminSessionsService(RestClient.getInstance()));
         container.registerSingleton(com.bitpub.services.AdminUsersService.class, new com.bitpub.services.AdminUsersService());
 
@@ -206,7 +206,5 @@ public class Main extends Application {
 
     public static void main(String[] args) {
         launch(args);
-    }
-});
     }
 }

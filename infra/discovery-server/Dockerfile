@@ -9,6 +9,7 @@ COPY shared-contracts/pom.xml shared-contracts/
 COPY shared-domain/pom.xml shared-domain/
 COPY shared-persistence/pom.xml shared-persistence/
 COPY auth-contracts/pom.xml auth-contracts/
+COPY shared-mqtt/pom.xml shared-mqtt/
 COPY infra/discovery-server/pom.xml infra/discovery-server/
 COPY infra/config-server/pom.xml infra/config-server/
 COPY infra/api-gateway/pom.xml infra/api-gateway/
@@ -24,6 +25,7 @@ COPY shared-contracts/src shared-contracts/src
 COPY shared-domain/src shared-domain/src
 COPY shared-persistence/src shared-persistence/src
 COPY auth-contracts/src auth-contracts/src
+COPY shared-mqtt/src shared-mqtt/src
 COPY infra/discovery-server/src infra/discovery-server/src
 
 # Build the module

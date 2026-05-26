@@ -34,9 +34,9 @@ public class BracketUIController {
         if (tournament == null) return;
         new Thread(() -> {
             try {
-                String response = RestClient.get("/tournaments/" + tournament.getId() + "/matches");
+                String response = RestClient.getInstance().get("/tournaments/" + tournament.getId() + "/matches");
                 Type listType = new TypeToken<List<MatchModel>>(){}.getType();
-                List<MatchModel> list = RestClient.getGson().fromJson(response, listType);
+                List<MatchModel> list = RestClient.getInstance().getGson().fromJson(response, listType);
                 Platform.runLater(() -> renderBracket(list));
             } catch (Exception e) {
                 e.printStackTrace();

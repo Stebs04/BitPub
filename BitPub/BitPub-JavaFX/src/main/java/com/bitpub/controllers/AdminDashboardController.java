@@ -59,7 +59,7 @@ public class AdminDashboardController {
 
     private void setupBindings() {
         viewModel.stateProperty().addListener((obs, oldState, newState) -> {
-            Platform.runLater(() -> progressIndicator.setVisible(newState == UIState.LOADING));
+            Platform.runLater(() -> progressIndicator.setVisible(newState == UIState.Status.LOADING));
         });
     }
 

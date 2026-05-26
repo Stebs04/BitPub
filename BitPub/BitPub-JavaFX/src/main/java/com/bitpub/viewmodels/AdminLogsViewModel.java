@@ -18,7 +18,7 @@ public class AdminLogsViewModel {
     private final DialogService dialogService;
 
     private final ObservableList<SystemLog> logs = FXCollections.observableArrayList();
-    private final ObjectProperty<UIState> state = new SimpleObjectProperty<>(UIState.IDLE);
+    private final ObjectProperty<UIState.Status> state = new SimpleObjectProperty<>(UIState.Status.IDLE);
     private final StringProperty filterLevel = new SimpleStringProperty("ALL");
 
     public AdminLogsViewModel(AdminLogsService service, DialogService dialogService) {
@@ -30,7 +30,7 @@ public class AdminLogsViewModel {
         return logs;
     }
 
-    public ObjectProperty<UIState> stateProperty() {
+    public ObjectProperty<UIState.Status> stateProperty() {
         return state;
     }
     
@@ -39,16 +39,16 @@ public class AdminLogsViewModel {
     }
 
     public void loadLogs() {
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.getLogs(filterLevel.get())
             .thenAccept(lista -> Platform.runLater(() -> {
                 logs.setAll(lista);
-                state.set(UIState.SUCCESS);
+                state.set(UIState.Status.SUCCESS);
             }))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
                     logs.clear();
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     System.err.println("[AdminLogsViewModel] Errore caricamento log: " + ex.getMessage());
                 });
                 return null;

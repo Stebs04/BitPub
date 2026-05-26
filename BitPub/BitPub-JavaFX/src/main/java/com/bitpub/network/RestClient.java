@@ -63,6 +63,54 @@ public class RestClient {
     }
 
     // =========================================================================
+    // METODI CORE SINCRONI (LEGACY SUPPORT)
+    // =========================================================================
+
+    public String get(String url) {
+        try {
+            return getAsync(url, String.class).join();
+        } catch (Exception e) {
+            throw new ApiException("Errore durante get sincrona: " + e.getMessage());
+        }
+    }
+
+    public String post(String url, String payload) {
+        try {
+            // postAsync usa gson.toJson se non è una stringa, ma se gli passiamo
+            // una String che è già JSON, gson.toJson la incapsula come stringa JSON.
+            // Per supportare il vecchio post(String, String) che passava JSON grezzo:
+            HttpRequest request = buildRequest(url)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload != null ? payload : "{}"))
+                    .build();
+            return executeRequest(request, String.class).join();
+        } catch (Exception e) {
+            throw new ApiException("Errore durante post sincrona: " + e.getMessage());
+        }
+    }
+
+    public String put(String url, String payload) {
+        try {
+            HttpRequest request = buildRequest(url)
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(payload != null ? payload : "{}"))
+                    .build();
+            return executeRequest(request, String.class).join();
+        } catch (Exception e) {
+            throw new ApiException("Errore durante put sincrona: " + e.getMessage());
+        }
+    }
+
+    public String delete(String url) {
+        try {
+            deleteAsync(url).join();
+            return "";
+        } catch (Exception e) {
+            throw new ApiException("Errore durante delete sincrona: " + e.getMessage());
+        }
+    }
+
+    // =========================================================================
     // METODI CORE ASINCRONI
     // =========================================================================
 

@@ -47,11 +47,11 @@ public class AdminLogsController {
 
         viewModel.stateProperty().addListener((obs, oldState, newState) -> {
             Platform.runLater(() -> {
-                if (newState == UIState.LOADING) {
+                if (newState == UIState.Status.LOADING) {
                     logsTable.setPlaceholder(new Label("Ricerca log di sistema in corso..."));
-                } else if (newState == UIState.ERROR) {
+                } else if (newState == UIState.Status.ERROR) {
                     logsTable.setPlaceholder(new Label("Errore di rete: Impossibile caricare i log."));
-                } else if (newState == UIState.SUCCESS && viewModel.getLogs().isEmpty()) {
+                } else if (newState == UIState.Status.SUCCESS && viewModel.getLogs().isEmpty()) {
                     logsTable.setPlaceholder(new Label("Nessun log trovato per il filtro selezionato."));
                 }
             });

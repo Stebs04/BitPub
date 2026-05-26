@@ -20,7 +20,7 @@ public class AdminDashboardViewModel {
     private final DialogService dialogService;
 
     private final ObservableList<Locale> locali = FXCollections.observableArrayList();
-    private final ObjectProperty<UIState> state = new SimpleObjectProperty<>(UIState.IDLE);
+    private final ObjectProperty<UIState.Status> state = new SimpleObjectProperty<>(UIState.Status.IDLE);
 
     public AdminDashboardViewModel(AdminDashboardService service, DialogService dialogService) {
         this.service = service;
@@ -31,20 +31,20 @@ public class AdminDashboardViewModel {
         return locali;
     }
 
-    public ObjectProperty<UIState> stateProperty() {
+    public ObjectProperty<UIState.Status> stateProperty() {
         return state;
     }
 
     public void loadLocali() {
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.getLocali()
             .thenAccept(lista -> Platform.runLater(() -> {
                 locali.setAll(lista);
-                state.set(UIState.SUCCESS);
+                state.set(UIState.Status.SUCCESS);
             }))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     dialogService.showError("Errore", "Impossibile caricare i locali: " + ex.getMessage());
                 });
                 return null;
@@ -52,15 +52,15 @@ public class AdminDashboardViewModel {
     }
 
     public void startNuovoLocale(Consumer<List<Utente>> onGestoriLoaded) {
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.getGestori()
             .thenAccept(gestori -> Platform.runLater(() -> {
-                state.set(UIState.SUCCESS);
+                state.set(UIState.Status.SUCCESS);
                 onGestoriLoaded.accept(gestori);
             }))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     dialogService.showError("Errore", "Impossibile recuperare i gestori.");
                 });
                 return null;
@@ -68,12 +68,12 @@ public class AdminDashboardViewModel {
     }
 
     public void createLocale(Locale nuovoLocale) {
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.createLocale(nuovoLocale)
             .thenAccept(res -> Platform.runLater(this::loadLocali))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     dialogService.showError("Errore", "Errore nella creazione del locale: " + ex.getMessage());
                 });
                 return null;
@@ -84,12 +84,12 @@ public class AdminDashboardViewModel {
         if (locale == null || locale.getLinks().isEmpty()) return;
         String updateUrl = locale.getLinkHref("self");
 
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.updateLocale(updateUrl, locale)
             .thenAccept(res -> Platform.runLater(this::loadLocali))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     dialogService.showError("Errore", "Errore nella modifica del locale: " + ex.getMessage());
                 });
                 return null;
@@ -100,16 +100,16 @@ public class AdminDashboardViewModel {
         if (locale == null || locale.getLinks().isEmpty()) return;
         String deleteUrl = locale.getLinkHref("self");
 
-        state.set(UIState.LOADING);
+        state.set(UIState.Status.LOADING);
         service.deleteLocale(deleteUrl)
             .thenAccept(v -> Platform.runLater(() -> {
                 locali.remove(locale);
-                state.set(UIState.SUCCESS);
-                dialogService.showInfo("Successo", "Locale eliminato.");
+                state.set(UIState.Status.SUCCESS);
+                dialogService.showInformation("Successo", "Locale eliminato.");
             }))
             .exceptionally(ex -> {
                 Platform.runLater(() -> {
-                    state.set(UIState.ERROR);
+                    state.set(UIState.Status.ERROR);
                     dialogService.showError("Errore", "Errore nell'eliminazione del locale: " + ex.getMessage());
                 });
                 return null;

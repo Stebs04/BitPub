@@ -1,6 +1,6 @@
 package com.bitpub.services;
 
-import com.bitpub.javafx.model.LeaderboardEntryModel;
+import com.bitpub.model.LeaderboardEntryModel;
 import com.bitpub.network.RestClient;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -55,7 +55,7 @@ public class StatsService {
 
         if (array != null) {
             for (JsonElement el : array) {
-                list.add(restClient.getGson().fromJson(el, LeaderboardEntryModel.class));
+                list.add(RestClient.getInstance().getGson().fromJson(el, LeaderboardEntryModel.class));
             }
         }
         return list;

@@ -48,7 +48,7 @@ public class AdminNetworkStatusController {
 
     private void setupBindings() {
         viewModel.stateProperty().addListener((obs, oldState, newState) -> {
-            Platform.runLater(() -> refreshButton.setDisable(newState == UIState.LOADING));
+            Platform.runLater(() -> refreshButton.setDisable(newState == UIState.Status.LOADING));
         });
 
         viewModel.getStatuses().addListener((ListChangeListener<EdgeStatus>) c -> {
