@@ -1,7 +1,7 @@
 package com.bitpub.stats.service;
 
 import com.bitpub.stats.dto.LeaderboardEntryDto;
-import com.bitpub.stats.dto.PagedResponseDto;
+import com.bitpub.common.dto.PageResponse;
 import com.bitpub.stats.dto.RecordMatchRequest;
 
 import com.bitpub.stats.model.MatchResult;
@@ -14,8 +14,12 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.stats.specification.StatsSpecification;
 
 import java.util.List;
 import java.util.UUID;
@@ -59,7 +63,7 @@ public class StatsService {
     }
 
     @Cacheable(value = "leaderboards", key = "'global_' + #pageable.pageNumber + '_' + #pageable.pageSize")
-    public PagedResponseDto<LeaderboardEntryDto> getGlobalLeaderboard(Pageable pageable) {
+    public PageResponse<LeaderboardEntryDto> getGlobalLeaderboard(Pageable pageable) {
         Page<PlayerStats> page = playerStatsRepository.findGlobalLeaderboard(pageable);
         List<LeaderboardEntryDto> content = page.getContent().stream()
                 .map(ps -> {
@@ -71,7 +75,7 @@ public class StatsService {
     }
 
     @Cacheable(value = "leaderboards", key = "'game_' + #gameId + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
-    public PagedResponseDto<LeaderboardEntryDto> getLeaderboardByGame(UUID gameId, Pageable pageable) {
+    public PageResponse<LeaderboardEntryDto> getLeaderboardByGame(UUID gameId, Pageable pageable) {
         Page<PlayerStats> page = playerStatsRepository.findLeaderboardByGame(gameId, pageable);
         List<LeaderboardEntryDto> content = page.getContent().stream()
                 .map(ps -> {
@@ -82,9 +86,9 @@ public class StatsService {
         return createPagedResponse(page, content);
     }
 
-    public PagedResponseDto<MatchResult> getMatchHistory(UUID userId, Pageable pageable) {
+    public PageResponse<MatchResult> getMatchHistory(UUID userId, Pageable pageable) {
         Page<MatchResult> page = matchResultRepository.findByWinnerUserIdOrLoserUserIdOrderByPlayedAtDesc(userId, userId, pageable);
-        return PagedResponseDto.fromPage(page);
+        return PageResponse.of(page);
     }
 
     public PlayerStats getPlayerStats(UUID userId, UUID gameId) {
@@ -127,14 +131,20 @@ public class StatsService {
                 .build();
     }
 
-    private <T> PagedResponseDto<T> createPagedResponse(Page<?> page, List<T> content) {
-        return PagedResponseDto.<T>builder()
+    private <T> PageResponse<T> createPagedResponse(Page<?> page, List<T> content) {
+        return PageResponse.<T>builder()
                 .content(content)
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())
                 .totalPages(page.getTotalPages())
-                .isLast(page.isLast())
+                .last(page.isLast())
                 .build();
+    }
+    
+    public PageResponse<PlayerStats> getStats(List<SearchCriteria> criteria, Pageable pageable) {
+        Specification<PlayerStats> spec = StatsSpecification.createSpecification(criteria);
+        Page<PlayerStats> page = playerStatsRepository.findAll(spec, pageable);
+        return PageResponse.of(page);
     }
 }

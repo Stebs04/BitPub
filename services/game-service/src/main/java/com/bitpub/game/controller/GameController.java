@@ -21,6 +21,13 @@ import org.springframework.web.bind.annotation.*;
 import com.bitpub.common.security.enums.Role;
 import com.bitpub.common.security.annotations.RequireRole;
 
+import com.bitpub.common.dto.PageResponse;
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.common.specification.SearchOperation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -97,8 +104,20 @@ public class GameController {
         )
     })
     @GetMapping
-    public ResponseEntity<List<Game>> getAllGames() {
-        return ResponseEntity.ok(gameService.getAllGames());
+    public ResponseEntity<PageResponse<Game>> getAllGames(
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) Boolean active,
+            @PageableDefault(size = 20) Pageable pageable) {
+            
+        List<SearchCriteria> criteria = new ArrayList<>();
+        if (genre != null && !genre.isBlank()) {
+            criteria.add(new SearchCriteria("genre", SearchOperation.EQUALITY, genre));
+        }
+        if (active != null) {
+            criteria.add(new SearchCriteria("active", SearchOperation.EQUALITY, active));
+        }
+        
+        return ResponseEntity.ok(gameService.getGames(criteria, pageable));
     }
 
     // -------------------------------------------------------------------------

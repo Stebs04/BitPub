@@ -9,6 +9,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bitpub.common.dto.PageResponse;
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.tournament.specification.TournamentSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,8 +32,10 @@ public class TournamentService {
     private final TournamentMatchRepository matchRepository;
     private final LeaderboardEntryRepository leaderboardRepository;
 
-    public List<Tournament> getAllTournaments() {
-        return tournamentRepository.findAll();
+    public PageResponse<Tournament> getTournaments(List<SearchCriteria> criteria, Pageable pageable) {
+        Specification<Tournament> spec = TournamentSpecification.createSpecification(criteria);
+        Page<Tournament> page = tournamentRepository.findAll(spec, pageable);
+        return PageResponse.of(page);
     }
 
     public Tournament getTournamentById(UUID id) {
