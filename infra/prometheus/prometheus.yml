@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'bitpub-services'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'bitpub-auth:8081'
+          - 'bitpub-game:8082'
+          - 'bitpub-gateway:8080'
+          # Add other services like edge-sync-service, stats-service when they are up

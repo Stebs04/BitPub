@@ -10,6 +10,7 @@
             <customFields>{"app":"${springAppName}"}</customFields>
             <includeMdcKeyName>traceId</includeMdcKeyName>
             <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>correlationId</includeMdcKeyName>
         </encoder>
     </appender>
 
