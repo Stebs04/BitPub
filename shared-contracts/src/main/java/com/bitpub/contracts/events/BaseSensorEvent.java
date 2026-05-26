@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -29,11 +30,13 @@ import java.util.UUID;
 public abstract class BaseSensorEvent {
 
     @NotNull
+    @Builder.Default
     private UUID eventId = UUID.randomUUID();
 
     private UUID correlationId; // Used to trace related events or for replay
 
     @NotNull
+    @Builder.Default
     private Instant timestamp = Instant.now();
 
     @NotBlank
@@ -46,5 +49,6 @@ public abstract class BaseSensorEvent {
     private String localeId;
 
     @NotBlank
+    @Builder.Default
     private String version = "1.0";
 }
