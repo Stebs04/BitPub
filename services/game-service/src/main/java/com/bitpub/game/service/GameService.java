@@ -10,6 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bitpub.common.dto.PageResponse;
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.game.specification.GameSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -21,8 +28,10 @@ public class GameService {
     private final LocaleRepository localeRepository;
     private final DeviceRepository deviceRepository;
 
-    public List<Game> getAllGames() {
-        return gameRepository.findAll();
+    public PageResponse<Game> getGames(List<SearchCriteria> criteria, Pageable pageable) {
+        Specification<Game> spec = GameSpecification.createSpecification(criteria);
+        Page<Game> page = gameRepository.findAll(spec, pageable);
+        return PageResponse.of(page);
     }
 
     @Transactional

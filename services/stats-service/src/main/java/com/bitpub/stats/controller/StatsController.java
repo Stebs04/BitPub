@@ -1,8 +1,7 @@
 package com.bitpub.stats.controller;
 
-import com.bitpub.common.exception.ApiError;
 import com.bitpub.stats.dto.LeaderboardEntryDto;
-import com.bitpub.stats.dto.PagedResponseDto;
+import com.bitpub.common.dto.PageResponse;
 import com.bitpub.stats.dto.RecordMatchRequest;
 import com.bitpub.stats.model.MatchResult;
 import com.bitpub.stats.model.PlayerStats;
@@ -26,7 +25,11 @@ import com.bitpub.common.security.enums.Role;
 import com.bitpub.common.security.annotations.RequireRole;
 import com.bitpub.common.security.annotations.RequireOwnership;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.common.specification.SearchOperation;
 
 @RestController
 @RequestMapping("/api/v1/stats")
@@ -59,7 +62,7 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante.")
     })
     @GetMapping("/leaderboard/global")
-    public ResponseEntity<PagedResponseDto<LeaderboardEntryDto>> getGlobalLeaderboard(
+    public ResponseEntity<PageResponse<LeaderboardEntryDto>> getGlobalLeaderboard(
             @Parameter(description = "Parametri di paginazione") @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(statsService.getGlobalLeaderboard(pageable));
     }
@@ -71,7 +74,7 @@ public class StatsController {
         @ApiResponse(responseCode = "404", description = "Gioco non trovato.")
     })
     @GetMapping("/leaderboard/game/{gameId}")
-    public ResponseEntity<PagedResponseDto<LeaderboardEntryDto>> getLeaderboardByGame(
+    public ResponseEntity<PageResponse<LeaderboardEntryDto>> getLeaderboardByGame(
             @PathVariable UUID gameId,
             @Parameter(description = "Parametri di paginazione") @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(statsService.getLeaderboardByGame(gameId, pageable));
@@ -86,7 +89,7 @@ public class StatsController {
     @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.userId")
     @RequireOwnership
     @GetMapping("/history/{userId}")
-    public ResponseEntity<PagedResponseDto<MatchResult>> getMatchHistory(
+    public ResponseEntity<PageResponse<MatchResult>> getMatchHistory(
             @PathVariable UUID userId,
             @Parameter(description = "Parametri di paginazione") @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(statsService.getMatchHistory(userId, pageable));
@@ -105,5 +108,20 @@ public class StatsController {
             @PathVariable UUID userId,
             @PathVariable UUID gameId) {
         return ResponseEntity.ok(statsService.getPlayerStats(userId, gameId));
+    }
+    
+    @Operation(summary = "Cerca statistiche avanzate")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping
+    public ResponseEntity<PageResponse<PlayerStats>> getStats(
+            @RequestParam(required = false) UUID gameId,
+            @PageableDefault(size = 20) Pageable pageable) {
+            
+        List<SearchCriteria> criteria = new ArrayList<>();
+        if (gameId != null) {
+            criteria.add(new SearchCriteria("gameId", SearchOperation.EQUALITY, gameId));
+        }
+        
+        return ResponseEntity.ok(statsService.getStats(criteria, pageable));
     }
 }

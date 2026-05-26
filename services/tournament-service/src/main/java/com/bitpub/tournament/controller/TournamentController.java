@@ -15,6 +15,13 @@ import org.springframework.web.bind.annotation.*;
 import com.bitpub.common.security.enums.Role;
 import com.bitpub.common.security.annotations.RequireRole;
 
+import com.bitpub.common.dto.PageResponse;
+import com.bitpub.common.specification.SearchCriteria;
+import com.bitpub.common.specification.SearchOperation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,9 +38,25 @@ public class TournamentController {
 
     @Operation(summary = "Lista tutti i tornei")
     @GetMapping
-    public ResponseEntity<List<TournamentDto>> getAllTournaments() {
-        return ResponseEntity.ok(tournamentService.getAllTournaments()
-                .stream().map(mapper::toDto).collect(Collectors.toList()));
+    public ResponseEntity<PageResponse<TournamentDto>> getAllTournaments(
+            @RequestParam(required = false) String status,
+            @PageableDefault(size = 20) Pageable pageable) {
+
+        List<SearchCriteria> criteria = new ArrayList<>();
+        if (status != null && !status.isBlank()) {
+            criteria.add(new SearchCriteria("status", SearchOperation.EQUALITY, status));
+        }
+
+        PageResponse<com.bitpub.tournament.model.Tournament> page = tournamentService.getTournaments(criteria, pageable);
+        PageResponse<TournamentDto> dtoPage = new PageResponse<>();
+        dtoPage.setContent(page.getContent().stream().map(mapper::toDto).collect(Collectors.toList()));
+        dtoPage.setPageNumber(page.getPageNumber());
+        dtoPage.setPageSize(page.getPageSize());
+        dtoPage.setTotalElements(page.getTotalElements());
+        dtoPage.setTotalPages(page.getTotalPages());
+        dtoPage.setLast(page.isLast());
+
+        return ResponseEntity.ok(dtoPage);
     }
 
     @Operation(summary = "Dettaglio torneo per ID")
