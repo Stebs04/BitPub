@@ -1,6 +1,6 @@
 package com.bitpub.tournament.controller;
 
-import com.bitpub.common.dto.ErrorResponse;
+import com.bitpub.common.exception.ApiError;
 import com.bitpub.tournament.dto.*;
 import com.bitpub.tournament.mapper.TournamentMapper;
 import com.bitpub.tournament.service.TournamentService;

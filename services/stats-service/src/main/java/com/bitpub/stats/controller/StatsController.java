@@ -1,6 +1,6 @@
 package com.bitpub.stats.controller;
 
-import com.bitpub.common.dto.ErrorResponse;
+import com.bitpub.common.exception.ApiError;
 import com.bitpub.stats.dto.LeaderboardEntryDto;
 import com.bitpub.stats.dto.PagedResponseDto;
 import com.bitpub.stats.dto.RecordMatchRequest;
