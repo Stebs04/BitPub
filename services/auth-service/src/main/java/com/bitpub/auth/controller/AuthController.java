@@ -5,6 +5,7 @@ import com.bitpub.auth.dto.AuthResponse;
 import com.bitpub.auth.dto.RegisterRequest;
 import com.bitpub.auth.service.AuthService;
 import com.bitpub.common.dto.ErrorResponse;
+import com.bitpub.common.exception.ApiError;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -24,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@RequiredArgsConstructor
 @Tag(
     name = "Authentication",
     description = "Endpoint di autenticazione e registrazione utenti. Non richiedono JWT."
@@ -32,6 +32,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
     // -------------------------------------------------------------------------
     // POST /api/v1/auth/register
