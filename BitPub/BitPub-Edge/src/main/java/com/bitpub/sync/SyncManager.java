@@ -40,8 +40,8 @@ public class SyncManager {
             logger.info("[SYNC MANAGER] Avviato worker di sincronizzazione offline.");
             while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    // Backpressure passiva: attende se MQTT è palesemente disconnesso
-                    if (!sessionManager.isSessionActive() && !mqttClient.isConnected()) {
+                    // Protezione di sicurezza: attende se il client MQTT è nullo o disconnesso
+                    if (mqttClient == null || (!sessionManager.isSessionActive() && !mqttClient.isConnected())) {
                         Thread.sleep(2000);
                         continue;
                     }
@@ -55,6 +55,13 @@ public class SyncManager {
 
                     while (!delivered && !Thread.currentThread().isInterrupted()) {
                         try {
+                            // Controllo di sicurezza prima del tentativo di invio
+                            if (mqttClient == null || !mqttClient.isConnected()) {
+                                logger.warn("[SYNC MANAGER] Client MQTT non disponibile durante l'invio. Applico Backoff.");
+                                retryScheduler.sleepWithBackoff();
+                                continue;
+                            }
+
                             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
                             message.setQos(1); // At least once
 
@@ -77,7 +84,13 @@ public class SyncManager {
                     logger.warn("[SYNC MANAGER] Thread interrotto. Spegnimento worker.");
                     Thread.currentThread().interrupt();
                 } catch (Exception e) {
-                    logger.error("[SYNC MANAGER] Errore critico nel processing della coda", e);
+                    // Modificato per evitare tight-loop ad alta CPU in caso di anomalie impreviste
+                    logger.error("[SYNC MANAGER] Errore critico nel processing della coda. Pausa di sicurezza in corso...", e);
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
         });
