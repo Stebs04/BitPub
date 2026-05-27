@@ -58,7 +58,7 @@ public class EdgeMqttClient implements MqttCallback {
         try {
             // Risoluzione della catena di trust SSL e allocazione dei certificati client
             // incapsulati per mantenere compatto il corpo logico del controller
-            this.client = CloudMqttManager.configuraClientCloud("localhost", "Locale_1", sslContext);
+            this.client = CloudMqttManager.configuraClientCloud("127.0.0.1", "Locale_1", sslContext);
 
             // Registrazione dell'istanza corrente come ascoltatore reattivo per gli interrupt di rete
             this.client.setCallback(this);

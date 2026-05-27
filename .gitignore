@@ -70,3 +70,6 @@ BitPub/BitPub-Edge/logs/edge.log
 BitPub/BitPub-Security/.devcontainer/devcontainer.json
 BitPub/.devcontainer/devcontainer.json
 .devcontainer/devcontainer.json
+edge_events.db
+edge_events.db.wal.0
+logs/edge.log
