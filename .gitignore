@@ -73,3 +73,4 @@ BitPub/.devcontainer/devcontainer.json
 edge_events.db
 edge_events.db.wal.0
 logs/edge.log
+game-service-startup.log
