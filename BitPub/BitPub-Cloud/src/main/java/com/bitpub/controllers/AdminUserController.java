@@ -18,7 +18,7 @@ public class AdminUserController {
     private UtenteService utenteService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<List<UtenteDTO>> getUsers(
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String search) {
@@ -28,7 +28,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{username}/toggle-status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<?> toggleUserStatus(@PathVariable String username) {
         if (utenteService.toggleUserStatus(username)) {
             return ResponseEntity.ok().build();
@@ -37,7 +37,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{username}/toggle-role")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<?> toggleUserRole(@PathVariable String username) {
         return utenteService.toggleUserRole(username)
                 .map(result -> {

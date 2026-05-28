@@ -45,8 +45,26 @@ public class JwtAuthenticationFilter implements WebFilter {
                     );
 
                     // Relay the token downstream, potentially modify headers
+                    java.util.Map<String, Object> claimsMap = new java.util.HashMap<>();
+                    claimsMap.put("userId", claims.get("userId"));
+                    claimsMap.put("username", username);
+                    claimsMap.put("role", claims.get("role"));
+                    claimsMap.put("permissions", claims.get("permissions"));
+                    claimsMap.put("localeIds", claims.get("localeIds"));
+                    claimsMap.put("tokenVersion", claims.get("tokenVersion"));
+                    claimsMap.put("traceId", claims.get("traceId"));
+                    
+                    String encodedClaims = "";
+                    try {
+                        String claimsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(claimsMap);
+                        encodedClaims = java.net.URLEncoder.encode(claimsJson, java.nio.charset.StandardCharsets.UTF_8.toString());
+                    } catch (Exception ex) {
+                        // Ignore mapping error
+                    }
+
+                    final String finalEncodedClaims = encodedClaims;
                     ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-                            .header("X-Auth-User", username)
+                            .headers(h -> h.set("X-Auth-User", finalEncodedClaims))
                             .build();
                     ServerWebExchange mutatedExchange = exchange.mutate().request(mutatedRequest).build();
 

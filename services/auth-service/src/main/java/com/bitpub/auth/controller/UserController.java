@@ -30,7 +30,7 @@ public class UserController {
 
     @Operation(summary = "Lista utenti con paginazione e filtri")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<PageResponse<UserDto>> getUsers(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String email,

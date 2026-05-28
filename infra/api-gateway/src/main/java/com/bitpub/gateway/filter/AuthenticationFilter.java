@@ -37,19 +37,25 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             }
 
             try {
-                SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
+                SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(authHeader).getPayload();
                 
                 String username = claims.getSubject();
                 String role = claims.get("role", String.class);
-                String jwtClaimsJson = String.format("{\"username\":\"%s\",\"role\":\"%s\"}", username, role);
+                
+                java.util.Map<String, Object> tokenData = new java.util.HashMap<>(claims);
+                tokenData.put("username", username);
+                
+                String jwtClaimsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(tokenData);
                 String encodedClaims = java.net.URLEncoder.encode(jwtClaimsJson, java.nio.charset.StandardCharsets.UTF_8);
 
                 // Add extracted user info to headers for downstream microservices
                 ServerHttpRequest request = exchange.getRequest().mutate()
-                        .header("X-Auth-User", encodedClaims)
-                        .header("X-User-Id", username)
-                        .header("X-User-Roles", role)
+                        .headers(h -> {
+                            h.set("X-Auth-User", encodedClaims);
+                            h.set("X-User-Id", claims.get("userId", String.class));
+                            h.set("X-User-Roles", role);
+                        })
                         .build();
                         
                 return chain.filter(exchange.mutate().request(request).build());
