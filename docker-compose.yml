@@ -27,8 +27,10 @@ services:
     container_name: bitpub-mosquitto
     ports:
       - "1883:1883"
+      - "8883:8883"
     volumes:
       - ./infra/mosquitto/config:/mosquitto/config
+      - ./BitPub/BitPub-Security/certs:/etc/mosquitto/certs:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     networks:
