@@ -41,6 +41,7 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException e) {
                 logger.debug("Failed to decode or parse X-Auth-User header: " + e.getMessage());
+                e.printStackTrace();
             }
         }
         

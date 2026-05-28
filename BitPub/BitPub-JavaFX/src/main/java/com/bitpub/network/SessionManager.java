@@ -20,6 +20,9 @@ public class SessionManager {
     /** Nome visualizzato dell'utente (username) per l'interfaccia grafica */
     private String username;
 
+    /** UUID dell'utente loggato (estratto dal JWT) */
+    private java.util.UUID userId;
+
     /** ID del locale associato */
     private Long currentLocaleId;
 
@@ -80,6 +83,14 @@ public class SessionManager {
         this.username = username;
     }
 
+    public java.util.UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(java.util.UUID userId) {
+        this.userId = userId;
+    }
+
     public Long getCurrentLocaleId() {
         return currentLocaleId;
     }
@@ -95,6 +106,7 @@ public class SessionManager {
         this.jwtToken = null;
         this.userRole = null;
         this.username = null;
+        this.userId = null;
         this.currentLocaleId = null;
     }
 }

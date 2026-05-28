@@ -49,8 +49,8 @@ public class StatsController {
         @ApiResponse(responseCode = "400", description = "Dati della richiesta non validi."),
         @ApiResponse(responseCode = "401", description = "JWT mancante o non valido.")
     })
-    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
-    @RequireRole(Role.PLATFORM_ADMIN)
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'PLAYER')")
+    @RequireRole({Role.PLATFORM_ADMIN, Role.PLAYER})
     @PostMapping("/matches")
     public ResponseEntity<MatchResult> recordMatch(@jakarta.validation.Valid @RequestBody RecordMatchRequest request) {
         return ResponseEntity.ok(statsService.recordMatch(request));
