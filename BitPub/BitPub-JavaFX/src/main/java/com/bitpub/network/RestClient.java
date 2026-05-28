@@ -28,9 +28,9 @@ public class RestClient {
     // Legge l'URL dalle variabili d'ambiente (es. per Docker/Script) o usa il localhost come default
     private static final String ROOT_URL = System.getenv("BITPUB_CLOUD_URL") !=  null
                                            ? System.getenv("BITPUB_CLOUD_URL")
-                                           : "http://localhost:8080/api/v1/home";
+                                           : "http://localhost:8080";
 
-    private static final String ACCEPT_HEADER = "application/resources.v1+json";
+    private static final String ACCEPT_HEADER = "application/json";
 
     private RestClient() {
         this.client = HttpClient.newBuilder()

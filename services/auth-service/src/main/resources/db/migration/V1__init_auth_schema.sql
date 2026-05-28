@@ -47,6 +47,6 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES ('c195f725-b829-4d6
 
 -- password is "admin"
 INSERT INTO users (id, username, password, email, token_version) 
-VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin', '$2a$10$t3Xy7lV2wO3T6v9b2eLzZOMvB5HkH8H5XG8Z.0Y/R6YyW.JcM1q/C', 'admin@bitpub.com', 0);
+VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'admin', '$2a$10$cC2M1lrQYieguPygCQHw1OcPhvuB12RVoHyrUflkQ7jRtGoZVn5z2', 'admin@bitpub.com', 0);
 
 INSERT INTO user_roles (user_id, role_id) VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'c195f725-b829-4d64-a690-31612ee4df11');

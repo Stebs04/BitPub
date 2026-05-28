@@ -53,64 +53,16 @@ public class Main extends Application {
         com.bitpub.services.AuthService authService = new com.bitpub.services.AuthService();
         container.registerSingleton(com.bitpub.services.AuthService.class, authService);
         
-        com.bitpub.services.DashboardService dashboardService = new com.bitpub.services.DashboardService();
-        container.registerSingleton(com.bitpub.services.DashboardService.class, dashboardService);
+        container.registerSingleton(com.bitpub.services.GameNetworkService.class, new com.bitpub.services.GameNetworkService());
+        container.registerSingleton(com.bitpub.services.StatsNetworkService.class, new com.bitpub.services.StatsNetworkService());
+        container.registerSingleton(com.bitpub.services.TournamentNetworkService.class, new com.bitpub.services.TournamentNetworkService());
+        container.registerSingleton(com.bitpub.services.PlatformAdminService.class, new com.bitpub.services.PlatformAdminService());
 
-        container.registerSingleton(com.bitpub.services.AdminDashboardService.class, new com.bitpub.services.AdminDashboardService(RestClient.getInstance()));
-        container.registerSingleton(com.bitpub.services.AdminLogsService.class, new com.bitpub.services.AdminLogsService(RestClient.getInstance()));
-        container.registerSingleton(com.bitpub.services.AdminNetworkService.class, new com.bitpub.services.AdminNetworkService(RestClient.getInstance()));
-        container.registerSingleton(com.bitpub.services.AdminSessionsService.class, new com.bitpub.services.AdminSessionsService(RestClient.getInstance()));
-        container.registerSingleton(com.bitpub.services.AdminUsersService.class, new com.bitpub.services.AdminUsersService());
-
-        // Registrazione ViewModel
+        // Registrazione ViewModel (Login)
         container.registerFactory(com.bitpub.viewmodels.LoginViewModel.class, () -> 
             new com.bitpub.viewmodels.LoginViewModel(
                 container.resolve(com.bitpub.services.AuthService.class), 
                 container.resolve(NavigationManager.class)
-            )
-        );
-        
-        container.registerFactory(com.bitpub.viewmodels.DashboardViewModel.class, () -> 
-            new com.bitpub.viewmodels.DashboardViewModel(
-                container.resolve(com.bitpub.services.DashboardService.class), 
-                container.resolve(com.bitpub.services.AuthService.class),
-                container.resolve(NavigationManager.class),
-                container.resolve(DialogService.class)
-            )
-        );
-
-        container.registerFactory(com.bitpub.viewmodels.AdminDashboardViewModel.class, () -> 
-            new com.bitpub.viewmodels.AdminDashboardViewModel(
-                container.resolve(com.bitpub.services.AdminDashboardService.class),
-                container.resolve(DialogService.class)
-            )
-        );
-
-        container.registerFactory(com.bitpub.viewmodels.AdminLogsViewModel.class, () -> 
-            new com.bitpub.viewmodels.AdminLogsViewModel(
-                container.resolve(com.bitpub.services.AdminLogsService.class),
-                container.resolve(DialogService.class)
-            )
-        );
-
-        container.registerFactory(com.bitpub.viewmodels.AdminNetworkViewModel.class, () -> 
-            new com.bitpub.viewmodels.AdminNetworkViewModel(
-                container.resolve(com.bitpub.services.AdminNetworkService.class),
-                container.resolve(DialogService.class)
-            )
-        );
-
-        container.registerFactory(com.bitpub.viewmodels.AdminUsersViewModel.class, () -> 
-            new com.bitpub.viewmodels.AdminUsersViewModel(
-                container.resolve(com.bitpub.services.AdminUsersService.class),
-                container.resolve(DialogService.class)
-            )
-        );
-
-        container.registerFactory(com.bitpub.viewmodels.AdvancedStatsViewModel.class, () -> 
-            new com.bitpub.viewmodels.AdvancedStatsViewModel(
-                container.resolve(com.bitpub.services.StatsService.class),
-                container.resolve(DialogService.class)
             )
         );
 
@@ -119,34 +71,30 @@ public class Main extends Application {
             new com.bitpub.controllers.LoginController(container.resolve(com.bitpub.viewmodels.LoginViewModel.class))
         );
         
-        container.registerFactory(com.bitpub.controllers.DashboardController.class, () -> 
-            new com.bitpub.controllers.DashboardController(container.resolve(com.bitpub.viewmodels.DashboardViewModel.class))
+        container.registerFactory(com.bitpub.controllers.PlayerDashboardController.class, () -> 
+            new com.bitpub.controllers.PlayerDashboardController(
+                container.resolve(com.bitpub.services.GameNetworkService.class),
+                container.resolve(com.bitpub.services.StatsNetworkService.class)
+            )
         );
         
-        container.registerFactory(com.bitpub.controllers.AdminMainController.class, () -> 
-            new com.bitpub.controllers.AdminMainController(
-                container.resolve(com.bitpub.services.AuthService.class),
-                container.resolve(NavigationManager.class),
-                container
+        container.registerFactory(com.bitpub.controllers.LocalAdminDashboardController.class, () -> 
+            new com.bitpub.controllers.LocalAdminDashboardController(
+                container.resolve(com.bitpub.services.GameNetworkService.class),
+                container.resolve(com.bitpub.services.StatsNetworkService.class)
+            )
+        );
+        
+        container.registerFactory(com.bitpub.controllers.GameAdminDashboardController.class, () -> 
+            new com.bitpub.controllers.GameAdminDashboardController(
+                container.resolve(com.bitpub.services.GameNetworkService.class)
             )
         );
 
-        container.registerFactory(com.bitpub.controllers.AdminDashboardController.class, () -> 
-            new com.bitpub.controllers.AdminDashboardController(container.resolve(com.bitpub.viewmodels.AdminDashboardViewModel.class))
-        );
-
-        container.registerFactory(com.bitpub.controllers.AdminLogsController.class, () -> 
-            new com.bitpub.controllers.AdminLogsController(container.resolve(com.bitpub.viewmodels.AdminLogsViewModel.class))
-        );
-
-        container.registerFactory(com.bitpub.controllers.AdminNetworkStatusController.class, () -> 
-            new com.bitpub.controllers.AdminNetworkStatusController(container.resolve(com.bitpub.viewmodels.AdminNetworkViewModel.class))
-        );
-
-        container.registerFactory(com.bitpub.controllers.AdminSessionsController.class, () -> 
-            new com.bitpub.controllers.AdminSessionsController(
-                container.resolve(com.bitpub.viewmodels.AdminSessionsViewModel.class),
-                container.resolve(NavigationManager.class)
+        container.registerFactory(com.bitpub.controllers.PlatformAdminDashboardController.class, () -> 
+            new com.bitpub.controllers.PlatformAdminDashboardController(
+                container.resolve(com.bitpub.services.PlatformAdminService.class),
+                container.resolve(com.bitpub.services.StatsNetworkService.class)
             )
         );
     }
@@ -184,15 +132,18 @@ public class Main extends Application {
         String role = rawRole.replace("ROLE_", "").toUpperCase();
         
         switch (role) {
-            case "ADMIN":
-                navigaVerso("/AdminMainLayout.fxml", "BitPub - Admin Dashboard");
+            case "LOCAL_ADMIN":
+                navigaVerso("/LocalAdminDashboardView.fxml", "BitPub - Local Admin Dashboard");
                 break;
-            case "GESTORE":
-                navigaVerso("/GestoreDashboardView.fxml", "BitPub - Gestore Dashboard");
+            case "GAME_ADMIN":
+                navigaVerso("/GameAdminDashboardView.fxml", "BitPub - Game Admin Dashboard");
                 break;
-            case "UTENTE_BASE":
+            case "PLATFORM_ADMIN":
+                navigaVerso("/PlatformAdminDashboardView.fxml", "BitPub - Platform Admin Dashboard");
+                break;
+            case "PLAYER":
             default:
-                navigaVerso("/DashboardView.fxml", "BitPub - Dashboard Utente");
+                navigaVerso("/PlayerDashboardView.fxml", "BitPub - Player Dashboard");
                 break;
         }
     }
