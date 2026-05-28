@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.LocalAdminDashboardController" stylesheets="@styles.css" styleClass="dashboard-pane">
+    
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="header">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="BitPub - Gestione Locale" styleClass="title"/>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Logout" onAction="#logout" styleClass="logout-btn"/>
+        </HBox>
+    </top>
+    
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="tab-pane">
+            
+            <Tab text="Dispositivi Attivi">
+                <HBox spacing="20">
+                    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                    
+                    <VBox spacing="10" HBox.hgrow="ALWAYS">
+                        <Label text="Elenco Dispositivi nel tuo Locale" styleClass="subtitle"/>
+                        <TableView fx:id="devicesTable" VBox.vgrow="ALWAYS" styleClass="data-table">
+                            <columns>
+                                <TableColumn fx:id="colMac" text="MAC Address" prefWidth="150" />
+                                <TableColumn fx:id="colStatus" text="Stato" prefWidth="100" />
+                                <TableColumn fx:id="colDate" text="Data Registrazione" prefWidth="150" />
+                            </columns>
+                        </TableView>
+                    </VBox>
+                    
+                    <VBox spacing="15" prefWidth="300" styleClass="form-panel">
+                        <Label text="Registra Nuovo Dispositivo" styleClass="subtitle"/>
+                        <VBox spacing="5">
+                            <Label text="Indirizzo MAC" styleClass="form-label"/>
+                            <TextField fx:id="macField" promptText="00:1A:2B:3C:4D:5E" styleClass="input-field"/>
+                        </VBox>
+                        <VBox spacing="5">
+                            <Label text="Seleziona Gioco" styleClass="form-label"/>
+                            <ComboBox fx:id="gameComboBox" prefWidth="280" promptText="Scegli un gioco" styleClass="input-field"/>
+                        </VBox>
+                        <Button text="Aggiungi Dispositivo" onAction="#registerDevice" maxWidth="Infinity" styleClass="primary-btn"/>
+                        <Label fx:id="statusLabel" wrapText="true" />
+                    </VBox>
+                </HBox>
+            </Tab>
+            
+        </TabPane>
+    </center>
+    
+</BorderPane>

@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/system")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
 public class SystemLogController {
 
     @Autowired

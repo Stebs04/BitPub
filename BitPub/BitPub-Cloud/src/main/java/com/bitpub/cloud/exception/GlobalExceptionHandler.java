@@ -14,8 +14,10 @@ import java.util.stream.Collectors;
 /**
  * Intercettore globale per la gestione centralizzata delle eccezioni REST.
  * Traduce le eccezioni interne di Spring e JPA nel formato standard ApiErrorResponse.
+ * DEPRECATED: Usa com.bitpub.common.exception.GlobalExceptionHandler
  */
-@RestControllerAdvice
+//@RestControllerAdvice
+@Deprecated(since = "1.0", forRemoval = true)
 public class GlobalExceptionHandler {
 
     // 1. Semantic Versioning (Pre-esistente)

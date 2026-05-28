@@ -1,0 +1,12 @@
+Ecco i tuoi nuovi account (per ogni ruolo):
+Tutti gli account condividono la stessa password: 🔑 Password: admin
+
+Giocatore (PLAYER)
+Username: player_user
+Gestore Locale (LOCAL_ADMIN)
+Username: local_admin_user
+(Nota: gli ho assegnato d'ufficio un ID fittizio del locale per farti testare la tabella dei dispositivi)
+Amministratore Giochi (GAME_ADMIN)
+Username: game_admin_user
+Amministratore Piattaforma (PLATFORM_ADMIN)
+Username: platform_admin_user

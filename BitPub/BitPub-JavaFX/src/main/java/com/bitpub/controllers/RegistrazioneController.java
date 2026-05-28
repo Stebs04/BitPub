@@ -63,24 +63,15 @@ public class RegistrazioneController {
 
         erroreLabel.setText("Comunicazione con il server...");
 
-        // Fase di discovery: esplorazione dell'albero HATEOAS a partire dalla root dell'API
-        restClient.getAsync(restClient.getRootUrl(), RispostaHateoas.class)
-            .thenCompose(root -> {
-                // Verifica dell'effettiva esposizione del servizio di registrazione da parte dell'infrastruttura server
-                if (root.getLinks() == null || !root.getLinks().containsKey("register")) {
-                    throw new RuntimeException("Servizio di registrazione non esposto dalla Root.");
-                }
-                
-                String registerUrl = root.getLinks().get("register").getHref();
+        String registerUrl = restClient.getRootUrl() + "/api/v1/auth/register";
 
-                // Impacchettamento dei dati utente in formato JSON per l'inoltro asincrono tramite verbo POST
-                JsonObject payload = new JsonObject();
-                payload.addProperty("username", username);
-                payload.addProperty("email", email);
-                payload.addProperty("password", password);
+        // Impacchettamento dei dati utente in formato JSON per l'inoltro asincrono tramite verbo POST
+        JsonObject payload = new JsonObject();
+        payload.addProperty("username", username);
+        payload.addProperty("email", email);
+        payload.addProperty("password", password);
 
-                return restClient.postAsync(registerUrl, payload, JsonObject.class);
-            })
+        restClient.postAsync(registerUrl, payload, JsonObject.class)
             .thenAccept(res -> {
                 // Completamento con successo: notifica visiva all'utente e switch di contesto verso la schermata di login
                 Platform.runLater(() -> {

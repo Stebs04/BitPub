@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.bitpub.controllers.TournamentDashboardController"
+            stylesheets="@style.css">
+
+    <top>
+        <HBox spacing="20" alignment="CENTER_LEFT" styleClass="header-bar">
+            <padding><Insets top="15" right="20" bottom="15" left="20"/></padding>
+            <Label text="Gestione Tornei" styleClass="title-label" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Nuovo Torneo" onAction="#handleNewTournament" styleClass="primary-button" />
+            <Button text="Aggiorna" onAction="#handleRefresh" styleClass="secondary-button" />
+        </HBox>
+    </top>
+
+    <center>
+        <VBox spacing="15">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            
+            <Label text="Tornei Attivi" styleClass="section-label" />
+            <TableView fx:id="tournamentsTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colName" text="Nome" prefWidth="250"/>
+                    <TableColumn fx:id="colFormat" text="Formato" prefWidth="150"/>
+                    <TableColumn fx:id="colStatus" text="Stato" prefWidth="120"/>
+                    <TableColumn fx:id="colStartDate" text="Data Inizio" prefWidth="150"/>
+                </columns>
+            </TableView>
+
+            <HBox spacing="15" alignment="CENTER_RIGHT">
+                <Button text="Iscrivi Team" fx:id="btnRegisterTeam" onAction="#handleRegisterTeam" disable="true" />
+                <Button text="Genera Bracket" fx:id="btnGenerateBracket" onAction="#handleGenerateBracket" disable="true" />
+                <Button text="Visualizza Torneo" fx:id="btnViewTournament" onAction="#handleViewTournament" disable="true" styleClass="primary-button"/>
+            </HBox>
+        </VBox>
+    </center>
+
+</BorderPane>

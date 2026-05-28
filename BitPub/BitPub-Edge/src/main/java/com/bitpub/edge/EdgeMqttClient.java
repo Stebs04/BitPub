@@ -1,6 +1,6 @@
 package com.bitpub.edge;
 
-import com.bitpub.buffer.BufferDatiEdge;
+import com.bitpub.buffer.PersistentEventStore;
 import com.bitpub.mqtt.CloudMqttManager;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
@@ -28,10 +28,11 @@ public class EdgeMqttClient implements MqttCallback {
     private final GameTableStateManager stateManager;
 
     // Memoria circolare bloccante necessaria per tutelare l'integrità del dato fisico
-    private final BufferDatiEdge buffer;
+    private final PersistentEventStore buffer;
 
     // Contesto crittografico per l'autenticazione mTLS verso il broker cloud
     private final SSLContext sslContext;
+    private final com.bitpub.sync.MqttSessionManager sessionManager;
 
     /**
      * Costruttore parametrico. Alloca l'istanza vincolandola in maniera immutabile
@@ -41,10 +42,11 @@ public class EdgeMqttClient implements MqttCallback {
      * @param buffer Astrazione a coda in cui rovesciare la telemetria ottica
      * @param sslContext Contesto crittografico pre-valutato per il tunnel mTLS
      */
-    public EdgeMqttClient(GameTableStateManager stateManager, BufferDatiEdge buffer, SSLContext sslContext) {
+    public EdgeMqttClient(GameTableStateManager stateManager, PersistentEventStore buffer, SSLContext sslContext, com.bitpub.sync.MqttSessionManager sessionManager) {
         this.stateManager = stateManager;
         this.buffer = buffer;
         this.sslContext = sslContext;
+        this.sessionManager = sessionManager;
     }
 
     /**
@@ -56,7 +58,7 @@ public class EdgeMqttClient implements MqttCallback {
         try {
             // Risoluzione della catena di trust SSL e allocazione dei certificati client
             // incapsulati per mantenere compatto il corpo logico del controller
-            this.client = CloudMqttManager.configuraClientCloud("localhost", "Locale_1", sslContext);
+            this.client = CloudMqttManager.configuraClientCloud("127.0.0.1", "Locale_1", sslContext);
 
             // Registrazione dell'istanza corrente come ascoltatore reattivo per gli interrupt di rete
             this.client.setCallback(this);
@@ -65,6 +67,10 @@ public class EdgeMqttClient implements MqttCallback {
             // della direttiva di blocco/sblocco del macchinario
             client.subscribe("bitpub/cloud/foosball/+", 1);
             client.subscribe("bitpub/cloud/admin/+", 1);
+            
+            if (sessionManager != null) {
+                sessionManager.connectComplete(false, client.getServerURI());
+            }
 
             logger.info("[EDGE MQTT] Connesso e sottoscritto ai canali di comando.");
 
@@ -107,7 +113,7 @@ public class EdgeMqttClient implements MqttCallback {
      *
      * @return L'istanza del sistema Store-and-Forward
      */
-    public BufferDatiEdge getBuffer() {
+    public PersistentEventStore getBuffer() {
         return buffer;
     }
 
@@ -141,7 +147,10 @@ public class EdgeMqttClient implements MqttCallback {
      */
     @Override
     public void connectionLost(Throwable cause) {
-        logger.warn("[EDGE MQTT] Connessione persa: {}", cause.getMessage());
+        logger.warn("[EDGE MQTT] Connessione persa: {}", cause != null ? cause.getMessage() : "Sconosciuta");
+        if (sessionManager != null) {
+            sessionManager.connectionLost(cause);
+        }
     }
 
     /**

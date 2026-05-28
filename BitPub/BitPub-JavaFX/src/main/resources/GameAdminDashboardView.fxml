@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.GameAdminDashboardController" stylesheets="@styles.css" styleClass="dashboard-pane">
+    
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="header">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="BitPub - Amministrazione Giochi" styleClass="title"/>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Logout" onAction="#logout" styleClass="logout-btn"/>
+        </HBox>
+    </top>
+    
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="tab-pane">
+            
+            <Tab text="Catalogo Giochi">
+                <HBox spacing="20">
+                    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                    
+                    <VBox spacing="10" HBox.hgrow="ALWAYS">
+                        <Label text="Catalogo Piattaforma" styleClass="subtitle"/>
+                        <TableView fx:id="gamesTable" VBox.vgrow="ALWAYS" styleClass="data-table">
+                            <columns>
+                                <TableColumn fx:id="colName" text="Nome Gioco" prefWidth="150" />
+                                <TableColumn fx:id="colGenre" text="Genere" prefWidth="150" />
+                                <TableColumn fx:id="colDescription" text="Descrizione" prefWidth="250" />
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </HBox>
+            </Tab>
+            
+        </TabPane>
+    </center>
+    
+</BorderPane>

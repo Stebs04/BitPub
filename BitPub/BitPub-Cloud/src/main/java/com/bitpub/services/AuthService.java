@@ -78,7 +78,7 @@ public class AuthService {
      */
     public AuthResponse register(RegisterRequest request) {
         if (utenteRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Username già in uso");
+            throw new com.bitpub.common.exception.ConflictException("Username già in uso");
         }
         
         Utente nuovoUtente = new Utente();

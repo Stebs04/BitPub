@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox spacing="15.0" styleClass="dashboard-container" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.javafx.controllers.AdvancedStatsController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+
+    <Label text="Statistiche Avanzate" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: white;" />
+
+    <HBox spacing="10.0" alignment="CENTER_LEFT">
+        <Label text="Seleziona Vista:" style="-fx-text-fill: white;"/>
+        <ComboBox fx:id="viewComboBox" prefWidth="200.0" />
+        <Button text="Aggiorna" onAction="#handleRefresh" styleClass="primary-button" />
+    </HBox>
+
+    <TableView fx:id="statsTable" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <columns>
+            <TableColumn fx:id="rankColumn" text="Rank" prefWidth="80.0">
+                <cellValueFactory><PropertyValueFactory property="rank" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="usernameColumn" text="Username" prefWidth="200.0">
+                <cellValueFactory><PropertyValueFactory property="username" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="winsColumn" text="Vittorie" prefWidth="100.0">
+                <cellValueFactory><PropertyValueFactory property="wins" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="lossesColumn" text="Sconfitte" prefWidth="100.0">
+                <cellValueFactory><PropertyValueFactory property="losses" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="totalMatchesColumn" text="Totale" prefWidth="100.0">
+                <cellValueFactory><PropertyValueFactory property="totalMatches" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="totalScoreColumn" text="Score" prefWidth="100.0">
+                <cellValueFactory><PropertyValueFactory property="totalScore" /></cellValueFactory>
+            </TableColumn>
+            <TableColumn fx:id="winRateColumn" text="Win Rate %" prefWidth="120.0">
+                <cellValueFactory><PropertyValueFactory property="winRate" /></cellValueFactory>
+            </TableColumn>
+        </columns>
+    </TableView>
+
+    <HBox spacing="10.0" alignment="CENTER">
+        <Button text="&lt; Precedente" onAction="#handlePrevPage" fx:id="prevButton" />
+        <Label fx:id="pageInfoLabel" text="Pagina 1 di 1" style="-fx-text-fill: white;" />
+        <Button text="Successivo &gt;" onAction="#handleNextPage" fx:id="nextButton" />
+    </HBox>
+</VBox>

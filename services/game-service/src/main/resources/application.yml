@@ -1,0 +1,48 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: game-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bitpub_db
+    username: bitpub_admin
+    password: secret_password
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: game
+  flyway:
+    enabled: true
+    schemas: game
+    baseline-on-migrate: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+logging:
+  level:
+    org.springframework.web: DEBUG
+
+# ─────────────────────────────────────────────────────────────────
+# OpenAPI / Swagger UI  →  http://localhost:8082/swagger-ui.html
+#                          http://localhost:8082/v3/api-docs
+# ─────────────────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: alpha
+    tags-sorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    filter: true
+  show-actuator: false
+  packages-to-scan: com.bitpub.game.controller
