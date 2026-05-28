@@ -37,13 +37,19 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             }
 
             try {
-                SecretKey key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+                SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
                 Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(authHeader).getPayload();
                 
+                String username = claims.getSubject();
+                String role = claims.get("role", String.class);
+                String jwtClaimsJson = String.format("{\"username\":\"%s\",\"role\":\"%s\"}", username, role);
+                String encodedClaims = java.net.URLEncoder.encode(jwtClaimsJson, java.nio.charset.StandardCharsets.UTF_8);
+
                 // Add extracted user info to headers for downstream microservices
                 ServerHttpRequest request = exchange.getRequest().mutate()
-                        .header("X-User-Id", claims.getSubject())
-                        .header("X-User-Roles", claims.get("roles", String.class))
+                        .header("X-Auth-User", encodedClaims)
+                        .header("X-User-Id", username)
+                        .header("X-User-Roles", role)
                         .build();
                         
                 return chain.filter(exchange.mutate().request(request).build());

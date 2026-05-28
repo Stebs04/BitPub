@@ -19,14 +19,20 @@ spring:
           uri: lb://game-service
           predicates:
             - Path=/api/v1/games/**, /api/v1/locales/**, /api/v1/devices/**
+          filters:
+            - AuthenticationFilter
         - id: tournament-service
           uri: lb://tournament-service
           predicates:
             - Path=/api/v1/tournaments/**
+          filters:
+            - AuthenticationFilter
         - id: stats-service
           uri: lb://stats-service
           predicates:
             - Path=/api/v1/stats/**
+          filters:
+            - AuthenticationFilter
 
 eureka:
   client:

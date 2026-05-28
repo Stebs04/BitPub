@@ -1,0 +1,86 @@
+/* Stili Globali e Colori Premium */
+.root {
+    -fx-background-color: #1a1a2e;
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-text-fill: #ffffff;
+}
+
+/* Pannello Tab */
+.tab-pane {
+    -fx-background-color: transparent;
+}
+.tab-pane .tab-header-area {
+    -fx-background-color: #16213e;
+    -fx-padding: 5 0 0 0;
+}
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-padding: 10 20;
+    -fx-font-weight: bold;
+}
+.tab-pane .tab:selected {
+    -fx-background-color: #0f3460;
+    -fx-border-color: #e94560;
+    -fx-border-width: 0 0 3 0;
+}
+.tab-pane .tab-label {
+    -fx-text-fill: #ffffff;
+}
+
+/* Pulsanti (Hover Effect & Animazione) */
+.button {
+    -fx-background-color: #e94560;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 10 20;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(233,69,96,0.3), 10, 0, 0, 5);
+}
+.button:hover {
+    -fx-background-color: #ff5773;
+}
+
+/* Etichette e Intestazioni */
+.title-label {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-padding: 20 0 20 0;
+}
+
+/* Tabelle (Dark Mode) */
+.table-view {
+    -fx-background-color: #16213e;
+    -fx-border-color: #0f3460;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+}
+.table-view .column-header-background {
+    -fx-background-color: #0f3460;
+}
+.table-view .column-header, .table-view .filler {
+    -fx-background-color: transparent;
+    -fx-size: 40;
+}
+.table-view .column-header .label {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+}
+.table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #0f3460 transparent;
+    -fx-padding: 5 0 5 0;
+}
+.table-row-cell:odd {
+    -fx-background-color: #1a1a2e;
+}
+.table-row-cell:hover {
+    -fx-background-color: rgba(233,69,96,0.1);
+}
+.table-row-cell:selected {
+    -fx-background-color: #0f3460;
+}
+.table-cell {
+    -fx-text-fill: #ffffff;
+}
