@@ -17,12 +17,15 @@ public class SimulatorController {
 
     @PostMapping("/simulate/{gameType}")
     @PreAuthorize("hasAnyRole('PLAYER', 'PLATFORM_ADMIN')")
-    public ResponseEntity<?> simulateMatch(@PathVariable String gameType) {
-        return switch (gameType.toUpperCase()) {
-            case "TABLE_FOOTBALL" -> ResponseEntity.ok(simulatorService.simulateCalciobalilla());
-            case "POOL" -> ResponseEntity.ok(simulatorService.simulateBiliardo());
-            case "DARTS" -> ResponseEntity.ok(simulatorService.simulateFreccette());
-            default -> ResponseEntity.badRequest().body("Game type not supported");
-        };
+    public ResponseEntity<String> simulateMatch(@PathVariable String gameType) {
+        switch (gameType.toUpperCase()) {
+            case "TABLE_FOOTBALL" -> simulatorService.simulateCalciobalilla();
+            case "POOL" -> simulatorService.simulateBiliardo();
+            case "DARTS" -> simulatorService.simulateFreccette();
+            default -> {
+                return ResponseEntity.badRequest().body("Game type not supported");
+            }
+        }
+        return ResponseEntity.accepted().body("Simulazione avviata, dati in arrivo sui topic MQTT");
     }
 }
