@@ -189,10 +189,11 @@ public class RestClient {
     private String checkErrors(HttpResponse<String> response) {
         int status = response.statusCode();
 
-        if (status == 401 || status == 403) {
+        if (status == 401) {
             handleAuthError();
-            // Lanciare l'eccezione interrompe immediatamente la catena del CompletableFuture
-            throw new ApiException("Sessione scaduta o accesso negato (" + status + "): " + response.body());
+            throw new ApiException("Sessione scaduta (" + status + "): " + response.body());
+        } else if (status == 403) {
+            throw new ApiException("Accesso negato (" + status + "): Non hai i permessi per questa operazione.");
         } else if (status >= 500) {
             throw new ApiException("Errore interno del server (" + status + "): " + response.body());
         } else if (status >= 400) {

@@ -137,6 +137,44 @@ public class PlayerDashboardController {
     }
 
     @FXML
+    public void playSimulatedMatch(ActionEvent event) {
+        Game selected = gamesTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showError("Attenzione", "Seleziona prima un gioco dalla lista.");
+            return;
+        }
+
+        String type = selected.getName();
+        if (type.equalsIgnoreCase("Calciobalilla")) type = "TABLE_FOOTBALL";
+        if (type.equalsIgnoreCase("Biliardo")) type = "POOL";
+        if (type.equalsIgnoreCase("Freccette")) type = "DARTS";
+
+        com.bitpub.network.RestClient.getInstance().postAsync(
+            com.bitpub.network.RestClient.getInstance().getRootUrl() + "/api/v1/simulators/simulate/" + type, 
+            null, String.class)
+            .thenAccept(result -> {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Partita Simulata");
+                    alert.setHeaderText("Esito della partita");
+                    // Prettify JSON using Gson
+                    try {
+                        Object json = gson.fromJson(result, Object.class);
+                        alert.setContentText(gson.toJson(json));
+                    } catch (Exception e) {
+                        alert.setContentText(result);
+                    }
+                    alert.show();
+                    loadData(); // Ricarica storico se necessario
+                });
+            })
+            .exceptionally(e -> {
+                showError("Errore di simulazione", "Impossibile simulare la partita: " + e.getMessage());
+                return null;
+            });
+    }
+
+    @FXML
     public void logout(ActionEvent event) {
         Main.eseguiLogout();
     }

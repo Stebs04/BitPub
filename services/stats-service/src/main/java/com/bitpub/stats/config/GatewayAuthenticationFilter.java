@@ -39,8 +39,8 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (com.fasterxml.jackson.core.JsonProcessingException | IllegalArgumentException e) {
+                logger.debug("Failed to decode or parse X-Auth-User header: " + e.getMessage());
             }
         }
         

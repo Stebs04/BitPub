@@ -31,24 +31,6 @@
                             </columns>
                         </TableView>
                     </VBox>
-                    
-                    <VBox spacing="15" prefWidth="300" styleClass="form-panel">
-                        <Label text="Censisci Nuovo Gioco" styleClass="subtitle"/>
-                        <VBox spacing="5">
-                            <Label text="Nome Gioco" styleClass="form-label"/>
-                            <TextField fx:id="nameField" promptText="Es. Calciobalilla" styleClass="input-field"/>
-                        </VBox>
-                        <VBox spacing="5">
-                            <Label text="Genere" styleClass="form-label"/>
-                            <TextField fx:id="genreField" promptText="Es. SPORT" styleClass="input-field"/>
-                        </VBox>
-                        <VBox spacing="5">
-                            <Label text="Descrizione" styleClass="form-label"/>
-                            <TextArea fx:id="descriptionField" prefRowCount="3" promptText="Descrizione regole o specifiche..." styleClass="input-field"/>
-                        </VBox>
-                        <Button text="Aggiungi Gioco" onAction="#createGame" maxWidth="Infinity" styleClass="primary-btn"/>
-                        <Label fx:id="statusLabel" wrapText="true" />
-                    </VBox>
                 </HBox>
             </Tab>
             

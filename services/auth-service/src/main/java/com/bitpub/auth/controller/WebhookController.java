@@ -26,15 +26,17 @@ public class WebhookController {
     }
 }
 
+@lombok.Data
 class MqttAuthRequest {
-    public String username;
-    public String password;
-    public String clientid;
+    private String username;
+    private String password;
+    private String clientid;
 }
 
+@lombok.Data
 class MqttAclRequest {
-    public String username;
-    public String clientid;
-    public String topic;
-    public String action;
+    private String username;
+    private String clientid;
+    private String topic;
+    private String action;
 }

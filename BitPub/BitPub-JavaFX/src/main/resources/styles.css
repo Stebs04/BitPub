@@ -5,6 +5,10 @@
     -fx-text-fill: #ffffff;
 }
 
+.label, .text, .check-box, .radio-button {
+    -fx-text-fill: #ffffff;
+}
+
 /* Pannello Tab */
 .tab-pane {
     -fx-background-color: transparent;

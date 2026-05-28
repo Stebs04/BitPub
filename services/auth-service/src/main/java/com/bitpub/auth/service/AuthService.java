@@ -46,7 +46,6 @@ public class AuthService {
 
         userRepository.save(user);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
         String roleName = user.getRoles().iterator().next().getName().name();
         String jwtToken = tokenProvider.generateToken(user, java.util.UUID.randomUUID().toString());
 
@@ -67,7 +66,6 @@ public class AuthService {
 
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new com.bitpub.common.exception.ResourceNotFoundException("User not found"));
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
         String roleName = user.getRoles().iterator().next().getName().name();
         String jwtToken = tokenProvider.generateToken(user, java.util.UUID.randomUUID().toString());
 
