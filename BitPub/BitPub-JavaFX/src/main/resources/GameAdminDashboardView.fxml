@@ -1,8 +1,58 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
 
-<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.GameAdminDashboardController">
-    <Label text="Benvenuto nella Game Admin Dashboard" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
-    <Button text="Logout" onAction="#logout" />
-</VBox>
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.GameAdminDashboardController" stylesheets="@styles.css" styleClass="dashboard-pane">
+    
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" styleClass="header">
+            <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+            <Label text="BitPub - Amministrazione Giochi" styleClass="title"/>
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Logout" onAction="#logout" styleClass="logout-btn"/>
+        </HBox>
+    </top>
+    
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE" styleClass="tab-pane">
+            
+            <Tab text="Catalogo Giochi">
+                <HBox spacing="20">
+                    <padding><Insets top="20" right="20" bottom="20" left="20"/></padding>
+                    
+                    <VBox spacing="10" HBox.hgrow="ALWAYS">
+                        <Label text="Catalogo Piattaforma" styleClass="subtitle"/>
+                        <TableView fx:id="gamesTable" VBox.vgrow="ALWAYS" styleClass="data-table">
+                            <columns>
+                                <TableColumn fx:id="colName" text="Nome Gioco" prefWidth="150" />
+                                <TableColumn fx:id="colGenre" text="Genere" prefWidth="150" />
+                                <TableColumn fx:id="colDescription" text="Descrizione" prefWidth="250" />
+                            </columns>
+                        </TableView>
+                    </VBox>
+                    
+                    <VBox spacing="15" prefWidth="300" styleClass="form-panel">
+                        <Label text="Censisci Nuovo Gioco" styleClass="subtitle"/>
+                        <VBox spacing="5">
+                            <Label text="Nome Gioco" styleClass="form-label"/>
+                            <TextField fx:id="nameField" promptText="Es. Calciobalilla" styleClass="input-field"/>
+                        </VBox>
+                        <VBox spacing="5">
+                            <Label text="Genere" styleClass="form-label"/>
+                            <TextField fx:id="genreField" promptText="Es. SPORT" styleClass="input-field"/>
+                        </VBox>
+                        <VBox spacing="5">
+                            <Label text="Descrizione" styleClass="form-label"/>
+                            <TextArea fx:id="descriptionField" prefRowCount="3" promptText="Descrizione regole o specifiche..." styleClass="input-field"/>
+                        </VBox>
+                        <Button text="Aggiungi Gioco" onAction="#createGame" maxWidth="Infinity" styleClass="primary-btn"/>
+                        <Label fx:id="statusLabel" wrapText="true" />
+                    </VBox>
+                </HBox>
+            </Tab>
+            
+        </TabPane>
+    </center>
+    
+</BorderPane>
