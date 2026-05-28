@@ -1,8 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
 
-<VBox alignment="CENTER" spacing="20.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.PlayerDashboardController">
-    <Label text="Benvenuto nella Player Dashboard" style="-fx-font-size: 24px; -fx-font-weight: bold;" />
-    <Button text="Logout" onAction="#logout" />
-</VBox>
+<BorderPane stylesheets="@styles.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.bitpub.controllers.PlayerDashboardController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="20" style="-fx-background-color: #16213e; -fx-padding: 15;">
+            <Label text="Player Dashboard" styleClass="title-label" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Button text="Logout" onAction="#logout" />
+        </HBox>
+    </top>
+    <center>
+        <TabPane tabClosingPolicy="UNAVAILABLE">
+            <!-- I Miei Risultati -->
+            <Tab text="I Miei Risultati">
+                <VBox spacing="10" style="-fx-padding: 20;">
+                    <Label text="Storico Partite Recenti" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+                    <TableView fx:id="matchHistoryTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colDate" text="Data" prefWidth="150" />
+                            <TableColumn fx:id="colGame" text="Gioco" prefWidth="150" />
+                            <TableColumn fx:id="colOpponent" text="Avversario" prefWidth="150" />
+                            <TableColumn fx:id="colResult" text="Esito" prefWidth="100" />
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+            <!-- Leaderboard -->
+            <Tab text="Leaderboard Globale">
+                <VBox spacing="10" style="-fx-padding: 20;">
+                    <Label text="Classifica Piattaforma" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+                    <TableView fx:id="leaderboardTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colRank" text="Posizione" prefWidth="80" />
+                            <TableColumn fx:id="colPlayer" text="Giocatore" prefWidth="200" />
+                            <TableColumn fx:id="colMatches" text="Partite" prefWidth="100" />
+                            <TableColumn fx:id="colWins" text="Vittorie" prefWidth="100" />
+                            <TableColumn fx:id="colElo" text="Punteggio (Elo)" prefWidth="150" />
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+            <!-- Catalogo Giochi -->
+            <Tab text="Giochi Disponibili">
+                <VBox spacing="10" style="-fx-padding: 20;">
+                    <Label text="Catalogo Piattaforma" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+                    <TableView fx:id="gamesTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colGameName" text="Nome" prefWidth="200" />
+                            <TableColumn fx:id="colGenre" text="Genere" prefWidth="150" />
+                            <TableColumn fx:id="colDescription" text="Descrizione" prefWidth="350" />
+                        </columns>
+                    </TableView>
+                </VBox>
+            </Tab>
+        </TabPane>
+    </center>
+</BorderPane>
