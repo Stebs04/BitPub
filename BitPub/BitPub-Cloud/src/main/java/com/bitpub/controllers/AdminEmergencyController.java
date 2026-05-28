@@ -18,7 +18,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/admin/emergency")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
 public class AdminEmergencyController {
 
     private final EmergencyService emergencyService;

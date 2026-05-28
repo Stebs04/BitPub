@@ -1,6 +1,6 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.buffer.BufferDatiEdge;
+import com.bitpub.buffer.PersistentEventStore;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
@@ -24,16 +24,16 @@ public class BiliardoSubscriber implements IMqttMessageListener {
     // Meccanismo tracciante ancorato all'infrastruttura di Logback / SLF4J
     private static final Logger logger = LoggerFactory.getLogger(BiliardoSubscriber.class);
 
-    // Coda atomica thread-safe utilizzata per isolare il produttore dal consumatore cloud
-    private final BufferDatiEdge buffer;
+    // Coda persistente thread-safe utilizzata per isolare il produttore dal consumatore cloud
+    private final PersistentEventStore buffer;
 
     /**
      * Costruttore parametrizzato ad iniezione di dipendenze.
-     * Allaccia logicamente il recettore hardware al polmone di accumulo software.
+     * Allaccia logicamente il recettore hardware al polmone di accumulo persistente.
      *
-     * @param buffer L'interfaccia della memoria LinkedBlockingQueue pre-allocata dal sistema
+     * @param buffer L'interfaccia della memoria persistente
      */
-    public BiliardoSubscriber(BufferDatiEdge buffer) {
+    public BiliardoSubscriber(PersistentEventStore buffer) {
         this.buffer = buffer;
     }
 
@@ -56,16 +56,12 @@ public class BiliardoSubscriber implements IMqttMessageListener {
         if (isPayloadValido(payload)) {
             try {
                 // REGOLA DI INGEGNERIA N°2: DISACCOPPIAMENTO (Store-and-Forwarding)
-                // L'utilizzo di un buffer.put() su memoria bloccante trasferisce la titolarità
-                // del processamento senza generare colli di bottiglia logici in questo punto dello stack.
-                buffer.put(payload);
+                buffer.enqueue(payload);
                 logger.debug("[SUBSCRIBER BILIARDO] Evento validato e accodato da topic: {}", topic);
 
-            } catch (InterruptedException e) {
-                // Cattura procedurale del segnale interrupt lanciato dalla Virtual Machine
-                logger.warn("[SUBSCRIBER BILIARDO] Inserimento nel buffer interrotto.");
-                // Traslazione dello status flag per allertare gli strati concorrenti della terminazione del Worker
-                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                // Cattura procedurale in caso di fallimento disco o parse
+                logger.error("[SUBSCRIBER BILIARDO] Errore nell'inserimento nel buffer: {}", e.getMessage());
             }
         } else {
             // Logica di dropout per tutto il traffico parassita, generico o di dubbia provenienza

@@ -1,6 +1,6 @@
 package com.bitpub.mqtt;
 
-import com.bitpub.buffer.BufferDatiEdge;
+import com.bitpub.buffer.PersistentEventStore;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
@@ -23,16 +23,16 @@ public class LocalCalciobalillaSubscriber implements IMqttMessageListener {
     // Componente diagnostica governata dal framework SLF4J
     private static final Logger logger = LoggerFactory.getLogger(LocalCalciobalillaSubscriber.class);
 
-    // Coda circolare atomica in cui rovesciare l'informazione ripulita
-    private final BufferDatiEdge buffer;
+    // Coda persistente in cui rovesciare l'informazione ripulita
+    private final PersistentEventStore buffer;
 
     /**
      * Iniezione delle dipendenze architetturali. Allaccia il modulo d'ascolto MQTT
-     * all'area di stazionamento concorrente.
+     * all'area di stazionamento persistente.
      *
-     * @param buffer La memoria transitoria (LinkedBlockingQueue) condivisa con il demone di esportazione Cloud
+     * @param buffer La memoria transitoria condivisa con il demone di esportazione Cloud
      */
-    public LocalCalciobalillaSubscriber(BufferDatiEdge buffer) {
+    public LocalCalciobalillaSubscriber(PersistentEventStore buffer) {
         this.buffer = buffer;
     }
 
@@ -55,17 +55,12 @@ public class LocalCalciobalillaSubscriber implements IMqttMessageListener {
         if (isPayloadValido(payload)) {
             try {
                 // REGOLA DI INGEGNERIA N°2: ACCATASATMENTO ASINCRONO
-                // Passaggio del comando di accodamento: la direttiva buffer.put() assicura la
-                // sincronizzazione thread-safe. Essendo l'allocazione quasi istantanea,
-                // il daemon MQTT si libera in poche decine di nanosecondi per servire il pacchetto successivo.
-                buffer.put(payload);
+                // Passaggio del comando di accodamento
+                buffer.enqueue(payload);
                 logger.debug("[SUBSCRIBER CALCIOBALILLA] Evento validato e accodato da topic: {}", topic);
 
-            } catch (InterruptedException e) {
-                // Intercettamento pulito di una direttiva di kill del processo
-                logger.warn("[SUBSCRIBER CALCIOBALILLA] Inserimento nel buffer interrotto.");
-                // Propagazione della segnalazione d'interrupt per salvaguardare il ciclo di vita della JVM
-                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                logger.error("[SUBSCRIBER CALCIOBALILLA] Errore nell'inserimento nel buffer: {}", e.getMessage());
             }
         } else {
             // Drop difensivo e incondizionato della matrice di dati non certificata

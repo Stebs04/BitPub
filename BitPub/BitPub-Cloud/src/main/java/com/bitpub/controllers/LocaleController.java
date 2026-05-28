@@ -52,14 +52,14 @@ public class LocaleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<EntityModel<LocaleDTO>> creaLocale(@RequestBody LocaleDTO nuovoLocale) {
         LocaleDTO localeSalvato = localeService.creaLocale(nuovoLocale);
         return ResponseEntity.ok(assembler.toModel(localeSalvato));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<EntityModel<LocaleDTO>> aggiornaLocale(@PathVariable("id") Long id, @RequestBody LocaleDTO localeAggiornato) {
         return localeService.aggiornaLocale(id, localeAggiornato)
                 .map(assembler::toModel)
@@ -68,7 +68,7 @@ public class LocaleController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<Void> eliminaLocale(@PathVariable("id") Long id) {
         if(localeService.eliminaLocale(id)) {
             return ResponseEntity.noContent().build();

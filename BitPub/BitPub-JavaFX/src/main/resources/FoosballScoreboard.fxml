@@ -55,7 +55,7 @@
                </children>
             </VBox>
 
-            <Label text=":" textFill="#334155" style="-fx-font-size: 120px; -fx-font-weight: bold;" />
+            <Label text=":" textFill="WHITE" style="-fx-font-size: 120px; -fx-font-weight: bold;" />
 
             <VBox alignment="CENTER" spacing="20.0">
                <children>
@@ -78,7 +78,7 @@
          <children>
             <ProgressBar fx:id="progressWin" prefHeight="30.0" prefWidth="800.0" progress="0.0" 
                          style="-fx-accent: #10b981; -fx-control-inner-background: #1e293b;" />
-            <Label text="OBIETTIVO: 10 GOL" textFill="#475569" style="-fx-font-weight: bold;" />
+            <Label text="OBIETTIVO: 10 GOL" textFill="#cbd5e1" style="-fx-font-weight: bold;" />
          </children>
       </VBox>
 

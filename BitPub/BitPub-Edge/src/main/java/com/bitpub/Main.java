@@ -1,6 +1,9 @@
 package com.bitpub;
 
-import com.bitpub.buffer.BufferDatiEdge;
+import com.bitpub.buffer.PersistentEventStore;
+import com.bitpub.sync.MqttSessionManager;
+import com.bitpub.sync.ReplayManager;
+import com.bitpub.sync.SyncManager;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -40,11 +43,13 @@ public class Main {
         logger.info("Avvio BitPub Edge Node in corso...");
 
         try {
-            // Fase 1: Predisposizione dell'architettura in memoria
-            // Instanziazione del buffer circolare bloccante per la logica di Store-and-Forward
-            // essenziale per assorbire i picchi di dati fisici in caso di cloud irraggiungibile.
-            BufferDatiEdge buffer = new BufferDatiEdge(100);
+            // Fase 1: Predisposizione dell'architettura persistente
+            PersistentEventStore buffer = new PersistentEventStore("edge_events.db");
+            ReplayManager replayManager = new ReplayManager(buffer);
+            replayManager.recoverFromCrash();
+
             GameTableStateManager stateManager = new GameTableStateManager();
+            MqttSessionManager sessionManager = new MqttSessionManager();
 
             SSLContext sslContext = SslContextFactory.build(
                     "../BitPub-Security/certs/ca.crt",
@@ -52,10 +57,12 @@ public class Main {
                     "../BitPub-Security/certs/client_pkcs8.key"
             );
 
-            // Fase 2: Bootstrapping della messaggistica locale
-            // Allocazione e avvio del tunnel socket verso il broker Mosquitto di prossimità
-            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager, buffer, sslContext);
+            // Fase 2: Bootstrapping della messaggistica locale e sinc
+            EdgeMqttClient mqttClient = new EdgeMqttClient(stateManager, buffer, sslContext, sessionManager);
             mqttClient.connect();
+
+            SyncManager syncManager = new SyncManager(buffer, mqttClient.getClient(), sessionManager);
+            syncManager.start();
 
             // Fase 3: Orchestrazione del battito cardiaco (Heartbeat)
             // Utilizzo di un executor pre-dimensionato per isolare la telemetria periodica
@@ -80,6 +87,16 @@ public class Main {
                     heartbeatScheduler.shutdown();
                     if (!heartbeatScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
                         heartbeatScheduler.shutdownNow();
+                    }
+
+                    // Chiusura del worker di sincronizzazione offline
+                    if (syncManager != null) {
+                        syncManager.stop();
+                    }
+
+                    // Chiusura aggraziata del DB MapDB
+                    if (buffer != null) {
+                        buffer.close();
                     }
 
                     // Chiusura formale del socket MQTT prima della distruzione del processo

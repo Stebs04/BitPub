@@ -1,0 +1,30 @@
+CREATE TABLE locales (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE games (
+    id UUID PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE devices (
+    id UUID PRIMARY KEY,
+    locale_id UUID NOT NULL REFERENCES locales(id),
+    game_id UUID NOT NULL REFERENCES games(id),
+    mac_address VARCHAR(50) UNIQUE NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE match_sessions (
+    id UUID PRIMARY KEY,
+    device_id UUID NOT NULL REFERENCES devices(id),
+    status VARCHAR(50) NOT NULL,
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP
+);
