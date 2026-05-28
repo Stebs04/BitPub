@@ -33,6 +33,7 @@ Start-Service -ServiceName "Game Service (:8082)"         -ModulePath "services/
 Start-Service -ServiceName "Tournament Service (:8083)"   -ModulePath "services/tournament-service"
 Start-Service -ServiceName "Stats Service (:8084)"        -ModulePath "services/stats-service"
 Start-Service -ServiceName "Edge-Sync Service (:8085)"    -ModulePath "services/edge-sync-service"
+Start-Service -ServiceName "Simulator Service (:8086)"    -ModulePath "services/simulator-service"
 Start-Sleep -Seconds 20
 
 # 4. API Gateway last (ha bisogno che i servizi siano su Eureka)

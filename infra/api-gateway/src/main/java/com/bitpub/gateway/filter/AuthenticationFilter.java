@@ -59,7 +59,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                         .build();
                         
                 return chain.filter(exchange.mutate().request(request).build());
-            } catch (Exception e) {
+            } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException e) {
                 exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                 return exchange.getResponse().setComplete();
             }

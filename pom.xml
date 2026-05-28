@@ -49,6 +49,7 @@
         <module>services/tournament-service</module>
         <module>services/stats-service</module>
         <module>services/edge-sync-service</module>
+        <module>services/simulator-service</module>
     </modules>
 
     <dependencyManagement>
@@ -149,6 +150,7 @@
                 <version>4.8.4.0</version>
                 <configuration>
                     <failOnError>false</failOnError>
+                    <excludeFilterFile>${maven.multiModuleProjectDirectory}/spotbugs-exclude.xml</excludeFilterFile>
                 </configuration>
                 <executions>
                     <execution>

@@ -71,7 +71,7 @@ public class JwtAuthenticationFilter implements WebFilter {
                     return chain.filter(mutatedExchange)
                             .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 // Invalid token, do not set authentication
             }
         }
