@@ -124,10 +124,10 @@ public class LocalAdminDashboardController {
 
     private void loadDevices() {
         deviceService.getDevicesByLocale(currentLocaleId).thenAccept(json -> {
-            Type type = new TypeToken<PageResponse<Device>>(){}.getType();
-            PageResponse<Device> page = gson.fromJson(json, type);
+            Type type = new TypeToken<List<Device>>(){}.getType();
+            List<Device> devices = gson.fromJson(json, type);
             Platform.runLater(() -> {
-                devicesTable.setItems(FXCollections.observableArrayList(page.getContent()));
+                devicesTable.setItems(FXCollections.observableArrayList(devices));
             });
         }).exceptionally(e -> {
             // Se l'endpoint locale/{id} non e' implementato o fallisce, mockiamo i dati temporaneamente per la demo
