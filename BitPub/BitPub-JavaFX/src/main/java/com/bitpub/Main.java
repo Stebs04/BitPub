@@ -54,6 +54,7 @@ public class Main extends Application {
         container.registerSingleton(com.bitpub.services.AuthService.class, authService);
         
         container.registerSingleton(com.bitpub.services.GameNetworkService.class, new com.bitpub.services.GameNetworkService());
+        container.registerSingleton(com.bitpub.services.DeviceNetworkService.class, new com.bitpub.services.DeviceNetworkService());
         container.registerSingleton(com.bitpub.services.StatsNetworkService.class, new com.bitpub.services.StatsNetworkService());
         container.registerSingleton(com.bitpub.services.TournamentNetworkService.class, new com.bitpub.services.TournamentNetworkService());
         container.registerSingleton(com.bitpub.services.PlatformAdminService.class, new com.bitpub.services.PlatformAdminService());
@@ -80,8 +81,8 @@ public class Main extends Application {
         
         container.registerFactory(com.bitpub.controllers.LocalAdminDashboardController.class, () -> 
             new com.bitpub.controllers.LocalAdminDashboardController(
-                container.resolve(com.bitpub.services.GameNetworkService.class),
-                container.resolve(com.bitpub.services.StatsNetworkService.class)
+                container.resolve(com.bitpub.services.DeviceNetworkService.class),
+                container.resolve(com.bitpub.services.GameNetworkService.class)
             )
         );
         

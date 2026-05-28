@@ -17,4 +17,8 @@ public class StatsNetworkService {
     public CompletableFuture<String> getMatchHistory(java.util.UUID userId) {
         return restClient.getAsync(restClient.getRootUrl() + "/api/v1/stats/history/" + userId.toString(), String.class);
     }
+    
+    public CompletableFuture<String> createMatch(java.util.Map<String, Object> payload) {
+        return restClient.postAsync(restClient.getRootUrl() + "/api/v1/stats/matches", payload, String.class);
+    }
 }
