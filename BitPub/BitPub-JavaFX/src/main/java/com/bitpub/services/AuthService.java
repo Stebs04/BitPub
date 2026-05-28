@@ -31,6 +31,20 @@ public class AuthService {
                         SessionManager.getInstance().setJwtToken(authResponse.getToken());
                         SessionManager.getInstance().setUserRole(authResponse.getRole());
                         SessionManager.getInstance().setUsername(username);
+                        // Estrai userId dal JWT (il claim è nella parte payload del token)
+                        try {
+                            String[] parts = authResponse.getToken().split("\\.");
+                            if (parts.length >= 2) {
+                                String payloadJson = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+                                com.google.gson.JsonObject claims = com.google.gson.JsonParser.parseString(payloadJson).getAsJsonObject();
+                                if (claims.has("userId")) {
+                                    SessionManager.getInstance().setUserId(
+                                        java.util.UUID.fromString(claims.get("userId").getAsString()));
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.err.println("[AuthService] Impossibile estrarre userId dal JWT: " + e.getMessage());
+                        }
                     } else {
                         throw new RuntimeException("Risposta del server non valida.");
                     }

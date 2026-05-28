@@ -13,6 +13,7 @@ import com.bitpub.utils.JsonManager;
 import com.bitpub.model.PageResponse;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
@@ -65,7 +66,7 @@ public class PlayerDashboardController {
     }
 
     private void setupTables() {
-        // Storico
+        // Storico partite
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         colDate.setCellValueFactory(cellData -> {
             if (cellData.getValue().getPlayedAt() != null) {
@@ -73,28 +74,42 @@ public class PlayerDashboardController {
             }
             return new SimpleStringProperty("");
         });
-        colGame.setCellValueFactory(new PropertyValueFactory<>("gameName"));
-        
-        // Estrai l'avversario e l'esito basandosi sull'username loggato.
-        String myUsername = SessionManager.getInstance().getUsername();
-        colOpponent.setCellValueFactory(cellData -> {
-            MatchResult match = cellData.getValue();
-            String op = match.getPlayer1Username().equals(myUsername) ? match.getPlayer2Username() : match.getPlayer1Username();
-            return new SimpleStringProperty(op != null ? op : "N/A");
-        });
-        colResult.setCellValueFactory(cellData -> {
-            MatchResult match = cellData.getValue();
-            // In un sistema reale, bisognerebbe verificare con gli ID. Per semplicità simuliamo:
-            // Assumiamo che se winnerId == null è un pareggio, se coincide col mio userId ho vinto.
-            return new SimpleStringProperty("Da Definire");
+
+        // Il gameId non ha un nome: mostriamo l'ID abbreviato come fallback
+        colGame.setCellValueFactory(cellData -> {
+            UUID gid = cellData.getValue().getGameId();
+            return new SimpleStringProperty(gid != null ? gid.toString().substring(0, 8) + "..." : "N/A");
         });
 
-        // Leaderboard
-        colRank.setCellValueFactory(cellData -> new SimpleStringProperty(String.valueOf(leaderboardTable.getItems().indexOf(cellData.getValue()) + 1)));
+        // Avversario: il campo userId della sessione identifica chi sei tu
+        UUID myUserId = SessionManager.getInstance().getUserId();
+        colOpponent.setCellValueFactory(cellData -> {
+            MatchResult match = cellData.getValue();
+            if (myUserId == null) return new SimpleStringProperty("N/A");
+            // Se io sono il vincitore, l'avversario è il perdente e viceversa
+            boolean iAmWinner = myUserId.equals(match.getWinnerUserId());
+            UUID opponentId = iAmWinner ? match.getLoserUserId() : match.getWinnerUserId();
+            return new SimpleStringProperty(opponentId != null ? opponentId.toString().substring(0, 8) + "..." : "N/A");
+        });
+
+        // Risultato: vinto/perso basato sull'userId della sessione
+        colResult.setCellValueFactory(cellData -> {
+            MatchResult match = cellData.getValue();
+            if (myUserId == null) return new SimpleStringProperty("N/A");
+            if (myUserId.equals(match.getWinnerUserId())) {
+                return new SimpleStringProperty("✅ Vinto (" + match.getWinnerScore() + " - " + match.getLoserScore() + ")");
+            } else {
+                return new SimpleStringProperty("❌ Perso (" + match.getLoserScore() + " - " + match.getWinnerScore() + ")");
+            }
+        });
+
+        // Leaderboard — rank viene già dal backend
+        colRank.setCellValueFactory(cellData -> new SimpleStringProperty(String.valueOf(cellData.getValue().getRank())));
         colPlayer.setCellValueFactory(new PropertyValueFactory<>("username"));
         colMatches.setCellValueFactory(new PropertyValueFactory<>("totalMatches"));
-        colWins.setCellValueFactory(new PropertyValueFactory<>("totalWins"));
-        colElo.setCellValueFactory(new PropertyValueFactory<>("eloScore"));
+        colWins.setCellValueFactory(new PropertyValueFactory<>("wins"));
+        // colElo riciclato per mostrare il totalScore (punteggio cumulativo)
+        colElo.setCellValueFactory(cellData -> new SimpleIntegerProperty(cellData.getValue().getTotalScore()).asObject());
 
         // Giochi
         colGameName.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -109,7 +124,7 @@ public class PlayerDashboardController {
             PageResponse<LeaderboardEntryDto> page = gson.fromJson(json, type);
             Platform.runLater(() -> leaderboardTable.setItems(FXCollections.observableArrayList(page.getContent())));
         }).exceptionally(e -> {
-            showError("Errore Leaderboard", "Impossibile recuperare la classifica.");
+            showError("Errore Leaderboard", "Impossibile recuperare la classifica: " + e.getCause().getMessage());
             return null;
         });
 
@@ -119,12 +134,27 @@ public class PlayerDashboardController {
             PageResponse<Game> page = gson.fromJson(json, type);
             Platform.runLater(() -> gamesTable.setItems(FXCollections.observableArrayList(page.getContent())));
         }).exceptionally(e -> {
-            showError("Errore Giochi", "Impossibile recuperare il catalogo giochi.");
+            showError("Errore Giochi", "Impossibile recuperare il catalogo giochi: " + e.getCause().getMessage());
             return null;
         });
-        
-        // 3. Carica Storico (richiede UUID utente, che andrebbe recuperato dal jwt. Per ora saltiamo o mockiamo)
-        // statsService.getMatchHistory(userId)...
+
+        // 3. Carica Storico Partite dell'utente loggato
+        UUID myUserId = SessionManager.getInstance().getUserId();
+        if (myUserId != null) {
+            statsService.getMatchHistory(myUserId).thenAccept(json -> {
+                Type type = new TypeToken<PageResponse<MatchResult>>(){}.getType();
+                PageResponse<MatchResult> page = gson.fromJson(json, type);
+                Platform.runLater(() -> {
+                    if (page != null && page.getContent() != null) {
+                        matchHistoryTable.setItems(FXCollections.observableArrayList(page.getContent()));
+                    }
+                });
+            }).exceptionally(e -> {
+                // Non mostriamo un errore bloccante se lo storico non è disponibile
+                System.err.println("[PlayerDashboard] Impossibile caricare storico: " + e.getMessage());
+                return null;
+            });
+        }
     }
 
     private void showError(String title, String msg) {
@@ -146,27 +176,69 @@ public class PlayerDashboardController {
 
         String type = selected.getName();
         if (type.equalsIgnoreCase("Calciobalilla")) type = "TABLE_FOOTBALL";
-        if (type.equalsIgnoreCase("Biliardo")) type = "POOL";
-        if (type.equalsIgnoreCase("Freccette")) type = "DARTS";
+        else if (type.equalsIgnoreCase("Biliardo")) type = "POOL";
+        else if (type.equalsIgnoreCase("Freccette")) type = "DARTS";
 
+        final String gameType = type;
         com.bitpub.network.RestClient.getInstance().postAsync(
-            com.bitpub.network.RestClient.getInstance().getRootUrl() + "/api/v1/simulators/simulate/" + type, 
+            com.bitpub.network.RestClient.getInstance().getRootUrl() + "/api/v1/simulators/simulate/" + gameType,
             null, String.class)
             .thenAccept(result -> {
-                Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("Partita Simulata");
-                    alert.setHeaderText("Esito della partita");
-                    // Prettify JSON using Gson
-                    try {
-                        Object json = gson.fromJson(result, Object.class);
-                        alert.setContentText(gson.toJson(json));
-                    } catch (Exception e) {
-                        alert.setContentText(result);
+                // Post del risultato a stats-service
+                try {
+                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(result).getAsJsonObject();
+                    int myScore = 0;
+                    int opponentScore = 0;
+
+                    if (json.has("goalRossi") && json.has("goalBlu")) {
+                        myScore = json.get("goalRossi").getAsInt();
+                        opponentScore = json.get("goalBlu").getAsInt();
+                    } else if (json.has("punteggio")) {
+                        myScore = json.get("punteggio").getAsInt();
+                        opponentScore = (int)(myScore * 0.8); // dummy
+                    } else if (json.has("palleImbucate")) {
+                        myScore = json.get("palleImbucate").getAsInt();
+                        opponentScore = 8 - myScore;
+                    } else {
+                        myScore = 1;
+                        opponentScore = 0;
                     }
-                    alert.show();
-                    loadData(); // Ricarica storico se necessario
-                });
+
+                    UUID myUserId = SessionManager.getInstance().getUserId();
+                    UUID opponentId = UUID.randomUUID(); // Dummy opponent
+
+                    UUID winnerId = myScore >= opponentScore ? myUserId : opponentId;
+                    UUID loserId = myScore >= opponentScore ? opponentId : myUserId;
+                    int winnerScore = Math.max(myScore, opponentScore);
+                    int loserScore = Math.min(myScore, opponentScore);
+
+                    java.util.Map<String, Object> payload = java.util.Map.of(
+                        "matchSessionId", UUID.randomUUID().toString(),
+                        "gameId", selected.getId().toString(),
+                        "winnerUserId", winnerId.toString(),
+                        "winnerUsername", myScore >= opponentScore ? SessionManager.getInstance().getUsername() : "CPU Opponent",
+                        "loserUserId", loserId.toString(),
+                        "loserUsername", myScore < opponentScore ? SessionManager.getInstance().getUsername() : "CPU Opponent",
+                        "winnerScore", winnerScore,
+                        "loserScore", loserScore
+                    );
+
+                    statsService.createMatch(payload).thenAccept(r -> {
+                        Platform.runLater(() -> {
+                            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                            alert.setTitle("Partita Simulata");
+                            alert.setHeaderText("Esito della partita salvato!");
+                            alert.setContentText(gson.toJson(json));
+                            alert.show();
+                            loadData(); // Aggiorna storico e leaderboard dopo la partita
+                        });
+                    }).exceptionally(ex -> {
+                        showError("Errore salvataggio", "Match simulato, ma impossibile salvarlo: " + ex.getMessage());
+                        return null;
+                    });
+                } catch (Exception e) {
+                    showError("Errore parsing", "Impossibile leggere la simulazione: " + e.getMessage());
+                }
             })
             .exceptionally(e -> {
                 showError("Errore di simulazione", "Impossibile simulare la partita: " + e.getMessage());

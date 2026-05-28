@@ -74,3 +74,5 @@ edge_events.db
 edge_events.db.wal.0
 logs/edge.log
 game-service-startup.log
+stats-err.txt
+stats-log.txt
