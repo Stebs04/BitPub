@@ -28,7 +28,7 @@ public class UtenteController {
     private UtenteModelAssembler assembler;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<CollectionModel<EntityModel<UtenteDTO>>> getAllUtenti(
             @RequestParam(required = false) String ruolo) {
 
@@ -81,7 +81,7 @@ public class UtenteController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     public ResponseEntity<Void> eliminaUtente(@PathVariable Long id) {
         if(utenteService.eliminaUtente(id)) {
             return ResponseEntity.noContent().build();

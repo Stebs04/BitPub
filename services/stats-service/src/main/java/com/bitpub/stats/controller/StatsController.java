@@ -86,7 +86,7 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante."),
         @ApiResponse(responseCode = "404", description = "Utente non trovato.")
     })
-    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.userId")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN') or #userId.toString() == authentication.principal.userId")
     @RequireOwnership
     @GetMapping("/history/{userId}")
     public ResponseEntity<PageResponse<MatchResult>> getMatchHistory(
@@ -101,7 +101,7 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante."),
         @ApiResponse(responseCode = "404", description = "Statistiche non trovate.")
     })
-    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.principal.userId")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN') or #userId.toString() == authentication.principal.userId")
     @RequireOwnership
     @GetMapping("/players/{userId}/game/{gameId}")
     public ResponseEntity<PlayerStats> getPlayerStats(
@@ -111,7 +111,7 @@ public class StatsController {
     }
     
     @Operation(summary = "Cerca statistiche avanzate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN', 'GAME_ADMIN')")
     @GetMapping
     public ResponseEntity<PageResponse<PlayerStats>> getStats(
             @RequestParam(required = false) UUID gameId,

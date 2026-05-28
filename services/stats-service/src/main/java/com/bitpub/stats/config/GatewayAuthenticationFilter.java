@@ -40,7 +40,7 @@ public class GatewayAuthenticationFilter extends OncePerRequestFilter {
                 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (Exception e) {
-                // Ignore
+                e.printStackTrace();
             }
         }
         
