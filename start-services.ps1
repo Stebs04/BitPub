@@ -1,6 +1,6 @@
 # BitPub - Startup Script
 # Avvia i servizi in finestre PowerShell separate nell'ordine corretto.
-# Prerequisito: Docker in esecuzione con 'docker-compose up -d postgres mosquitto'
+# Prerequisito: Docker in esecuzione con 'docker-compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env up -d postgres mosquitto'
 
 $projectRoot = $PSScriptRoot
 
@@ -15,7 +15,7 @@ function Start-Service {
 }
 
 Write-Host "=== BitPub Microservices Startup ===" -ForegroundColor Green
-Write-Host "Make sure Docker is running with: docker-compose up -d postgres mosquitto" -ForegroundColor Yellow
+Write-Host "Make sure Docker is running with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env up -d postgres mosquitto" -ForegroundColor Yellow
 Start-Sleep -Seconds 2
 
 # 1. Discovery Server first (tutti gli altri dipendono da Eureka)
