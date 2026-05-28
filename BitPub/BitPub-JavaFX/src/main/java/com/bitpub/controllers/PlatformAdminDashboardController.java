@@ -69,13 +69,23 @@ public class PlatformAdminDashboardController {
 
             UUID winnerId = score1 > score2 ? p1 : (score2 > score1 ? p2 : null);
 
+            if (winnerId == null) {
+                throw new IllegalArgumentException("I pareggi non sono supportati.");
+            }
+
+            UUID loserId = winnerId.equals(p1) ? p2 : p1;
+            int winnerScore = Math.max(score1, score2);
+            int loserScore = Math.min(score1, score2);
+
             Map<String, Object> payload = Map.of(
-                "gameId", gameId,
-                "player1Id", p1,
-                "player2Id", p2,
-                "scorePlayer1", score1,
-                "scorePlayer2", score2,
-                "winnerId", winnerId != null ? winnerId.toString() : ""
+                "matchSessionId", UUID.randomUUID().toString(),
+                "gameId", gameId.toString(),
+                "winnerUserId", winnerId.toString(),
+                "winnerUsername", "Admin Inserted",
+                "loserUserId", loserId.toString(),
+                "loserUsername", "Admin Inserted",
+                "winnerScore", winnerScore,
+                "loserScore", loserScore
             );
 
             statsService.createMatch(payload).thenAccept(res -> {

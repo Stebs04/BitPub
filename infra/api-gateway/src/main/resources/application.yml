@@ -33,6 +33,12 @@ spring:
             - Path=/api/v1/stats/**
           filters:
             - AuthenticationFilter
+        - id: simulator-service
+          uri: lb://simulator-service
+          predicates:
+            - Path=/api/v1/simulators/**
+          filters:
+            - AuthenticationFilter
 
 eureka:
   client:
