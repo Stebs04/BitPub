@@ -4,6 +4,7 @@ import org.eclipse.paho.client.mqttv3.IMqttClient;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,13 +18,23 @@ public class MqttConfig {
     @Value("${mqtt.client-id:simulator-service-client}")
     private String clientId;
 
+    @Value("${mqtt.username:}")
+    private String username;
+
+    @Value("${mqtt.password:}")
+    private String password;
+
     @Bean
     public IMqttClient mqttClient() throws MqttException {
-        IMqttClient mqttClient = new MqttClient(brokerUrl, clientId);
+        IMqttClient mqttClient = new MqttClient(brokerUrl, clientId, new MemoryPersistence());
         MqttConnectOptions options = new MqttConnectOptions();
         options.setAutomaticReconnect(true);
         options.setCleanSession(true);
         options.setConnectionTimeout(10);
+        if (username != null && !username.isEmpty()) {
+            options.setUserName(username);
+            options.setPassword(password.toCharArray());
+        }
         mqttClient.connect(options);
         return mqttClient;
     }

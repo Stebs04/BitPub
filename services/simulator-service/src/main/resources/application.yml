@@ -4,20 +4,13 @@ server:
 spring:
   application:
     name: simulator-service
-  datasource:
-    url: jdbc:postgresql://localhost:5432/bitpub_db
-    username: bitpub_admin
-    password: secret_password
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        default_schema: game
-  flyway:
-    enabled: true
-    schemas: game
-    baseline-on-migrate: true
+
+
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: simulator-service-client
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
 
 eureka:
   client:
