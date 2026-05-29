@@ -61,6 +61,7 @@ public class StatsController {
         @ApiResponse(responseCode = "200", description = "Leaderboard globale restituita."),
         @ApiResponse(responseCode = "401", description = "JWT mancante.")
     })
+    @PreAuthorize("permitAll()")
     @GetMapping("/leaderboard/global")
     public ResponseEntity<PageResponse<LeaderboardEntryDto>> getGlobalLeaderboard(
             @Parameter(description = "Parametri di paginazione") @PageableDefault(size = 20) Pageable pageable) {
@@ -73,6 +74,7 @@ public class StatsController {
         @ApiResponse(responseCode = "401", description = "JWT mancante."),
         @ApiResponse(responseCode = "404", description = "Gioco non trovato.")
     })
+    @PreAuthorize("permitAll()")
     @GetMapping("/leaderboard/game/{gameId}")
     public ResponseEntity<PageResponse<LeaderboardEntryDto>> getLeaderboardByGame(
             @PathVariable UUID gameId,
