@@ -35,7 +35,11 @@ public class MqttConfig {
             options.setUserName(username);
             options.setPassword(password.toCharArray());
         }
-        mqttClient.connect(options);
+        try {
+            mqttClient.connect(options);
+        } catch (MqttException e) {
+            System.err.println("Failed to connect to MQTT broker on startup: " + e.getMessage() + ". Will auto-reconnect.");
+        }
         return mqttClient;
     }
 }

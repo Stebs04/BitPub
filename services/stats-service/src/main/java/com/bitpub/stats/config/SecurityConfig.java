@@ -31,7 +31,7 @@ public class SecurityConfig {
                 .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/swagger-ui/**")).permitAll()
                 .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/swagger-ui.html")).permitAll()
                 .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/actuator/**")).permitAll()
-                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/stats/leaderboard/**")).permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/stats/**")).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
