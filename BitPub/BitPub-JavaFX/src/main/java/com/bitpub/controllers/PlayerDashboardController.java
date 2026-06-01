@@ -12,6 +12,10 @@ import com.google.gson.Gson;
 import com.bitpub.utils.JsonManager;
 import com.bitpub.model.PageResponse;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -63,6 +67,16 @@ public class PlayerDashboardController {
     public void initialize() {
         setupTables();
         loadData();
+        startBackgroundPolling();
+    }
+
+    private void startBackgroundPolling() {
+        // Aggiorna silenziosamente la leaderboard ogni 15 secondi per riflettere le partite giocate da altri
+        Timeline backgroundPolling = new Timeline(new KeyFrame(Duration.seconds(15), e -> {
+            loadData();
+        }));
+        backgroundPolling.setCycleCount(Animation.INDEFINITE);
+        backgroundPolling.play();
     }
 
     private void setupTables() {
@@ -184,64 +198,35 @@ public class PlayerDashboardController {
             com.bitpub.network.RestClient.getInstance().getRootUrl() + "/api/v1/simulators/simulate/" + gameType,
             null, String.class)
             .thenAccept(result -> {
-                // Post del risultato a stats-service
-                try {
-                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(result).getAsJsonObject();
-                    int myScore = 0;
-                    int opponentScore = 0;
+                Platform.runLater(() -> {
+                    try {
+                        String sessionId = UUID.randomUUID().toString(); // Fallback mock sessionId
+                        try {
+                            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(result).getAsJsonObject();
+                            if (json.has("sessionId")) {
+                                sessionId = json.get("sessionId").getAsString();
+                            }
+                        } catch (Exception ignored) { }
 
-                    if (json.has("goalRossi") && json.has("goalBlu")) {
-                        myScore = json.get("goalRossi").getAsInt();
-                        opponentScore = json.get("goalBlu").getAsInt();
-                    } else if (json.has("punteggio")) {
-                        myScore = json.get("punteggio").getAsInt();
-                        opponentScore = (int)(myScore * 0.8); // dummy
-                    } else if (json.has("palleImbucate")) {
-                        myScore = json.get("palleImbucate").getAsInt();
-                        opponentScore = 8 - myScore;
-                    } else {
-                        myScore = 1;
-                        opponentScore = 0;
+                        javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/LiveScoreboardView.fxml"));
+                        javafx.scene.Parent root = loader.load();
+                        
+                        LiveScoreboardController controller = loader.getController();
+                        // Avvia il controller Live passandogli la callback per ricaricare la dashboard a fine partita
+                        controller.initData(selected.getName(), sessionId, this::loadData);
+
+                        javafx.stage.Stage stage = new javafx.stage.Stage();
+                        stage.setTitle("Live Match - " + selected.getName());
+                        stage.setScene(new javafx.scene.Scene(root));
+                        stage.show();
+                    } catch (Exception e) {
+                        showError("Errore Apertura", "Impossibile caricare il Live Tracker: " + e.getMessage());
+                        e.printStackTrace();
                     }
-
-                    UUID myUserId = SessionManager.getInstance().getUserId();
-                    UUID opponentId = UUID.randomUUID(); // Dummy opponent
-
-                    UUID winnerId = myScore >= opponentScore ? myUserId : opponentId;
-                    UUID loserId = myScore >= opponentScore ? opponentId : myUserId;
-                    int winnerScore = Math.max(myScore, opponentScore);
-                    int loserScore = Math.min(myScore, opponentScore);
-
-                    java.util.Map<String, Object> payload = java.util.Map.of(
-                        "matchSessionId", UUID.randomUUID().toString(),
-                        "gameId", selected.getId().toString(),
-                        "winnerUserId", winnerId.toString(),
-                        "winnerUsername", myScore >= opponentScore ? SessionManager.getInstance().getUsername() : "CPU Opponent",
-                        "loserUserId", loserId.toString(),
-                        "loserUsername", myScore < opponentScore ? SessionManager.getInstance().getUsername() : "CPU Opponent",
-                        "winnerScore", winnerScore,
-                        "loserScore", loserScore
-                    );
-
-                    statsService.createMatch(payload).thenAccept(r -> {
-                        Platform.runLater(() -> {
-                            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                            alert.setTitle("Partita Simulata");
-                            alert.setHeaderText("Esito della partita salvato!");
-                            alert.setContentText(gson.toJson(json));
-                            alert.show();
-                            loadData(); // Aggiorna storico e leaderboard dopo la partita
-                        });
-                    }).exceptionally(ex -> {
-                        showError("Errore salvataggio", "Match simulato, ma impossibile salvarlo: " + ex.getMessage());
-                        return null;
-                    });
-                } catch (Exception e) {
-                    showError("Errore parsing", "Impossibile leggere la simulazione: " + e.getMessage());
-                }
+                });
             })
             .exceptionally(e -> {
-                showError("Errore di simulazione", "Impossibile simulare la partita: " + e.getMessage());
+                showError("Errore di avvio", "Impossibile contattare il simulatore: " + e.getMessage());
                 return null;
             });
     }

@@ -240,6 +240,25 @@ services:
       config-server:
         condition: service_healthy
 
+  simulator-service:
+    build:
+      context: .
+      dockerfile: services/simulator-service/Dockerfile
+    container_name: bitpub-simulator
+    environment:
+      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=${EUREKA_URI}
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+    networks:
+      - bitpub-backend
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   mosquitto_data:
