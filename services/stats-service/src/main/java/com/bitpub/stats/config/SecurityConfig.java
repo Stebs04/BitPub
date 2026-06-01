@@ -27,8 +27,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/v3/api-docs/**")).permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/swagger-ui/**")).permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/swagger-ui.html")).permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/actuator/**")).permitAll()
+                .requestMatchers(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/v1/stats/**")).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
