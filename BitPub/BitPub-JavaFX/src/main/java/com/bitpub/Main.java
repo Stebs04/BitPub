@@ -86,11 +86,6 @@ public class Main extends Application {
             )
         );
         
-        container.registerFactory(com.bitpub.controllers.GameAdminDashboardController.class, () -> 
-            new com.bitpub.controllers.GameAdminDashboardController(
-                container.resolve(com.bitpub.services.GameNetworkService.class)
-            )
-        );
 
         container.registerFactory(com.bitpub.controllers.PlatformAdminDashboardController.class, () -> 
             new com.bitpub.controllers.PlatformAdminDashboardController(
@@ -136,9 +131,7 @@ public class Main extends Application {
             case "LOCAL_ADMIN":
                 navigaVerso("/LocalAdminDashboardView.fxml", "BitPub - Local Admin Dashboard");
                 break;
-            case "GAME_ADMIN":
-                navigaVerso("/GameAdminDashboardView.fxml", "BitPub - Game Admin Dashboard");
-                break;
+
             case "PLATFORM_ADMIN":
                 navigaVerso("/PlatformAdminDashboardView.fxml", "BitPub - Platform Admin Dashboard");
                 break;

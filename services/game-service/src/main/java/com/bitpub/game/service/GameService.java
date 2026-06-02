@@ -65,4 +65,11 @@ public class GameService {
                 .build();
         return deviceRepository.save(device);
     }
+
+    @Transactional
+    public Device updateDeviceStatus(UUID deviceId, String status) {
+        Device device = deviceRepository.findById(deviceId).orElseThrow();
+        device.setStatus(status);
+        return deviceRepository.save(device);
+    }
 }

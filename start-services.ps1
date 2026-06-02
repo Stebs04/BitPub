@@ -11,11 +11,19 @@ function Start-Service {
         [string]$ModulePath
     )
     Write-Host "Starting $ServiceName from $ModulePath..." -ForegroundColor Cyan
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot'; mvn spring-boot:run -pl $ModulePath"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot'; mvn spring-boot:run -pl $ModulePath -e"
 }
 
 Write-Host "=== BitPub Microservices Startup ===" -ForegroundColor Green
 Write-Host "Make sure Docker is running with: docker-compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env up -d postgres mosquitto" -ForegroundColor Yellow
+
+Write-Host "Building all project modules to ensure common dependencies are up-to-date..." -ForegroundColor Cyan
+mvn clean install -DskipTests -e
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Build failed! Aborting startup." -ForegroundColor Red
+    exit
+}
+
 Start-Sleep -Seconds 2
 
 # 1. Discovery Server first (tutti gli altri dipendono da Eureka)

@@ -20,4 +20,9 @@ public class DeviceNetworkService {
         );
         return restClient.postAsync(restClient.getRootUrl() + "/api/v1/devices", payload, String.class);
     }
+
+    public CompletableFuture<String> updateDeviceStatus(String deviceId, String status) {
+        Map<String, Object> payload = Map.of("status", status);
+        return restClient.putAsync(restClient.getRootUrl() + "/api/v1/devices/" + deviceId + "/status", payload, String.class);
+    }
 }

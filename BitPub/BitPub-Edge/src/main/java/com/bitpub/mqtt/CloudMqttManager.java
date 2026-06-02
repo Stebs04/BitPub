@@ -63,6 +63,9 @@ public class CloudMqttManager {
         // Attivazione dell'algoritmo intrinseco Paho per eseguire exponential backoff retry in autonomia
         connOpts.setAutomaticReconnect(true);
 
+        // Disabilita la verifica dell'hostname per evitare l'errore "No subject alternative names present" con i certificati auto-firmati
+        connOpts.setHttpsHostnameVerificationEnabled(false);
+
         /*
          * REGOLA DI INGEGNERIA N°3: CRITTOGRAFIA DI LIVELLO TRASPORTO (mTLS)
          * Incorporazione del contesto di autenticazione asimmetrico: trasforma un payload clear-text

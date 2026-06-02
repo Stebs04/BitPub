@@ -18,6 +18,7 @@ COPY services/game-service/pom.xml services/game-service/
 COPY services/tournament-service/pom.xml services/tournament-service/
 COPY services/stats-service/pom.xml services/stats-service/
 COPY services/edge-sync-service/pom.xml services/edge-sync-service/
+COPY services/simulator-service/pom.xml services/simulator-service/
 
 # Copy necessary source code for the module and its dependencies
 COPY bitpub-common/src bitpub-common/src
