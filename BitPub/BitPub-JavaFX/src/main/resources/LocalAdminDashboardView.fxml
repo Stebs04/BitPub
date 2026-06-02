@@ -28,6 +28,7 @@
                                 <TableColumn fx:id="colMac" text="MAC Address" prefWidth="150" />
                                 <TableColumn fx:id="colStatus" text="Stato" prefWidth="100" />
                                 <TableColumn fx:id="colDate" text="Data Registrazione" prefWidth="150" />
+                                <TableColumn fx:id="colActions" text="Azioni" prefWidth="150" />
                             </columns>
                         </TableView>
                     </VBox>

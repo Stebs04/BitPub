@@ -28,6 +28,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
+import javafx.scene.layout.HBox;
+
 
 public class LocalAdminDashboardController {
 
@@ -41,6 +45,9 @@ public class LocalAdminDashboardController {
     @FXML private TableColumn<Device, String> colMac;
     @FXML private TableColumn<Device, String> colStatus;
     @FXML private TableColumn<Device, String> colDate;
+    @FXML private TableColumn<Device, Void> colActions;
+
+    private Timer refreshTimer;
 
     @FXML private TextField macField;
     @FXML private ComboBox<Game> gameComboBox;
@@ -59,6 +66,7 @@ public class LocalAdminDashboardController {
         loadGames();
         if (currentLocaleId != null) {
             loadDevices();
+            startAutoRefresh();
         } else {
             showError("Attenzione", "Nessun locale associato a questo account Local Admin.");
         }
@@ -92,6 +100,55 @@ public class LocalAdminDashboardController {
                 return new SimpleStringProperty(cellData.getValue().getCreatedAt().format(formatter));
             }
             return new SimpleStringProperty("");
+        });
+
+        colActions.setCellFactory(param -> new TableCell<>() {
+            private final Button btnAvvia = new Button("Avvia");
+            private final Button btnFerma = new Button("Ferma");
+            private final HBox pane = new HBox(5, btnAvvia, btnFerma);
+
+            {
+                btnAvvia.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                btnFerma.setStyle("-fx-background-color: #f44336; -fx-text-fill: white;");
+
+                btnAvvia.setOnAction(event -> {
+                    Device device = getTableView().getItems().get(getIndex());
+                    deviceService.updateDeviceStatus(device.getId().toString(), "ONLINE")
+                        .thenAccept(res -> Platform.runLater(() -> loadDevices()))
+                        .exceptionally(e -> {
+                            showError("Errore", "Impossibile avviare il simulatore: " + e.getMessage());
+                            return null;
+                        });
+                });
+
+                btnFerma.setOnAction(event -> {
+                    Device device = getTableView().getItems().get(getIndex());
+                    deviceService.updateDeviceStatus(device.getId().toString(), "OFFLINE")
+                        .thenAccept(res -> Platform.runLater(() -> loadDevices()))
+                        .exceptionally(e -> {
+                            showError("Errore", "Impossibile fermare il simulatore: " + e.getMessage());
+                            return null;
+                        });
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    Device device = getTableView().getItems().get(getIndex());
+                    if ("ONLINE".equalsIgnoreCase(device.getStatus())) {
+                        btnAvvia.setDisable(true);
+                        btnFerma.setDisable(false);
+                    } else {
+                        btnAvvia.setDisable(false);
+                        btnFerma.setDisable(true);
+                    }
+                    setGraphic(pane);
+                }
+            }
         });
     }
 
@@ -138,6 +195,17 @@ public class LocalAdminDashboardController {
             });
             return null;
         });
+    }
+
+    private void startAutoRefresh() {
+        if (refreshTimer != null) refreshTimer.cancel();
+        refreshTimer = new Timer(true);
+        refreshTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                loadDevices();
+            }
+        }, 10000, 10000);
     }
 
     @FXML
@@ -187,6 +255,7 @@ public class LocalAdminDashboardController {
 
     @FXML
     public void logout(ActionEvent event) {
+        if (refreshTimer != null) refreshTimer.cancel();
         Main.eseguiLogout();
     }
 }

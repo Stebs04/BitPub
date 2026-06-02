@@ -32,10 +32,22 @@ public class DeviceController {
         return ResponseEntity.ok(gameService.registerDevice(request.getLocaleId(), request.getGameId(), request.getMacAddress()));
     }
 
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCAL_ADMIN')")
+    @RequireRole({Role.PLATFORM_ADMIN, Role.LOCAL_ADMIN})
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Device> updateDeviceStatus(@PathVariable UUID id, @RequestBody DeviceStatusRequest request) {
+        return ResponseEntity.ok(gameService.updateDeviceStatus(id, request.getStatus()));
+    }
+
     @Data
     static class DeviceRegistrationRequest {
         private UUID localeId;
         private UUID gameId;
         private String macAddress;
+    }
+
+    @Data
+    static class DeviceStatusRequest {
+        private String status;
     }
 }
