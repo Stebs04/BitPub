@@ -18,7 +18,7 @@ spring:
         - id: game-service
           uri: lb://game-service
           predicates:
-            - Path=/api/v1/games/**, /api/v1/locales/**, /api/v1/devices/**
+            - Path=/api/v1/games/**, /api/v1/locales/**, /api/v1/devices/**, /api/v1/sessions/**
           filters:
             - AuthenticationFilter
         - id: tournament-service
