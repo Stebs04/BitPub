@@ -11,4 +11,5 @@ import java.util.UUID;
 @Repository
 public interface MatchSessionRepository extends JpaRepository<MatchSession, UUID>, JpaSpecificationExecutor<MatchSession> {
     List<MatchSession> findByDeviceIdAndStatus(UUID deviceId, String status);
+    java.util.Optional<MatchSession> findBySessionId(String sessionId);
 }

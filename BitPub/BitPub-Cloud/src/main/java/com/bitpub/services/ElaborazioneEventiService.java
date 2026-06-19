@@ -29,6 +29,12 @@ public class ElaborazioneEventiService {
     @Autowired
     private GameSessionRepository gameSessionRepo;
 
+    private final java.util.concurrent.ConcurrentHashMap<Long, Object> liveScores = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public Object getLiveScore(Long sessionId) {
+        return liveScores.get(sessionId);
+    }
+
     public com.bitpub.dto.GameEventDTO getEventDtoById(Long id) {
         return null;
     }
@@ -51,15 +57,16 @@ public class ElaborazioneEventiService {
                 calciobalillaRepo.save(entity);
                 log.info("Evento Calciobalilla processato e salvato su PostgreSQL tramite layer Spring Data JPA!");
 
-                if (entity.getOrarioFine() != null) {
-                    log.info("La partita di Calciobalilla è terminata...");
-                    String[] topicParts = topic.split("/");
-                    String tableIdStr = topicParts[4].replace("calciobalilla_", "");
-                    Integer tableId = Integer.parseInt(tableIdStr);
+                String[] topicParts = topic.split("/");
+                String tableIdStr = topicParts[4].replace("calciobalilla_", "");
+                Integer tableId = Integer.parseInt(tableIdStr);
 
-                    List<GameSessionEntity> sessioniAttive = gameSessionRepo.findAllByStatus("IN_PROGRESS");
-                    for (GameSessionEntity session : sessioniAttive) {
-                        if (session.getTableId().equals(tableId)) {
+                List<GameSessionEntity> sessioniAttive = gameSessionRepo.findAllByStatus("IN_PROGRESS");
+                for (GameSessionEntity session : sessioniAttive) {
+                    if (session.getTableId().equals(tableId)) {
+                        liveScores.put(session.getId(), entity);
+                        if (entity.getOrarioFine() != null) {
+                            log.info("La partita di Calciobalilla è terminata...");
                             session.setStatus("COMPLETED");
                             session.setEndTime(entity.getOrarioFine());
                             gameSessionRepo.save(session);

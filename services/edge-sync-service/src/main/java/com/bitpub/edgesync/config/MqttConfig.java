@@ -1,5 +1,9 @@
 package com.bitpub.edgesync.config;
 
+import com.bitpub.contracts.events.BaseSensorEvent;
+import com.bitpub.edgesync.client.GameServiceClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +29,15 @@ public class MqttConfig {
 
     @Value("${mqtt.default-topic}")
     private String defaultTopic;
+    
+    private final GameServiceClient gameServiceClient;
+    private final ObjectMapper objectMapper;
+
+    public MqttConfig(GameServiceClient gameServiceClient) {
+        this.gameServiceClient = gameServiceClient;
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule());
+    }
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -32,8 +45,6 @@ public class MqttConfig {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[] { brokerUrl });
         options.setCleanSession(true);
-        // options.setUserName("...");
-        // options.setPassword("...".toCharArray());
         factory.setConnectionOptions(options);
         return factory;
     }
@@ -62,7 +73,14 @@ public class MqttConfig {
             String topic = message.getHeaders().get("mqtt_receivedTopic").toString();
             String payload = message.getPayload().toString();
             System.out.println("Received MQTT message on topic: " + topic + " - Payload: " + payload);
-            // Here we will add logic to deduplicate, buffer and forward via Feign to GameService / StatsService
+            
+            try {
+                BaseSensorEvent event = objectMapper.readValue(payload, BaseSensorEvent.class);
+                gameServiceClient.sendEvent(event);
+            } catch (Exception e) {
+                System.err.println("Failed to parse or forward event: " + e.getMessage());
+                e.printStackTrace();
+            }
         };
     }
 }
