@@ -11,14 +11,12 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 
-@Component
 public class MqttEventProducerImpl implements EventProducer {
 
     private static final Logger logger = LoggerFactory.getLogger(MqttEventProducerImpl.class);
 
     private final IMqttClient mqttClient;
 
-    @Autowired
     public MqttEventProducerImpl(IMqttClient mqttClient) {
         this.mqttClient = mqttClient;
     }

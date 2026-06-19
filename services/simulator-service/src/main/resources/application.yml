@@ -6,11 +6,12 @@ spring:
     name: simulator-service
 
 
-mqtt:
-  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
-  client-id: simulator-service-client
-  username: ${MQTT_USERNAME:}
-  password: ${MQTT_PASSWORD:}
+bitpub:
+  mqtt:
+    broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+    client-id: simulator-service-client
+    username: ${MQTT_USERNAME:}
+    password: ${MQTT_PASSWORD:}
 
 eureka:
   instance:
