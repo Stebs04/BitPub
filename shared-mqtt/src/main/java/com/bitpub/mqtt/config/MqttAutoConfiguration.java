@@ -60,6 +60,12 @@ public class MqttAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper().findAndRegisterModules();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public MqttPublisher mqttPublisher(ObjectMapper objectMapper) {
         return new MqttPublisherImpl(mqttOutboundChannel(), objectMapper);
     }
