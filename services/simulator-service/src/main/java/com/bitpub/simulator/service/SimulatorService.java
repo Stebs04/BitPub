@@ -14,6 +14,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
+import com.bitpub.mqtt.registry.MqttTopicRegistry;
+
 @Service
 public class SimulatorService {
 
@@ -52,7 +54,7 @@ public class SimulatorService {
                 .players(List.of("Player1", "Player2"))
                 .build();
                 
-        String topic = String.format("games/%s/%s/events", gameType, deviceId);
+        String topic = MqttTopicRegistry.gameEvents("LOCALE_TEST_1", gameType);
         mqttPublisher.publish(topic, event);
         
         return sessionId;
@@ -69,7 +71,7 @@ public class SimulatorService {
                         match.setScore2(match.getScore2() + 1);
                     }
                     
-                    String topic = String.format("games/%s/%s/events", match.getGameType(), match.getDeviceId());
+                    String topic = MqttTopicRegistry.gameEvents("LOCALE_TEST_1", match.getGameType());
                     
                     ScoreEvent scoreEvent = ScoreEvent.builder()
                             .eventId(UUID.randomUUID())

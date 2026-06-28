@@ -24,9 +24,9 @@ public interface PlayerStatsRepository extends JpaRepository<PlayerStats, UUID>,
     @Query("SELECT p FROM PlayerStats p ORDER BY p.wins DESC, p.totalScore DESC")
     Page<PlayerStats> findGlobalLeaderboard(Pageable pageable);
 
-    @Query(value = "SELECT rank_num FROM (SELECT user_id, DENSE_RANK() OVER (ORDER BY wins DESC, total_score DESC) as rank_num FROM player_stats) ranked WHERE user_id = :userId LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT rank_num FROM (SELECT user_id, DENSE_RANK() OVER (ORDER BY wins DESC, total_score DESC) as rank_num FROM stats.player_stats) ranked WHERE user_id = :userId LIMIT 1", nativeQuery = true)
     Long findGlobalRankByUserId(@Param("userId") UUID userId);
 
-    @Query(value = "SELECT rank_num FROM (SELECT user_id, DENSE_RANK() OVER (ORDER BY wins DESC, total_score DESC) as rank_num FROM player_stats WHERE game_id = :gameId) ranked WHERE user_id = :userId LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT rank_num FROM (SELECT user_id, DENSE_RANK() OVER (ORDER BY wins DESC, total_score DESC) as rank_num FROM stats.player_stats WHERE game_id = :gameId) ranked WHERE user_id = :userId LIMIT 1", nativeQuery = true)
     Long findGameRankByUserId(@Param("userId") UUID userId, @Param("gameId") UUID gameId);
 }
