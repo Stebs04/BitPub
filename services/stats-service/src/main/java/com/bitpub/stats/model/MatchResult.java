@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "match_results")
+@Table(name = "match_results", schema = "stats")
 public class MatchResult {
 
     @Id

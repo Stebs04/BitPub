@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "player_stats",
+@Table(name = "player_stats", schema = "stats",
        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "game_id"}))
 public class PlayerStats {
 

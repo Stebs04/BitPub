@@ -19,7 +19,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-public class MatchEndedEventListener extends AbstractMqttSubscriber<GameEventPayload> {
+public class MatchEndedEventListener extends AbstractMqttSubscriber<com.fasterxml.jackson.databind.JsonNode> {
 
     private final StatsService statsService;
 
@@ -28,43 +28,65 @@ public class MatchEndedEventListener extends AbstractMqttSubscriber<GameEventPay
     public MatchEndedEventListener(ObjectMapper objectMapper, 
                                    @Qualifier("mqttOutboundChannel") @Autowired(required = false) MessageChannel mqttOutboundChannel, 
                                    StatsService statsService) {
-        super(GameEventPayload.class, objectMapper, mqttOutboundChannel);
+        super(com.fasterxml.jackson.databind.JsonNode.class, objectMapper, mqttOutboundChannel);
         this.statsService = statsService;
     }
 
     @Override
-    protected void processPayload(GameEventPayload payload, String topic, String traceId) {
-        if ("ENDED".equalsIgnoreCase(payload.getEventType())) {
-            log.info("Ricevuto evento ENDED via MQTT per il gameId: {}, traceId: {}", payload.getGameId(), traceId);
+    protected void processPayload(com.fasterxml.jackson.databind.JsonNode payload, String topic, String traceId) {
+        // Handle both old GameEventPayload (eventType=ENDED) and new MatchEndedEvent (type/eventType=MATCH_ENDED)
+        String eventType = payload.has("eventType") ? payload.get("eventType").asText() : null;
+        String type = payload.has("type") ? payload.get("type").asText() : null;
+        
+        if ("ENDED".equalsIgnoreCase(eventType) || "MATCH_ENDED".equalsIgnoreCase(eventType) || "MATCH_ENDED".equalsIgnoreCase(type)) {
+            log.info("Ricevuto evento ENDED via MQTT per il traceId: {}", traceId);
             
-            Map<String, Object> data = payload.getEventData();
-            if (data == null) {
-                log.warn("Nessun eventData trovato nel payload MQTT");
-                return;
-            }
-
             try {
-                // Estrarre in maniera sicura i dati dal payload
-                // Qui usiamo UUID random / default come fallback qualora BitPub-Simulators non invii gli UUID
-                String winnerId = String.valueOf(data.getOrDefault("winnerUserId", UUID.randomUUID().toString()));
-                String loserId = String.valueOf(data.getOrDefault("loserUserId", UUID.randomUUID().toString()));
+                com.fasterxml.jackson.databind.JsonNode data = payload.has("eventData") ? payload.get("eventData") : payload;
+                String gameId = payload.has("gameId") ? payload.get("gameId").asText() : UUID.randomUUID().toString();
+                String eventId = payload.has("eventId") ? payload.get("eventId").asText() : UUID.randomUUID().toString();
                 
-                // Parsiamo i punteggi in modo robusto (gestendo possibili stringhe)
-                int winnerScore = parseScore(data.getOrDefault("winnerScore", "10"));
-                int loserScore = parseScore(data.getOrDefault("loserScore", "5"));
+                String winnerId = data.has("winnerUserId") ? data.get("winnerUserId").asText() : UUID.randomUUID().toString();
+                String loserId = data.has("loserUserId") ? data.get("loserUserId").asText() : UUID.randomUUID().toString();
+                
+                // Fallback for Simulator's MatchEndedEvent which uses winningTeam and finalScoreTeamA/B
+                if (data.has("winningTeam")) {
+                    String winningTeam = data.get("winningTeam").asText();
+                    int scoreA = data.has("finalScoreTeamA") ? data.get("finalScoreTeamA").asInt() : 0;
+                    int scoreB = data.has("finalScoreTeamB") ? data.get("finalScoreTeamB").asInt() : 0;
+                    
+                    winnerId = "TEAM_A".equals(winningTeam) ? "player-teamA-123" : "player-teamB-456";
+                    loserId = "TEAM_A".equals(winningTeam) ? "player-teamB-456" : "player-teamA-123";
+                    
+                    RecordMatchRequest request = RecordMatchRequest.builder()
+                            .matchSessionId(UUID.fromString(eventId))
+                            .gameId(UUID.randomUUID()) // placeholder since gameId is string in event but UUID in DB
+                            .winnerUserId(UUID.randomUUID())
+                            .loserUserId(UUID.randomUUID())
+                            .winnerUsername("Team Vincitore (" + winningTeam + ")")
+                            .loserUsername("Team Perdente")
+                            .winnerScore(Math.max(scoreA, scoreB))
+                            .loserScore(Math.min(scoreA, scoreB))
+                            .build();
+                    statsService.recordMatch(request);
+                    log.info("Partita simulata salvata con successo nel DB per la sessione: {}", request.getMatchSessionId());
+                    return;
+                }
+
+                int winnerScore = parseScore(data.has("winnerScore") ? data.get("winnerScore").asText() : "10");
+                int loserScore = parseScore(data.has("loserScore") ? data.get("loserScore").asText() : "5");
 
                 RecordMatchRequest request = RecordMatchRequest.builder()
-                        .matchSessionId(UUID.fromString(payload.getEventId() != null ? payload.getEventId() : UUID.randomUUID().toString()))
-                        .gameId(UUID.fromString(payload.getGameId()))
+                        .matchSessionId(UUID.fromString(eventId))
+                        .gameId(UUID.fromString(gameId))
                         .winnerUserId(UUID.fromString(winnerId))
                         .loserUserId(UUID.fromString(loserId))
-                        .winnerUsername(String.valueOf(data.getOrDefault("winnerUsername", "Vincitore")))
-                        .loserUsername(String.valueOf(data.getOrDefault("loserUsername", "Perdente")))
+                        .winnerUsername(data.has("winnerUsername") ? data.get("winnerUsername").asText() : "Vincitore")
+                        .loserUsername(data.has("loserUsername") ? data.get("loserUsername").asText() : "Perdente")
                         .winnerScore(winnerScore)
                         .loserScore(loserScore)
                         .build();
 
-                // Salvataggio effettivo nel database Cloud tramite il servizio esistente
                 statsService.recordMatch(request);
                 log.info("Partita salvata con successo nel DB per la sessione: {}", request.getMatchSessionId());
 
@@ -73,6 +95,7 @@ public class MatchEndedEventListener extends AbstractMqttSubscriber<GameEventPay
             }
         }
     }
+
 
     private int parseScore(Object scoreObj) {
         if (scoreObj instanceof Number) {
@@ -92,7 +115,7 @@ public class MatchEndedEventListener extends AbstractMqttSubscriber<GameEventPay
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handle(Message<?> message) {
         String topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC, String.class);
-        if (topic != null && topic.startsWith("events/games/")) {
+        if (topic != null && topic.startsWith("v1/games/")) {
             super.handleMessage(message);
         }
     }

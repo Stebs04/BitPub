@@ -5,9 +5,14 @@ spring:
   application:
     name: stats-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/bitpub_db
+    url: jdbc:postgresql://localhost:5432/bitpub_db?currentSchema=stats
     username: bitpub_admin
     password: secret_password
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      max-lifetime: 1800000
+      keepalive-time: 30000
   jpa:
     hibernate:
       ddl-auto: validate
