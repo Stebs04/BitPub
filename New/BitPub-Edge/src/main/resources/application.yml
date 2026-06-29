@@ -1,0 +1,28 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: bitpub-edge
+  datasource:
+    url: jdbc:h2:file:./data/edge-db;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=TRUE
+    driverClassName: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+bitpub:
+  edge:
+    locale-id: ${LOCALE_ID:locale-1}
+  cloud:
+    # We point to the gateway service which routes to match-service
+    match-service-url: ${CLOUD_MATCH_SERVICE_URL:http://localhost:8080/api/match}
+  mqtt:
+    local:
+      broker-url: ${MQTT_LOCAL_BROKER_URL:tcp://localhost:1883}
+      client-id: ${MQTT_LOCAL_CLIENT_ID:edge-node-1}
+      topic-sensors: bitpub/sensors/#
