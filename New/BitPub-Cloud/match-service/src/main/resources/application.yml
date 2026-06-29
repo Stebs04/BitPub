@@ -1,0 +1,24 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: match-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bitpub_match
+    username: bitpub
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+# Configurazione custom per l'integrazione MQTT
+mqtt:
+  broker-url: tcp://localhost:1883
+  client-id: match-service-${random.uuid}
+  topic:
+    sensors: bitpub/sensors/+/+/event
