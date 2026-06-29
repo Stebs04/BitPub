@@ -1,0 +1,35 @@
+{
+  "name": "BitPub Development Environment",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "postgres", 
+  "runServices": ["postgres", "mosquitto"],
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21",
+      "installMaven": "true"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vscjava.vscode-spring-boot",
+        "redhat.java",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "java.configuration.updateBuildConfiguration": "automatic",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "postCreateCommand": "npm i -g npm@latest && npm install -g typescript"
+}

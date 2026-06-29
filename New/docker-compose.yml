@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: bitpub-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bitpub
+      POSTGRES_PASSWORD: bitpub_password
+      POSTGRES_DB: bitpub_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - bitpub-network
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: bitpub-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./docs/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - bitpub-network
+
+  # Core Services (Ports: 808x)
+  gateway-service:
+    build: ./BitPub-Cloud/gateway-service
+    container_name: bitpub-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - user-service
+      - locale-service
+    networks:
+      - bitpub-network
+
+  auth-service:
+    build: ./BitPub-Cloud/auth-service
+    container_name: bitpub-auth
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  user-service:
+    build: ./BitPub-Cloud/user-service
+    container_name: bitpub-user
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  locale-service:
+    build: ./BitPub-Cloud/locale-service
+    container_name: bitpub-locale
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  game-catalog-service:
+    build: ./BitPub-Cloud/game-catalog-service
+    container_name: bitpub-game-catalog
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  match-service:
+    build: ./BitPub-Cloud/match-service
+    container_name: bitpub-match
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - mosquitto
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+    networks:
+      - bitpub-network
+
+  tournament-service:
+    build: ./BitPub-Cloud/tournament-service
+    container_name: bitpub-tournament
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  statistics-service:
+    build: ./BitPub-Cloud/statistics-service
+    container_name: bitpub-statistics
+    ports:
+      - "8087:8087"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+    networks:
+      - bitpub-network
+
+  notification-service:
+    build: ./BitPub-Cloud/notification-service
+    container_name: bitpub-notification
+    ports:
+      - "8088:8088"
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+    networks:
+      - bitpub-network
+
+  # Edge App
+  edge-app:
+    build: ./BitPub-Edge
+    container_name: bitpub-edge
+    ports:
+      - "8089:8089"
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - CLOUD_GATEWAY_URL=http://gateway-service:8080
+    networks:
+      - bitpub-network
+
+  # Web App
+  web-app:
+    build: 
+      context: ./BitPub-WebApp
+      dockerfile: Dockerfile
+    container_name: bitpub-webapp
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway-service
+    networks:
+      - bitpub-network
+
+volumes:
+  pgdata:
+
+networks:
+  bitpub-network:
+    driver: bridge
