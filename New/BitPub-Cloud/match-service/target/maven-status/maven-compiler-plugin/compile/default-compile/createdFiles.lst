@@ -1,0 +1,7 @@
+it\uniupo\pissir\bitpub\matchservice\domain\Match.class
+it\uniupo\pissir\bitpub\matchservice\MatchServiceApplication.class
+it\uniupo\pissir\bitpub\matchservice\domain\SensorEventLog.class
+it\uniupo\pissir\bitpub\matchservice\domain\SensorEventLog$SensorEventLogBuilder.class
+it\uniupo\pissir\bitpub\matchservice\domain\Match$MatchBuilder.class
+it\uniupo\pissir\bitpub\matchservice\domain\Team$TeamBuilder.class
+it\uniupo\pissir\bitpub\matchservice\domain\Team.class

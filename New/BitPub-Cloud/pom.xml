@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>it.uniupo.pissir.bitpub</groupId>
+        <artifactId>bitpub-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>bitpub-cloud</artifactId>
+    <packaging>pom</packaging>
+
+    <name>BitPub Cloud Parent</name>
+    <description>Parent POM per i microservizi Cloud</description>
+
+    <modules>
+        <module>gateway-service</module>
+        <module>auth-service</module>
+        <module>user-service</module>
+        <module>locale-service</module>
+        <module>game-catalog-service</module>
+        <module>match-service</module>
+        <module>tournament-service</module>
+        <module>statistics-service</module>
+        <module>notification-service</module>
+    </modules>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+</project>
