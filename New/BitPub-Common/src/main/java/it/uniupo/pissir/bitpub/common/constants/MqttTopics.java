@@ -22,6 +22,9 @@ public final class MqttTopics {
     // bitpub/platform/notifications/{userId}
     public static final String NOTIFICATIONS_FORMAT = "bitpub/platform/notifications/%s";
     
+    // bitpub/match/{localeId}/{gameInstanceId}/state
+    public static final String GAME_STATE_FORMAT = "bitpub/match/%s/%s/state";
+    
     public static String getSensorEventTopic(String localeId, String gameInstanceId) {
         return String.format(SENSOR_EVENT_FORMAT, localeId, gameInstanceId);
     }
@@ -32,5 +35,9 @@ public final class MqttTopics {
     
     public static String getEdgeHeartbeatTopic(String localeId) {
         return String.format(EDGE_HEARTBEAT_FORMAT, localeId);
+    }
+    
+    public static String getGameStateTopic(String localeId, String gameInstanceId) {
+        return String.format(GAME_STATE_FORMAT, localeId, gameInstanceId);
     }
 }

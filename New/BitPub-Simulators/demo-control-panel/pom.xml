@@ -71,8 +71,8 @@
                 <version>1.15.0</version>
                 <configuration>
                     <workingDirectory>frontend</workingDirectory>
-                    <nodeVersion>v20.10.0</nodeVersion>
-                    <npmVersion>10.2.3</npmVersion>
+                    <nodeVersion>v22.13.0</nodeVersion>
+                    <npmVersion>10.8.3</npmVersion>
                 </configuration>
                 <executions>
                     <execution>

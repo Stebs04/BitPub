@@ -1,0 +1,5 @@
+it\uniupo\pissir\bitpub\javafx\BitPubKioskApplication.class
+it\uniupo\pissir\bitpub\javafx\model\GameStateDto.class
+it\uniupo\pissir\bitpub\javafx\mqtt\MqttSubscriberService.class
+it\uniupo\pissir\bitpub\javafx\controller\KioskController.class
+it\uniupo\pissir\bitpub\javafx\model\GameStateDto$GameStateDtoBuilder.class
