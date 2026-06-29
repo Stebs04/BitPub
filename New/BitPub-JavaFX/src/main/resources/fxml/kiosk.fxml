@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
@@ -11,8 +12,9 @@
             styleClass="root-pane">
 
     <top>
-        <VBox alignment="CENTER" styleClass="header">
+        <VBox alignment="CENTER" styleClass="header" spacing="10">
             <Label fx:id="gameTitleLabel" styleClass="title" />
+            <ComboBox fx:id="gameSelector" styleClass="game-selector" />
             <Label fx:id="statusLabel" styleClass="status" />
         </VBox>
     </top>

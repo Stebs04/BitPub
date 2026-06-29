@@ -17,16 +17,16 @@ public class AutoplayController {
 
     @PostMapping("/{gameType}/{localeId}/{gameInstanceId}")
     public ResponseEntity<?> toggleAutoplay(
-            @PathVariable String gameType,
-            @PathVariable String localeId,
-            @PathVariable String gameInstanceId,
-            @RequestParam boolean enabled) {
+            @PathVariable("gameType") String gameType,
+            @PathVariable("localeId") String localeId,
+            @PathVariable("gameInstanceId") String gameInstanceId,
+            @RequestParam("enabled") boolean enabled) {
         autoplayService.toggleAutoplay(gameType, localeId, gameInstanceId, enabled);
         return ResponseEntity.ok(enabled);
     }
     
     @GetMapping("/{gameInstanceId}")
-    public ResponseEntity<Boolean> getAutoplayStatus(@PathVariable String gameInstanceId) {
+    public ResponseEntity<Boolean> getAutoplayStatus(@PathVariable("gameInstanceId") String gameInstanceId) {
         return ResponseEntity.ok(autoplayService.isAutoplayEnabled(gameInstanceId));
     }
 }

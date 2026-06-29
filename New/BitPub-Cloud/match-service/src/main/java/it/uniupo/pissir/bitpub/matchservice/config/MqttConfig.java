@@ -76,4 +76,18 @@ public class MqttConfig {
             }
         };
     }
+    @Bean
+    public MessageChannel mqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "mqttOutboundChannel")
+    public MessageHandler mqttOutbound() {
+        org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler messageHandler =
+                new org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler(clientId + "_out", mqttClientFactory());
+        messageHandler.setAsync(true);
+        messageHandler.setDefaultTopic("bitpub/match/LOC-1/default/state");
+        return messageHandler;
+    }
 }

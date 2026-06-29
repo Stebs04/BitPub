@@ -5,6 +5,7 @@ import it.uniupo.pissir.bitpub.javafx.mqtt.MqttSubscriberService;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.fxml.FXML;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -29,6 +30,8 @@ public class KioskController {
     private Label eventMessageLabel;
     @FXML
     private ImageView promoImageView;
+    @FXML
+    private ComboBox<String> gameSelector;
 
     private MqttSubscriberService mqttService;
     
@@ -53,10 +56,26 @@ public class KioskController {
         // Setup promo carousel
         setupPromoCarousel();
 
+        // Setup game selector
+        gameSelector.getItems().addAll("foosball-1", "darts-1", "billiards-1");
+        gameSelector.setValue("foosball-1");
+        gameSelector.setOnAction(event -> {
+            String selectedGame = gameSelector.getValue();
+            if (mqttService != null && selectedGame != null) {
+                // Reset labels
+                scoreTeamALabel.setText("0");
+                scoreTeamBLabel.setText("0");
+                timerLabel.setText("00:00");
+                statusLabel.setText("WAITING");
+                eventMessageLabel.setText("");
+                mqttService.changeGameSubscription(selectedGame);
+            }
+        });
+
         // TODO: Read localeId and gameInstanceId from config/properties in a real app
         String brokerUrl = "tcp://localhost:1883";
         String localeId = "LOC-1";
-        String gameInstanceId = "CALCIO-1";
+        String gameInstanceId = gameSelector.getValue();
         
         mqttService = new MqttSubscriberService(brokerUrl, localeId, gameInstanceId, this);
         mqttService.start();

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Gamepad2, Target, CircleDashed } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8085/api';
+const API_BASE = '/api';
 
 function App() {
   const [autoplayStates, setAutoplayStates] = useState<Record<string, boolean>>({});
@@ -97,6 +97,9 @@ function App() {
             </button>
             <button onClick={() => triggerEvent('freccette', 'darts-1', 'DART_HIT', { score: 50, multiplier: 1 })} className="w-full py-2 bg-red-600 hover:bg-red-500 rounded-lg font-semibold transition-colors">
               Bullseye
+            </button>
+            <button onClick={() => triggerEvent('freccette', 'darts-1', 'MATCH_END')} className="w-full py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-semibold transition-colors">
+              End Match
             </button>
             <div className="mt-6 pt-6 border-t border-slate-700 flex items-center justify-between">
               <span className="font-semibold text-slate-300">Autoplay Mode</span>

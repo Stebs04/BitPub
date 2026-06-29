@@ -46,6 +46,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -58,6 +60,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -70,6 +74,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -82,6 +88,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -95,6 +103,8 @@ services:
       - mosquitto
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
@@ -108,6 +118,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -120,6 +132,8 @@ services:
       - postgres
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
     networks:
       - bitpub-network
 
@@ -130,7 +144,11 @@ services:
       - "8088:8088"
     depends_on:
       - mosquitto
+      - postgres
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
+      - SPRING_DATASOURCE_USERNAME=bitpub
+      - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network

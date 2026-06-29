@@ -1,5 +1,6 @@
 package it.uniupo.pissir.bitpub.simulators.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -10,6 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AutoplayService {
+
+    @Value("${server.port:8080}")
+    private String serverPort;
 
     // Map: gameInstanceId -> AutoplayState
     private final Map<String, AutoplayState> activeAutoplays = new ConcurrentHashMap<>();
@@ -72,8 +76,8 @@ public class AutoplayService {
     }
 
     private void triggerRestEvent(String gameType, String localeId, String gameInstanceId, String eventType, Map<String, Object> payload) {
-        String url = String.format("http://localhost:8085/api/simulators/%s/%s/%s/event?eventType=%s&matchId=autoplay-match",
-                gameType, localeId, gameInstanceId, eventType);
+        String url = String.format("http://localhost:%s/api/simulators/%s/%s/%s/event?eventType=%s&matchId=autoplay-match",
+                serverPort, gameType, localeId, gameInstanceId, eventType);
         try {
             restTemplate.postForEntity(url, payload, String.class);
         } catch (Exception e) {

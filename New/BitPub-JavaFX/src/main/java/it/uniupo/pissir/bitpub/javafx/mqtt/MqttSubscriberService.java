@@ -16,7 +16,7 @@ public class MqttSubscriberService {
 
     private final String brokerUrl;
     private final String localeId;
-    private final String gameInstanceId;
+    private String gameInstanceId;
     private final KioskController controller;
     private IMqttClient mqttClient;
     private final ObjectMapper objectMapper;
@@ -64,6 +64,33 @@ public class MqttSubscriberService {
             try {
                 mqttClient.disconnect();
                 mqttClient.close();
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void changeGameSubscription(String newGameInstanceId) {
+        if (this.gameInstanceId.equals(newGameInstanceId)) return;
+
+        String oldTopic = MqttTopics.getGameStateTopic(localeId, this.gameInstanceId);
+        this.gameInstanceId = newGameInstanceId;
+        String newTopic = MqttTopics.getGameStateTopic(localeId, this.gameInstanceId);
+
+        if (mqttClient != null && mqttClient.isConnected()) {
+            try {
+                mqttClient.unsubscribe(oldTopic);
+                System.out.println("Unsubscribed from: " + oldTopic);
+                System.out.println("Subscribing to: " + newTopic);
+                mqttClient.subscribe(newTopic, (t, msg) -> {
+                    String payload = new String(msg.getPayload());
+                    try {
+                        GameStateDto state = objectMapper.readValue(payload, GameStateDto.class);
+                        Platform.runLater(() -> controller.updateGameState(state));
+                    } catch (Exception e) {
+                        System.err.println("Error parsing MQTT payload: " + e.getMessage());
+                    }
+                });
             } catch (MqttException e) {
                 e.printStackTrace();
             }

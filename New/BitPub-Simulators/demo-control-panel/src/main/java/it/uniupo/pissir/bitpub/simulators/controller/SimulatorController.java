@@ -30,11 +30,11 @@ public class SimulatorController {
 
     @PostMapping("/{gameType}/{localeId}/{gameInstanceId}/event")
     public ResponseEntity<?> triggerEvent(
-            @PathVariable String gameType,
-            @PathVariable String localeId,
-            @PathVariable String gameInstanceId,
-            @RequestParam String eventType,
-            @RequestParam(required = false) String matchId,
+            @PathVariable("gameType") String gameType,
+            @PathVariable("localeId") String localeId,
+            @PathVariable("gameInstanceId") String gameInstanceId,
+            @RequestParam("eventType") String eventType,
+            @RequestParam(value = "matchId", required = false) String matchId,
             @RequestBody(required = false) Map<String, Object> payload) {
         
         SensorEvent event = null;

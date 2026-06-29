@@ -14,6 +14,10 @@ import it.uniupo.pissir.bitpub.matchservice.repository.MatchRepository;
 import it.uniupo.pissir.bitpub.matchservice.repository.SensorEventLogRepository;
 import it.uniupo.pissir.bitpub.matchservice.repository.TeamRepository;
 import it.uniupo.pissir.bitpub.matchservice.service.MatchService;
+import it.uniupo.pissir.bitpub.matchservice.dto.GameStateDto;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.integration.mqtt.support.MqttHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,7 @@ public class MatchServiceImpl implements MatchService {
     private final TeamRepository teamRepository;
     private final SensorEventLogRepository sensorEventLogRepository;
     private final ObjectMapper objectMapper;
+    private final MessageChannel mqttOutboundChannel;
 
     @Override
     @Transactional
@@ -105,15 +110,50 @@ public class MatchServiceImpl implements MatchService {
         Optional<Match> activeMatchOpt = matchRepository.findByGameInstanceIdAndStatus(event.getGameInstanceId(), "IN_PROGRESS");
         
         Match match = null;
+        if (activeMatchOpt.isEmpty() && "MATCH_START".equals(event.getSensorType())) {
+            match = Match.builder()
+                .gameInstanceId(event.getGameInstanceId())
+                .gameTypeId(event.getGameInstanceId().contains("-") ? event.getGameInstanceId().split("-")[0] : "unknown")
+                .status("IN_PROGRESS")
+                .startTime(Instant.now())
+                .build();
+            match = matchRepository.save(match);
+            
+            List<Team> teams = List.of(
+                Team.builder().name("RED").score(0).match(match).build(),
+                Team.builder().name("BLUE").score(0).match(match).build()
+            );
+            teamRepository.saveAll(teams);
+            match.setTeams(teams);
+            activeMatchOpt = Optional.of(match);
+            log.info("Auto-created match {} for gameInstanceId {}", match.getId(), match.getGameInstanceId());
+        }
+
         if (activeMatchOpt.isPresent()) {
             match = activeMatchOpt.get();
             // Applica logica di punteggio base (es: per calciobalilla)
-            if ("GOAL".equals(event.getSensorType()) && event.getPayload() != null && event.getPayload().containsKey("teamId")) {
-                String teamId = event.getPayload().get("teamId").toString();
+            if ("GOAL".equals(event.getSensorType()) && event.getPayload() != null && event.getPayload().containsKey("team")) {
+                String teamName = event.getPayload().get("team").toString();
                 match.getTeams().stream()
-                        .filter(t -> t.getId().equals(teamId))
+                        .filter(t -> t.getName().equalsIgnoreCase(teamName))
                         .findFirst()
                         .ifPresent(t -> t.setScore(t.getScore() + 1));
+                matchRepository.save(match);
+            }
+            if ("DART_HIT".equals(event.getSensorType()) && event.getPayload() != null && event.getPayload().containsKey("score")) {
+                int score = Integer.parseInt(event.getPayload().get("score").toString());
+                int multiplier = event.getPayload().containsKey("multiplier") ? Integer.parseInt(event.getPayload().get("multiplier").toString()) : 1;
+                // Add to team A for darts
+                match.getTeams().stream().findFirst().ifPresent(t -> t.setScore(t.getScore() + (score * multiplier)));
+                matchRepository.save(match);
+            }
+            if ("BALL_POCKETED".equals(event.getSensorType())) {
+                match.getTeams().stream().findFirst().ifPresent(t -> t.setScore(t.getScore() + 1));
+                matchRepository.save(match);
+            }
+            if ("MATCH_END".equals(event.getSensorType())) {
+                match.setStatus("COMPLETED");
+                match.setEndTime(Instant.now());
                 matchRepository.save(match);
             }
         } else {
@@ -137,6 +177,42 @@ public class MatchServiceImpl implements MatchService {
                 .build();
                 
         sensorEventLogRepository.save(logEntry);
+
+        // Publish to MQTT
+        if (match != null) {
+            publishGameState(match, event);
+        }
+    }
+
+    private void publishGameState(Match match, SensorEvent event) {
+        int scoreA = 0;
+        int scoreB = 0;
+        if (match.getTeams() != null && match.getTeams().size() > 0) {
+            scoreA = match.getTeams().get(0).getScore();
+            if (match.getTeams().size() > 1) {
+                scoreB = match.getTeams().get(1).getScore();
+            }
+        }
+        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
+        
+        GameStateDto stateDto = GameStateDto.builder()
+                .matchId(match.getId())
+                .status(status)
+                .scoreTeamA(scoreA)
+                .scoreTeamB(scoreB)
+                .timeRemainingSeconds(0) // non gestito per ora
+                .currentEventMessage(event.getSensorType())
+                .build();
+                
+        try {
+            String statePayload = objectMapper.writeValueAsString(stateDto);
+            String topic = "bitpub/match/LOC-1/" + match.getGameInstanceId() + "/state";
+            mqttOutboundChannel.send(MessageBuilder.withPayload(statePayload)
+                    .setHeader(MqttHeaders.TOPIC, topic)
+                    .build());
+        } catch (Exception e) {
+            log.error("Failed to publish GameStateDto", e);
+        }
     }
 
     private MatchDto mapToDto(Match match) {
