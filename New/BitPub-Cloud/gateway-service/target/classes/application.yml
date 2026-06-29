@@ -1,0 +1,39 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/**
+            
+        - id: user-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - name: JwtAuthenticationFilter
+
+        - id: locale-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/locales/**
+          filters:
+            - name: JwtAuthenticationFilter
+            
+        - id: game-catalog-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/catalog/**
+          filters:
+            - name: JwtAuthenticationFilter
+
+bitpub:
+  jwt:
+    secret: 1234567890123456789012345678901234567890123456789012345678901234
+    expirationMs: 86400000

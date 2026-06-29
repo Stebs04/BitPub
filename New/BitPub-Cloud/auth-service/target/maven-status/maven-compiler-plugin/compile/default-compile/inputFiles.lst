@@ -1,1 +1,7 @@
 C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\AuthServiceApplication.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\config\AppConfig.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\controller\AuthController.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\dto\JwtResponse.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\dto\LoginRequest.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\dto\UserDto.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\auth-service\src\main\java\it\uniupo\pissir\bitpub\authservice\service\AuthService.java

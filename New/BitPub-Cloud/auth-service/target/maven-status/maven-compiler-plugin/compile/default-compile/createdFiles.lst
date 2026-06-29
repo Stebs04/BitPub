@@ -1,1 +1,8 @@
+it\uniupo\pissir\bitpub\authservice\dto\JwtResponse$JwtResponseBuilder.class
+it\uniupo\pissir\bitpub\authservice\dto\LoginRequest.class
+it\uniupo\pissir\bitpub\authservice\controller\AuthController.class
+it\uniupo\pissir\bitpub\authservice\config\AppConfig.class
 it\uniupo\pissir\bitpub\authservice\AuthServiceApplication.class
+it\uniupo\pissir\bitpub\authservice\dto\JwtResponse.class
+it\uniupo\pissir\bitpub\authservice\dto\UserDto.class
+it\uniupo\pissir\bitpub\authservice\service\AuthService.class

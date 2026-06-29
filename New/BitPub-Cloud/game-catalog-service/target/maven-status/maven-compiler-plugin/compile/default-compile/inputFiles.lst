@@ -1,3 +1,11 @@
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\controller\GameCatalogController.java
 C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\domain\GameType.java
 C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\domain\SensorDefinition.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\dto\AddSensorRequest.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\dto\CreateGameTypeRequest.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\dto\GameTypeDto.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\dto\SensorDefinitionDto.java
 C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\GameCatalogServiceApplication.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\repository\GameTypeRepository.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\repository\SensorDefinitionRepository.java
+C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Cloud\game-catalog-service\src\main\java\it\uniupo\pissir\bitpub\gamecatalogservice\service\GameCatalogService.java
