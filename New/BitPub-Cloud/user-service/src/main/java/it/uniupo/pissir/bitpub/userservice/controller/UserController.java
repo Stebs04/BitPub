@@ -24,12 +24,12 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserDto getUserById(@PathVariable String id) {
+    public UserDto getUserById(@PathVariable("id") String id) {
         return userService.getUserById(id);
     }
     
     @GetMapping("/by-username/{username}")
-    public UserDto getUserByUsername(@PathVariable String username) {
+    public UserDto getUserByUsername(@PathVariable("username") String username) {
         return userService.getUserByUsername(username);
     }
 
