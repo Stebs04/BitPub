@@ -68,7 +68,7 @@ public class EventForwardingService {
     public boolean forwardToCloud(SensorEvent event) {
         try {
             restClient.post()
-                    .uri("/events") // Assuming match-service exposes POST /api/match/events
+                    .uri("/api/matches/events") // POST to /api/matches/events on match-service
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(event)
                     .retrieve()

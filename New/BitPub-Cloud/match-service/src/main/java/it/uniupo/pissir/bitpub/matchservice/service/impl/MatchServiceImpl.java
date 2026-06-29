@@ -116,15 +116,14 @@ public class MatchServiceImpl implements MatchService {
                 .gameTypeId(event.getGameInstanceId().contains("-") ? event.getGameInstanceId().split("-")[0] : "unknown")
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
+                .teams(new java.util.ArrayList<>())
                 .build();
             match = matchRepository.save(match);
             
-            List<Team> teams = List.of(
-                Team.builder().name("RED").score(0).match(match).build(),
-                Team.builder().name("BLUE").score(0).match(match).build()
-            );
-            teamRepository.saveAll(teams);
-            match.setTeams(teams);
+            match.getTeams().add(Team.builder().name("RED").score(0).match(match).build());
+            match.getTeams().add(Team.builder().name("BLUE").score(0).match(match).build());
+            
+            teamRepository.saveAll(match.getTeams());
             activeMatchOpt = Optional.of(match);
             log.info("Auto-created match {} for gameInstanceId {}", match.getId(), match.getGameInstanceId());
         }

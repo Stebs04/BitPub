@@ -10,6 +10,7 @@ spring:
     username: sa
     password: password
   jpa:
+    open-in-view: false
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: update
@@ -19,8 +20,8 @@ bitpub:
   edge:
     locale-id: ${LOCALE_ID:locale-1}
   cloud:
-    # We point to the gateway service which routes to match-service
-    match-service-url: ${CLOUD_MATCH_SERVICE_URL:http://localhost:8080/api/match}
+    # Point directly to match-service (in Docker via container name, locally via localhost)
+    match-service-url: ${CLOUD_MATCH_SERVICE_URL:http://localhost:8085}
   mqtt:
     local:
       broker-url: ${MQTT_LOCAL_BROKER_URL:tcp://localhost:1883}

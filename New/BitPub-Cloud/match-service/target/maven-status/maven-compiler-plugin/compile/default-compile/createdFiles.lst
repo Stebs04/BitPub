@@ -10,7 +10,6 @@ it\uniupo\pissir\bitpub\matchservice\dto\TeamResponseDto.class
 it\uniupo\pissir\bitpub\matchservice\repository\SensorEventLogRepository.class
 it\uniupo\pissir\bitpub\matchservice\controller\MatchController.class
 it\uniupo\pissir\bitpub\matchservice\domain\SensorEventLog$SensorEventLogBuilder.class
-it\uniupo\pissir\bitpub\matchservice\config\MqttConfig$1.class
 it\uniupo\pissir\bitpub\matchservice\domain\Team.class
 it\uniupo\pissir\bitpub\matchservice\dto\GameStateDto.class
 it\uniupo\pissir\bitpub\matchservice\dto\MatchDto.class

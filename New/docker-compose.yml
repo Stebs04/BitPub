@@ -106,6 +106,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - MQTT_CLIENT_ID=match-service-docker
     networks:
       - bitpub-network
 
@@ -158,12 +159,14 @@ services:
     build: ./BitPub-Edge
     container_name: bitpub-edge
     ports:
-      - "8089:8089"
+      - "8089:8085"
     depends_on:
       - mosquitto
+      - match-service
     environment:
-      - MQTT_BROKER_URL=tcp://mosquitto:1883
-      - CLOUD_GATEWAY_URL=http://gateway-service:8080
+      - MQTT_LOCAL_BROKER_URL=tcp://mosquitto:1883
+      - MQTT_LOCAL_CLIENT_ID=edge-node-docker
+      - CLOUD_MATCH_SERVICE_URL=http://match-service:8085
     networks:
       - bitpub-network
 

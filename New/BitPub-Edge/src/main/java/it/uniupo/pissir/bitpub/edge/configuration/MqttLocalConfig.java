@@ -45,7 +45,7 @@ public class MqttLocalConfig {
     @Bean
     public MessageProducer inbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter(clientId, mqttClientFactory(), topicSensors);
+                new MqttPahoMessageDrivenChannelAdapter(clientId + "-" + java.util.UUID.randomUUID().toString(), mqttClientFactory(), topicSensors);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
