@@ -6,6 +6,17 @@ spring:
     name: gateway-service
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
       routes:
         - id: auth-service
           uri: http://auth-service:8081
@@ -16,8 +27,6 @@ spring:
           uri: http://user-service:8082
           predicates:
             - Path=/api/v1/users/**
-          filters:
-            - name: JwtAuthenticationFilter
 
         - id: locale-service
           uri: http://locale-service:8083

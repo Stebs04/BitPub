@@ -28,3 +28,7 @@ mqtt:
 statistics:
   service:
     url: ${STATISTICS_SERVICE_URL:http://localhost:8087}
+
+user:
+  service:
+    url: ${USER_SERVICE_URL:http://localhost:8082}

@@ -50,6 +50,29 @@ public class MatchServiceImpl implements MatchService {
     @Value("${statistics.service.url:http://localhost:8087}")
     private String statisticsServiceUrl;
 
+    @Value("${user.service.url:http://localhost:8082}")
+    private String userServiceUrl;
+
+    private String ensureUser(String username) {
+        try {
+            Map<String, String> request = Map.of("username", username);
+            String body = objectMapper.writeValueAsString(request);
+            Map response = RestClient.create(userServiceUrl)
+                    .post()
+                    .uri("/api/v1/users/ensure")
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+            if (response != null && response.containsKey("id")) {
+                return response.get("id").toString();
+            }
+        } catch (Exception e) {
+            log.error("Failed to ensure user in user-service for username: {}", username, e);
+        }
+        return null;
+    }
+
     @Override
     @Transactional
     public MatchDto startMatch(StartMatchRequestDto request) {
@@ -68,12 +91,21 @@ public class MatchServiceImpl implements MatchService {
 
         Match savedMatch = matchRepository.save(match);
 
-        List<Team> teams = request.getTeams().stream().map(t -> Team.builder()
+        List<Team> teams = request.getTeams().stream().map(t -> {
+            List<String> playerIds = new ArrayList<>();
+            if (t.getName() != null) {
+                String userId = ensureUser(t.getName());
+                if (userId != null) {
+                    playerIds.add(userId);
+                }
+            }
+            return Team.builder()
                 .name(t.getName())
-                .playerIds(t.getPlayerIds())
+                .playerIds(playerIds)
                 .match(savedMatch)
                 .score(0)
-                .build()).collect(Collectors.toList());
+                .build();
+        }).collect(Collectors.toList());
 
         teamRepository.saveAll(teams);
         savedMatch.setTeams(teams);
@@ -151,8 +183,21 @@ public class MatchServiceImpl implements MatchService {
                 if (event.getPayload().containsKey("teamBName")) teamBName = event.getPayload().get("teamBName").toString();
             }
 
-            match.getTeams().add(Team.builder().name(teamAName).score(0).match(match).build());
-            match.getTeams().add(Team.builder().name(teamBName).score(0).match(match).build());
+            String userAId = ensureUser(teamAName);
+            String userBId = ensureUser(teamBName);
+
+            match.getTeams().add(Team.builder()
+                .name(teamAName)
+                .playerIds(userAId != null ? new ArrayList<>(List.of(userAId)) : new ArrayList<>())
+                .score(0)
+                .match(match)
+                .build());
+            match.getTeams().add(Team.builder()
+                .name(teamBName)
+                .playerIds(userBId != null ? new ArrayList<>(List.of(userBId)) : new ArrayList<>())
+                .score(0)
+                .match(match)
+                .build());
 
             teamRepository.saveAll(match.getTeams());
             activeMatchOpt = Optional.of(match);

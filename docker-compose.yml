@@ -109,6 +109,7 @@ services:
       - MQTT_BROKER_URL=tcp://mosquitto:1883
       - MQTT_CLIENT_ID=match-service-docker
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
+      - USER_SERVICE_URL=http://user-service:8082
     networks:
       - bitpub-network
 

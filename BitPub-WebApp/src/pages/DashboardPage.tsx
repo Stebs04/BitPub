@@ -4,37 +4,27 @@ import api from '../services/api';
 const DashboardPage: React.FC = () => {
   const [activeMatches, setActiveMatches] = useState<number>(0);
   const [activeTournaments, setActiveTournaments] = useState<number>(0);
-  const [onlinePlayers, setOnlinePlayers] = useState<number>(0);
+  const [registeredPlayers, setRegisteredPlayers] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [matchesRes, tournamentsRes] = await Promise.all([
+        const [matchesRes, tournamentsRes, usersRes] = await Promise.all([
           api.get('http://localhost:8080/api/matches/active'),
-          api.get('/tournaments/active')
+          api.get('/tournaments/active'),
+          api.get('/users')
         ]);
         
         const allMatches = matchesRes.data || [];
         const activeMatchesList = allMatches.filter((m: any) => m.status === 'IN_PROGRESS');
         
-        let calculatedOnlinePlayers = 0;
-        activeMatchesList.forEach((match: any) => {
-          if (match.teams && Array.isArray(match.teams)) {
-            match.teams.forEach((team: any) => {
-              if (team.playerIds && Array.isArray(team.playerIds) && team.playerIds.length > 0) {
-                calculatedOnlinePlayers += team.playerIds.length;
-              } else {
-                // Anonymous match (e.g., from simulator), assume 1 player per team
-                calculatedOnlinePlayers += 1;
-              }
-            });
-          }
-        });
+        const allUsers = usersRes.data || [];
+        const playersCount = allUsers.filter((u: any) => u.role === 'PLAYER').length;
         
         setActiveMatches(activeMatchesList.length);
         setActiveTournaments(tournamentsRes.data?.length || 0);
-        setOnlinePlayers(calculatedOnlinePlayers);
+        setRegisteredPlayers(playersCount);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -67,8 +57,8 @@ const DashboardPage: React.FC = () => {
           <p className="text-4xl font-bold text-accent-pink">{activeTournaments}</p>
         </div>
         <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold text-white mb-2">Giocatori Online</h2>
-          <p className="text-4xl font-bold text-emerald-400">{onlinePlayers}</p>
+          <h2 className="text-xl font-semibold text-white mb-2">Giocatori Registrati</h2>
+          <p className="text-4xl font-bold text-emerald-400">{registeredPlayers}</p>
         </div>
       </div>
     </div>
