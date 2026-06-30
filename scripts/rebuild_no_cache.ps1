@@ -16,6 +16,10 @@ Write-Host "`n[1/4] Arresto dei container attuali..."
 docker-compose down
 
 Write-Host "`n[2/4] Compilazione dei moduli Maven (salto i test)..."
+# Build Parent
+Write-Host "--> Compilazione Parent POM..."
+mvn clean install -N -DskipTests
+
 # Build Common
 Write-Host "--> Compilazione BitPub-Common..."
 Push-Location .\BitPub-Common
