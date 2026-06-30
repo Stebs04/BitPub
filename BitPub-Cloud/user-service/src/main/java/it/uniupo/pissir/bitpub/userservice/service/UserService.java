@@ -40,6 +40,21 @@ public class UserService {
         return mapToDto(savedUser);
     }
 
+    public UserDto ensureUser(String username) {
+        return userRepository.findByUsername(username)
+                .map(this::mapToDto)
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .username(username)
+                            .passwordHash("arcade_password_" + java.util.UUID.randomUUID().toString().substring(0, 8))
+                            .email(username.toLowerCase().replaceAll("\\s+", "") + "@bitpub.local")
+                            .role("PLAYER")
+                            .createdAt(Instant.now())
+                            .build();
+                    return mapToDto(userRepository.save(newUser));
+                });
+    }
+
     public UserDto getUserById(String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
