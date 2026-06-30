@@ -51,17 +51,25 @@ Il progetto è interamente containerizzato e può essere avviato in locale utili
    cd BitPub
    ```
 
-2. **Avviare l'infrastruttura con Docker Compose**:
-   Il file `docker-compose.yml` avvierà automaticamente il database PostgreSQL, il broker Mosquitto, tutti i microservizi Cloud, l'Edge Node e la WebApp frontend.
-   ```bash
-   docker-compose up --build -d
+2. **Avviare l'infrastruttura**:
+   Utilizzare lo script `rebuild_no_cache` per avviare automaticamente il database PostgreSQL, il broker Mosquitto, tutti i microservizi Cloud, l'Edge Node e la WebApp frontend.
+   ```powershell
+   .\scripts\rebuild_no_cache.ps1
    ```
 
 3. **Accesso ai Servizi**:
-   - **Interfaccia Web**: [http://localhost:3000](http://localhost:3000)
+   - Una volta avviato, per l'**Interfaccia Web** andare su: [http://localhost:3000](http://localhost:3000)
    - **API Gateway**: `http://localhost:8080`
    - **Broker MQTT**: Porte `1883` (TCP) e `9001` (WebSocket)
    - **Database PostgreSQL**: Porta `5432`
+
+4. **Avviare il Simulator Panel**:
+   Per aprire il pannello dei simulatori, navigare nella cartella `BitPub-Simulators` ed eseguire il seguente comando:
+   ```bash
+   cd BitPub-Simulators
+   mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
+   ```
+   Una volta avviato, la pagina dei simulatori sarà accessibile all'indirizzo: [http://localhost:8090](http://localhost:8090)
 
 ## 📚 Documentazione
 Per ulteriori dettagli tecnici sulle API, diagrammi architetturali e configurazioni specifiche per il broker MQTT, fare riferimento ai materiali presenti all'interno della cartella `/docs`.
