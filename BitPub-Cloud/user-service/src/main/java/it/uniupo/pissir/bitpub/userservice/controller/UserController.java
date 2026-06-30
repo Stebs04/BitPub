@@ -23,6 +23,12 @@ public class UserController {
         return userService.createUser(request);
     }
 
+    @PostMapping("/ensure")
+    @ResponseStatus(HttpStatus.OK)
+    public UserDto ensureUser(@Valid @RequestBody it.uniupo.pissir.bitpub.userservice.dto.EnsureUserRequest request) {
+        return userService.ensureUser(request.getUsername());
+    }
+
     @GetMapping("/{id}")
     public UserDto getUserById(@PathVariable("id") String id) {
         return userService.getUserById(id);
