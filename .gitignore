@@ -3,3 +3,10 @@
 *.jar.original
 *.class
 *.lst
+BitPub-Simulators/demo-control-panel/target/classes/application.yml
+BitPub-Simulators/demo-control-panel/target/classes/static/favicon.svg
+BitPub-Simulators/demo-control-panel/target/classes/static/index.html
+BitPub-Simulators/demo-control-panel/target/classes/static/icons.svg
+BitPub-Simulators/demo-control-panel/target/classes/static/assets/index-C8DJO2bF.js
+BitPub-Simulators/demo-control-panel/target/classes/static/assets/index-C3G0mlcE.css
+BitPub-Simulators/demo-control-panel/target/maven-archiver/pom.properties
