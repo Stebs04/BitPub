@@ -42,7 +42,10 @@ public class MatchServiceImpl implements MatchService {
     private final TeamRepository teamRepository;
     private final SensorEventLogRepository sensorEventLogRepository;
     private final ObjectMapper objectMapper;
-    private final MessageChannel mqttOutboundChannel;
+    
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("mqttOutboundChannel")
+    private MessageChannel mqttOutboundChannel;
 
     @Value("${statistics.service.url:http://localhost:8087}")
     private String statisticsServiceUrl;
@@ -99,10 +102,19 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public MatchDto getMatch(String matchId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
         return mapToDto(match);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchDto> getActiveMatches() {
+        return matchRepository.findByStatus("IN_PROGRESS").stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -305,7 +317,7 @@ public class MatchServiceImpl implements MatchService {
                 .map(t -> TeamResponseDto.builder()
                         .id(t.getId())
                         .name(t.getName())
-                        .playerIds(t.getPlayerIds())
+                        .playerIds(t.getPlayerIds() != null ? new java.util.ArrayList<>(t.getPlayerIds()) : new java.util.ArrayList<>())
                         .score(t.getScore())
                         .build())
                 .collect(Collectors.toList());

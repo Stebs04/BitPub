@@ -58,6 +58,10 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    public long countTotalUsers() {
+        return userRepository.count();
+    }
+
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())

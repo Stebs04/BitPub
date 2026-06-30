@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/matches")
@@ -22,6 +23,11 @@ public class MatchController {
     public ResponseEntity<MatchDto> startMatch(@RequestBody StartMatchRequestDto request) {
         MatchDto match = matchService.startMatch(request);
         return new ResponseEntity<>(match, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/active")
+    public ResponseEntity<List<MatchDto>> getActiveMatches() {
+        return ResponseEntity.ok(matchService.getActiveMatches());
     }
 
     @GetMapping("/{id}")

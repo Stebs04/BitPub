@@ -37,4 +37,9 @@ public class UserController {
     public List<UserDto> getAllUsers() {
         return userService.getAllUsers();
     }
+
+    @GetMapping("/count")
+    public long countTotalUsers() {
+        return userService.countTotalUsers();
+    }
 }
