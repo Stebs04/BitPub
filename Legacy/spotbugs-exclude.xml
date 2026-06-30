@@ -1,6 +1,0 @@
-<FindBugsFilter>
-    <!-- Exclude representation exposure warnings since they are extremely noisy and Lombok fields/getters/setters trigger them on mutable types -->
-    <Match>
-        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
-    </Match>
-</FindBugsFilter>
