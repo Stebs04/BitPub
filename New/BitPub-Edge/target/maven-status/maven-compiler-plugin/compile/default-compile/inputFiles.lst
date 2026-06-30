@@ -1,8 +1,0 @@
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\BitPubEdgeApplication.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\configuration\CloudClientConfig.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\configuration\MqttLocalConfig.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\model\BufferedEvent.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\repository\BufferedEventRepository.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\scheduler\OfflineSyncScheduler.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\service\EventForwardingService.java
-C:\Users\DeaDS\Documents\Programming Project\BitPub\New\BitPub-Edge\src\main\java\it\uniupo\pissir\bitpub\edge\service\RuleEngineService.java

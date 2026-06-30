@@ -1,9 +1,0 @@
-it\uniupo\pissir\bitpub\edge\configuration\CloudClientConfig.class
-it\uniupo\pissir\bitpub\edge\model\BufferedEvent$BufferedEventBuilder.class
-it\uniupo\pissir\bitpub\edge\BitPubEdgeApplication.class
-it\uniupo\pissir\bitpub\edge\model\BufferedEvent.class
-it\uniupo\pissir\bitpub\edge\service\EventForwardingService.class
-it\uniupo\pissir\bitpub\edge\repository\BufferedEventRepository.class
-it\uniupo\pissir\bitpub\edge\configuration\MqttLocalConfig.class
-it\uniupo\pissir\bitpub\edge\service\RuleEngineService.class
-it\uniupo\pissir\bitpub\edge\scheduler\OfflineSyncScheduler.class

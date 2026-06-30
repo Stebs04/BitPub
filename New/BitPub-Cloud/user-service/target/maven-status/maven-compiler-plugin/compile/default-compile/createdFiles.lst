@@ -1,9 +1,0 @@
-it\uniupo\pissir\bitpub\userservice\dto\CreateUserRequest.class
-it\uniupo\pissir\bitpub\userservice\controller\UserController.class
-it\uniupo\pissir\bitpub\userservice\domain\User$UserBuilder.class
-it\uniupo\pissir\bitpub\userservice\dto\UserDto$UserDtoBuilder.class
-it\uniupo\pissir\bitpub\userservice\repository\UserRepository.class
-it\uniupo\pissir\bitpub\userservice\UserServiceApplication.class
-it\uniupo\pissir\bitpub\userservice\dto\UserDto.class
-it\uniupo\pissir\bitpub\userservice\domain\User.class
-it\uniupo\pissir\bitpub\userservice\service\UserService.class
