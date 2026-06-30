@@ -23,3 +23,8 @@ mqtt:
   client-id: ${MQTT_CLIENT_ID:match-service-${random.uuid}}
   topic:
     sensors: bitpub/sensors/#
+
+# URL verso statistics-service per aggiornare la leaderboard a fine partita
+statistics:
+  service:
+    url: ${STATISTICS_SERVICE_URL:http://localhost:8087}

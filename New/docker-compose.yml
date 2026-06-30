@@ -101,12 +101,14 @@ services:
     depends_on:
       - postgres
       - mosquitto
+      - statistics-service
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - MQTT_BROKER_URL=tcp://mosquitto:1883
       - MQTT_CLIENT_ID=match-service-docker
+      - STATISTICS_SERVICE_URL=http://statistics-service:8087
     networks:
       - bitpub-network
 

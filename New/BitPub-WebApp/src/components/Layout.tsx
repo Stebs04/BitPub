@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut } from 'lucide-react';
+import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity } from 'lucide-react';
 import { cn } from './Button';
 
 const Layout: React.FC = () => {
@@ -16,9 +16,11 @@ const Layout: React.FC = () => {
 
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/live', icon: Activity, label: 'Live Match' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/locales', icon: MapPin, label: 'Locali' },
   ];
+
 
   return (
     <div className="flex h-screen bg-brand-dark overflow-hidden">

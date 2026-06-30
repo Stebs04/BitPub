@@ -1,0 +1,18 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: statistics-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/bitpub_db}
+    username: ${SPRING_DATASOURCE_USERNAME:bitpub}
+    password: ${SPRING_DATASOURCE_PASSWORD:bitpub_password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true

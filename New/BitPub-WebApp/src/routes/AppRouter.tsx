@@ -4,6 +4,7 @@ import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import LeaderboardPage from '../pages/LeaderboardPage';
 import LocalesPage from '../pages/LocalesPage';
+import LiveMatchView from '../pages/LiveMatchView';
 import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
 
@@ -20,7 +21,7 @@ const AppRouter: React.FC = () => {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        
+
         {/* Protected Routes */}
         <Route
           path="/"
@@ -33,8 +34,9 @@ const AppRouter: React.FC = () => {
           <Route index element={<DashboardPage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="locales" element={<LocalesPage />} />
+          <Route path="live" element={<LiveMatchView />} />
         </Route>
-        
+
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

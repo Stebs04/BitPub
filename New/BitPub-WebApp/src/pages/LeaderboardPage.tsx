@@ -1,54 +1,255 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
-import { Trophy } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal } from 'lucide-react';
+
+// Direct call to statistics-service (bypasses gateway for simplicity in Kiosk context)
+const STATS_BASE = 'http://localhost:8087/api/v1/statistics';
+
+interface LeaderboardEntry {
+  id: string;
+  playerName: string;
+  gameTypeId: string;
+  wins: number;
+  losses: number;
+  totalPoints: number;
+  matchesPlayed: number;
+  lastUpdated: string | null;
+}
+
+type GameTab = 'biliardo' | 'calciobalilla' | 'freccette';
+
+const TABS: { id: GameTab; label: string; icon: React.ReactNode; color: string; accentBg: string; accentBorder: string }[] = [
+  {
+    id: 'calciobalilla',
+    label: 'Calciobalilla',
+    icon: <Gamepad2 className="w-4 h-4" />,
+    color: 'text-blue-400',
+    accentBg: 'bg-blue-500/10',
+    accentBorder: 'border-blue-500/50',
+  },
+  {
+    id: 'biliardo',
+    label: 'Biliardo',
+    icon: <CircleDashed className="w-4 h-4" />,
+    color: 'text-amber-400',
+    accentBg: 'bg-amber-500/10',
+    accentBorder: 'border-amber-500/50',
+  },
+  {
+    id: 'freccette',
+    label: 'Freccette',
+    icon: <Target className="w-4 h-4" />,
+    color: 'text-rose-400',
+    accentBg: 'bg-rose-500/10',
+    accentBorder: 'border-rose-500/50',
+  },
+];
+
+const RANK_COLORS: Record<number, string> = {
+  0: 'text-yellow-400',
+  1: 'text-slate-300',
+  2: 'text-orange-400',
+};
+
+const RANK_ICONS: Record<number, string> = {
+  0: '🥇',
+  1: '🥈',
+  2: '🥉',
+};
 
 const LeaderboardPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<GameTab>('calciobalilla');
+  const [data, setData] = useState<Record<GameTab, LeaderboardEntry[]>>({
+    biliardo: [],
+    calciobalilla: [],
+    freccette: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  const fetchLeaderboard = useCallback(async (gameTypeId: GameTab) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${STATS_BASE}/leaderboard/${gameTypeId}`);
+      if (!res.ok) throw new Error('Network error');
+      const entries: LeaderboardEntry[] = await res.json();
+      setData(prev => ({ ...prev, [gameTypeId]: entries }));
+      setLastRefresh(new Date());
+    } catch {
+      // Keep stale data on error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch on tab change and on mount
+  useEffect(() => {
+    fetchLeaderboard(activeTab);
+  }, [activeTab, fetchLeaderboard]);
+
+  const currentEntries = data[activeTab];
+  const currentTab = TABS.find(t => t.id === activeTab)!;
+
   return (
-    <div className="p-8 animate-slide-up">
-      <div className="flex items-center gap-3 mb-8">
-        <Trophy className="w-8 h-8 text-brand-light" />
-        <h1 className="text-3xl font-bold text-white">Leaderboard Globale</h1>
+    <div className="p-6 md:p-8 animate-slide-up">
+      {/* Page header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-br from-yellow-500 to-orange-600 p-2.5 rounded-xl shadow-lg shadow-orange-900/30">
+            <Trophy className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Leaderboard</h1>
+            <p className="text-slate-400 text-sm">Classifiche reali per gioco</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {lastRefresh && (
+            <span className="text-xs text-slate-500">
+              Aggiornato: {lastRefresh.toLocaleTimeString('it-IT')}
+            </span>
+          )}
+          <button
+            id="leaderboard-refresh"
+            onClick={() => fetchLeaderboard(activeTab)}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm font-medium text-slate-300 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Aggiorna
+          </button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Giocatori (Biliardo)</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Game tabs */}
+      <div className="flex gap-2 mb-6">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            id={`leaderboard-tab-${tab.id}`}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+              activeTab === tab.id
+                ? `${tab.accentBg} ${tab.accentBorder} ${tab.color}`
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
+            }`}
+          >
+            <span className={activeTab === tab.id ? tab.color : ''}>{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Leaderboard table */}
+      <div className="glass-panel overflow-hidden">
+        {/* Table header */}
+        <div className={`px-6 py-4 border-b border-white/5 flex items-center gap-3 ${currentTab.accentBg}`}>
+          <span className={currentTab.color}>{currentTab.icon}</span>
+          <h2 className="text-lg font-semibold text-white">{currentTab.label} — Top Giocatori</h2>
+          {currentEntries.length > 0 && (
+            <span className="ml-auto text-xs text-slate-400">{currentEntries.length} giocatori</span>
+          )}
+        </div>
+
+        {/* Empty state */}
+        {!loading && currentEntries.length === 0 && (
+          <div className="py-16 text-center">
+            <Medal className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+            <p className="text-slate-400 text-lg font-semibold">Nessun dato disponibile</p>
+            <p className="text-slate-500 text-sm mt-2">
+              Gioca una partita per apparire in classifica!
+            </p>
+          </div>
+        )}
+
+        {/* Table */}
+        {currentEntries.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 text-slate-400">
-                  <th className="py-4 px-4 font-medium">Pos</th>
-                  <th className="py-4 px-4 font-medium">Giocatore</th>
-                  <th className="py-4 px-4 font-medium">Punteggio</th>
-                  <th className="py-4 px-4 font-medium">Vittorie</th>
+                <tr className="border-b border-white/5">
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-16">Pos</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Giocatore</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Vittorie</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Sconfitte</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Punti Totali</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Partite</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Win Rate</th>
                 </tr>
               </thead>
-              <tbody className="text-slate-200">
-                <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-4 px-4 text-brand-light font-bold">1</td>
-                  <td className="py-4 px-4">Mario Rossi</td>
-                  <td className="py-4 px-4 font-semibold text-emerald-400">12,450</td>
-                  <td className="py-4 px-4">145</td>
-                </tr>
-                <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-4 px-4 text-slate-300 font-bold">2</td>
-                  <td className="py-4 px-4">Luigi Verdi</td>
-                  <td className="py-4 px-4 font-semibold text-emerald-400">11,200</td>
-                  <td className="py-4 px-4">132</td>
-                </tr>
-                <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="py-4 px-4 text-orange-400 font-bold">3</td>
-                  <td className="py-4 px-4">Anna Bianchi</td>
-                  <td className="py-4 px-4 font-semibold text-emerald-400">10,850</td>
-                  <td className="py-4 px-4">110</td>
-                </tr>
+              <tbody className="divide-y divide-white/5">
+                {currentEntries.map((entry, idx) => {
+                  const winRate = entry.matchesPlayed > 0
+                    ? Math.round((entry.wins / entry.matchesPlayed) * 100)
+                    : 0;
+                  const rankColor = RANK_COLORS[idx] ?? 'text-slate-300';
+                  const rankIcon = RANK_ICONS[idx];
+
+                  return (
+                    <tr
+                      key={entry.id}
+                      className="hover:bg-white/5 transition-colors group"
+                    >
+                      {/* Rank */}
+                      <td className="py-4 px-4">
+                        <div className={`text-xl font-black ${rankColor}`}>
+                          {rankIcon ?? <span className="text-base text-slate-500">#{idx + 1}</span>}
+                        </div>
+                      </td>
+
+                      {/* Player name */}
+                      <td className="py-4 px-4">
+                        <span className="font-semibold text-white text-base">{entry.playerName}</span>
+                      </td>
+
+                      {/* Wins */}
+                      <td className="py-4 px-4 text-center">
+                        <span className="inline-flex items-center justify-center w-10 h-10 bg-emerald-500/10 text-emerald-400 font-bold text-sm rounded-full">
+                          {entry.wins}
+                        </span>
+                      </td>
+
+                      {/* Losses */}
+                      <td className="py-4 px-4 text-center">
+                        <span className="inline-flex items-center justify-center w-10 h-10 bg-red-500/10 text-red-400 font-bold text-sm rounded-full">
+                          {entry.losses}
+                        </span>
+                      </td>
+
+                      {/* Total points */}
+                      <td className="py-4 px-4 text-center">
+                        <span className="font-bold text-brand-light text-lg">
+                          {entry.totalPoints.toLocaleString('it-IT')}
+                        </span>
+                      </td>
+
+                      {/* Matches played */}
+                      <td className="py-4 px-4 text-center text-slate-400 font-medium">
+                        {entry.matchesPlayed}
+                      </td>
+
+                      {/* Win rate */}
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`text-sm font-bold ${winRate >= 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {winRate}%
+                          </span>
+                          <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${winRate >= 50 ? 'bg-emerald-500' : 'bg-slate-500'}`}
+                              style={{ width: `${winRate}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };
