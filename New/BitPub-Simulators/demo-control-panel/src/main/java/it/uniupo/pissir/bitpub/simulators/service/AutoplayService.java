@@ -27,8 +27,9 @@ public class AutoplayService {
     public void toggleAutoplay(String gameType, String localeId, String gameInstanceId, boolean enabled) {
         if (enabled) {
             activeAutoplays.put(gameInstanceId, new AutoplayState(gameType, localeId, gameInstanceId));
-            // Start the first match
-            triggerRestEvent(gameType, localeId, gameInstanceId, "MATCH_START", Map.of());
+            // Start the first match with recognizable autoplay team names
+            triggerRestEvent(gameType, localeId, gameInstanceId, "MATCH_START",
+                    Map.of("teamAName", "Auto-Red", "teamBName", "Auto-Blue"));
         } else {
             AutoplayState state = activeAutoplays.remove(gameInstanceId);
             if (state != null) {
@@ -137,7 +138,8 @@ public class AutoplayService {
         state.scoreB.set(0);
         state.counter.set(0);
 
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "MATCH_START", Map.of());
+        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "MATCH_START",
+                Map.of("teamAName", "Auto-Red", "teamBName", "Auto-Blue"));
     }
 
     private void triggerRestEvent(String gameType, String localeId, String gameInstanceId, String eventType, Map<String, Object> payload) {

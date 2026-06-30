@@ -102,7 +102,10 @@ public class SimulatorController {
                 if ("GOAL".equalsIgnoreCase(eventType)) {
                     event = foosballGenerator.generateGoalEvent(gameInstanceId, matchId, (String) payload.getOrDefault("team", "RED"));
                 } else if ("MATCH_START".equalsIgnoreCase(eventType)) {
-                    event = foosballGenerator.generateMatchStartEvent(gameInstanceId, matchId);
+                    Map<String, Object> eventPayload = new HashMap<>();
+                    eventPayload.put("teamAName", payload.getOrDefault("teamAName", "Auto-Red"));
+                    eventPayload.put("teamBName", payload.getOrDefault("teamBName", "Auto-Blue"));
+                    event = SensorEvent.builder().eventId(UUID.randomUUID()).gameInstanceId(gameInstanceId).matchId(matchId).sensorType("MATCH_START").timestamp(Instant.now()).payload(eventPayload).build();
                 } else if ("MATCH_END".equalsIgnoreCase(eventType)) {
                     event = foosballGenerator.generateMatchEndEvent(gameInstanceId, matchId);
                 }
@@ -113,7 +116,10 @@ public class SimulatorController {
                     int multiplier = payload.containsKey("multiplier") ? Integer.parseInt(payload.get("multiplier").toString()) : 1;
                     event = dartGenerator.generateDartHitEvent(gameInstanceId, matchId, score, multiplier);
                 } else if ("MATCH_START".equalsIgnoreCase(eventType)) {
-                    event = dartGenerator.generateMatchStartEvent(gameInstanceId, matchId);
+                    Map<String, Object> eventPayload = new HashMap<>();
+                    eventPayload.put("teamAName", payload.getOrDefault("teamAName", "Auto-Red"));
+                    eventPayload.put("teamBName", payload.getOrDefault("teamBName", "Auto-Blue"));
+                    event = SensorEvent.builder().eventId(UUID.randomUUID()).gameInstanceId(gameInstanceId).matchId(matchId).sensorType("MATCH_START").timestamp(Instant.now()).payload(eventPayload).build();
                 } else if ("MATCH_END".equalsIgnoreCase(eventType)) {
                     event = dartGenerator.generateMatchEndEvent(gameInstanceId, matchId);
                 }
@@ -135,7 +141,10 @@ public class SimulatorController {
                             .payload(Map.of("reason", payload.getOrDefault("reason", "scratch")))
                             .build();
                 } else if ("MATCH_START".equalsIgnoreCase(eventType)) {
-                    event = billiardsGenerator.generateMatchStartEvent(gameInstanceId, matchId);
+                    Map<String, Object> eventPayload = new HashMap<>();
+                    eventPayload.put("teamAName", payload.getOrDefault("teamAName", "Auto-Red"));
+                    eventPayload.put("teamBName", payload.getOrDefault("teamBName", "Auto-Blue"));
+                    event = SensorEvent.builder().eventId(UUID.randomUUID()).gameInstanceId(gameInstanceId).matchId(matchId).sensorType("MATCH_START").timestamp(Instant.now()).payload(eventPayload).build();
                 } else if ("MATCH_END".equalsIgnoreCase(eventType)) {
                     event = billiardsGenerator.generateMatchEndEvent(gameInstanceId, matchId);
                 }

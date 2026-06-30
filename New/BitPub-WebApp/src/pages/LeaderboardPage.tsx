@@ -17,6 +17,14 @@ interface LeaderboardEntry {
 
 type GameTab = 'biliardo' | 'calciobalilla' | 'freccette';
 
+// Maps frontend Italian tab IDs → backend English gameTypeIds stored in DB
+// The match-service derives gameTypeId from gameInstanceId (e.g. "foosball-1" → "foosball")
+const GAME_TYPE_MAP: Record<GameTab, string> = {
+  calciobalilla: 'foosball',
+  freccette:     'darts',
+  biliardo:      'billiards',
+};
+
 const TABS: { id: GameTab; label: string; icon: React.ReactNode; color: string; accentBg: string; accentBorder: string }[] = [
   {
     id: 'calciobalilla',
@@ -69,7 +77,9 @@ const LeaderboardPage: React.FC = () => {
   const fetchLeaderboard = useCallback(async (gameTypeId: GameTab) => {
     setLoading(true);
     try {
-      const res = await fetch(`${STATS_BASE}/leaderboard/${gameTypeId}`);
+      // Translate the Italian UI tab ID to the English backend ID
+      const backendId = GAME_TYPE_MAP[gameTypeId];
+      const res = await fetch(`${STATS_BASE}/leaderboard/${backendId}`);
       if (!res.ok) throw new Error('Network error');
       const entries: LeaderboardEntry[] = await res.json();
       setData(prev => ({ ...prev, [gameTypeId]: entries }));
