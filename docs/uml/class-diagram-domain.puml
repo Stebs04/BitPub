@@ -1,0 +1,93 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "BitPub Domain Model" {
+
+    class User {
+        - id: UUID
+        - username: String
+        - email: String
+        - role: Role
+        + login()
+        + updateProfile()
+    }
+
+    enum Role {
+        PLAYER
+        LOCALE_ADMIN
+        PLATFORM_ADMIN
+    }
+
+    class Locale {
+        - id: UUID
+        - name: String
+        - address: String
+        - ownerId: UUID
+        + addMachine()
+    }
+
+    class Machine {
+        - id: UUID
+        - serialNumber: String
+        - status: MachineStatus
+        - gameType: GameType
+    }
+
+    enum MachineStatus {
+        ACTIVE
+        MAINTENANCE
+        OFFLINE
+    }
+
+    class GameType {
+        - id: UUID
+        - name: String (es. Calciobalilla, Freccette)
+        - rules: JSON
+    }
+
+    class Match {
+        - id: UUID
+        - machineId: UUID
+        - startTime: LocalDateTime
+        - endTime: LocalDateTime
+        - status: MatchStatus
+        - currentScore: Map<Team, Integer>
+        + startGame()
+        + addEvent(SensorEvent)
+        + endGame()
+    }
+
+    enum MatchStatus {
+        PENDING
+        IN_PROGRESS
+        FINISHED
+    }
+
+    class SensorEvent {
+        - eventId: UUID
+        - matchId: UUID
+        - eventType: String (es. GOAL, DART_HIT)
+        - timestamp: Instant
+        - payload: JSON
+    }
+
+    class Tournament {
+        - id: UUID
+        - name: String
+        - gameType: GameType
+        - startDate: LocalDateTime
+        - endDate: LocalDateTime
+        + enrollPlayer(User)
+    }
+
+    User "1" -- "0..*" Locale : owns (if LOCALE_ADMIN)
+    Locale "1" *-- "0..*" Machine
+    Machine "1" -- "1" GameType
+    Machine "1" -- "0..*" Match
+    Match "1" *-- "0..*" SensorEvent
+    Tournament "0..*" -- "1" GameType
+    User "0..*" -- "0..*" Tournament : enrolls
+    User "0..*" -- "0..*" Match : plays
+}
+
+@enduml

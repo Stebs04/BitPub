@@ -1,78 +1,12 @@
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-.kotlin
-
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
-*.iml
-*.ipr
-
-### Eclipse ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
-.vscode/
-
-### Mac OS ###
-.DS_Store
-
-# IntelliJ
-.idea/
-*.iml
-*.iws
-*.ipr
-
-# Maven
-target/
-*/target/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# =========================
-# Sicurezza e Certificati
-# =========================
-# Ignora TUTTE le chiavi private in qualsiasi cartella del progetto
-*.key
-
-BitPub-Security/certs/
-.aider*
-
-# Log files
-BitPub-Cloud/logs/
-
-BitPub-Cloud-Admin-*
-
-BitPub/BitPub-Edge/logs/edge.log
-BitPub/BitPub-Security/.devcontainer/devcontainer.json
-BitPub/.devcontainer/devcontainer.json
-.devcontainer/devcontainer.json
-edge_events.db
-edge_events.db.wal.0
-logs/edge.log
-game-service-startup.log
-stats-err.txt
-stats-log.txt
+*SNAPSHOT.jar
+*snapshot.jar
+*.jar.original
+*.class
+*.lst
+BitPub-Simulators/demo-control-panel/target/classes/application.yml
+BitPub-Simulators/demo-control-panel/target/classes/static/favicon.svg
+BitPub-Simulators/demo-control-panel/target/classes/static/index.html
+BitPub-Simulators/demo-control-panel/target/classes/static/icons.svg
+BitPub-Simulators/demo-control-panel/target/classes/static/assets/index-C8DJO2bF.js
+BitPub-Simulators/demo-control-panel/target/classes/static/assets/index-C3G0mlcE.css
+BitPub-Simulators/demo-control-panel/target/maven-archiver/pom.properties

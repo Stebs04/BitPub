@@ -1,0 +1,57 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Container Diagram for BitPub System
+
+Person(player, "Giocatore", "Gioca ai giochi, controlla statistiche e tornei tramite Web App")
+Person(admin, "Admin Locale / Piattaforma", "Gestisce macchine, configurazioni e controlla lo stato")
+
+System_Boundary(c1, "BitPub Cloud (AWS / On-Premise)") {
+    Container(webapp, "BitPub WebApp", "React, TypeScript, Vite", "Interfaccia utente principale per tutti i ruoli")
+    
+    Container(gateway, "API Gateway", "Spring Cloud Gateway", "Punto di ingresso, routing e validazione JWT")
+    
+    Container(auth_service, "Auth Service", "Spring Boot", "Gestione autenticazione, emissione token JWT, integrazione OAuth2")
+    Container(user_service, "User Service", "Spring Boot", "Gestione profili utente e permessi")
+    Container(locale_service, "Locale Service", "Spring Boot", "Gestione locali fisici e macchine installate")
+    Container(catalog_service, "Game Catalog Service", "Spring Boot", "Regole di gioco, tipi di sensori supportati")
+    Container(match_service, "Match Service", "Spring Boot", "Motore Real-time, riceve eventi dai giochi, calcola punteggi")
+    Container(tournament_service, "Tournament Service", "Spring Boot", "Gestione tornei e iscrizioni")
+    Container(statistics_service, "Statistics Service", "Spring Boot", "Aggregazione dati, leaderboard")
+    Container(notification_service, "Notification Service", "Spring Boot", "Push Notifications (WebSocket/SSE) verso client")
+    
+    ContainerDb(db_auth, "Auth DB", "PostgreSQL", "Schema Auth")
+    ContainerDb(db_match, "Match DB", "PostgreSQL", "Schema Match")
+    ContainerDb(db_stats, "Stats DB", "PostgreSQL", "Schema Stats")
+}
+
+System_Boundary(c2, "BitPub Edge (Locale Fisico)") {
+    Container(edge_app, "BitPub Edge", "Spring Boot", "Riceve MQTT locale, bufferizza e inoltra al Cloud (Sincronizzazione via REST o Cloud MQTT)")
+    ContainerDb(db_edge, "Edge DB", "H2 / SQLite", "Persistenza offline eventi")
+    Container(kiosk, "BitPub JavaFX Kiosk", "JavaFX", "Schermo sopra il gioco (punteggio real-time, adv)")
+}
+
+System_Ext(simulators, "BitPub Simulators", "Simulatori Hardware (Calciobalilla, Freccette, Biliardo)")
+System_Ext(mqtt_broker, "Mosquitto Broker", "Eclipse Mosquitto (mTLS)", "Broker MQTT per comunicazione Edge e Simulatori")
+
+Rel(player, webapp, "Usa", "HTTPS")
+Rel(admin, webapp, "Usa", "HTTPS")
+
+Rel(webapp, gateway, "API Calls", "HTTPS/JSON")
+Rel(webapp, notification_service, "Riceve aggiornamenti", "WebSocket/SSE")
+
+Rel(gateway, auth_service, "Valida token/Login", "HTTPS")
+Rel(gateway, match_service, "Crea/Gestisci Partite", "HTTPS")
+Rel(gateway, statistics_service, "Richiede statistiche", "HTTPS")
+
+Rel(auth_service, db_auth, "Legge/Scrive", "JDBC")
+Rel(match_service, db_match, "Legge/Scrive", "JDBC")
+Rel(statistics_service, db_stats, "Legge/Scrive", "JDBC")
+
+Rel(simulators, mqtt_broker, "Pubblica eventi sensore", "MQTT")
+Rel(kiosk, mqtt_broker, "Sottoscrive eventi", "MQTT")
+Rel(edge_app, mqtt_broker, "Sottoscrive eventi sensore", "MQTT")
+Rel(edge_app, db_edge, "Bufferizza (Offline)", "JDBC")
+Rel(edge_app, gateway, "Inoltra eventi (Online)", "HTTPS/REST")
+
+@enduml
