@@ -1,0 +1,14 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+
+bitpub:
+  jwt:
+    secret: 1234567890123456789012345678901234567890123456789012345678901234
+    expirationMs: 86400000
+  services:
+    user-service:
+      url: http://localhost:8082

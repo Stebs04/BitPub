@@ -1,0 +1,34 @@
+@startuml
+actor "Simulatore (Calciobalilla)" as Sim
+participant "Mosquitto Broker\n(Local)" as MQTT
+participant "BitPub Edge\n(Local App)" as Edge
+database "H2/SQLite\n(Edge DB)" as DBEdge
+participant "API Gateway\n(Cloud)" as Gateway
+participant "Match Service\n(Cloud)" as Match
+participant "Notification Service\n(Cloud)" as Notification
+actor "Web App / Kiosk\n(Client)" as Client
+
+== Fase 1: Generazione Evento e Inoltro Edge ==
+Sim -> MQTT: Publish: topic `locale/1/machine/123/events/goal`\n(Payload: {team: "A", time: ...})
+MQTT -> Edge: Riceve evento in Sottoscrizione
+Edge -> Edge: Valida l'evento e arricchisce i metadati
+Edge -> DBEdge: Salva evento (Offline buffer)
+
+== Fase 2: Sincronizzazione Cloud ==
+Edge -> Gateway: POST /api/v1/matches/123/events (Event JSON)
+Gateway -> Match: Inoltra richiesta (con JWT validato o ApiKey Edge)
+
+Match -> Match: Processa l'evento (Aggiorna punteggio)
+Match -> DBEdge: (Nel Cloud): Persiste stato partita su Postgres
+
+== Fase 3: Notifica Real-time ==
+Match -> Notification: Publish: MatchUpdateEvent (RabbitMQ/Kafka o HTTP)
+Notification -> Client: Push tramite WebSocket/SSE (Aggiornamento UI)
+Client -> Client: Aggiorna punteggio a schermo (Kiosk/Web App)
+
+== Conferma Sincronizzazione (Ack) ==
+Match --> Gateway: 201 Created
+Gateway --> Edge: 201 Created
+Edge -> DBEdge: Marca l'evento come "SYNCED" o rimuove dal buffer
+
+@enduml

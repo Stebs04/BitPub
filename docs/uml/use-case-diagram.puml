@@ -1,0 +1,44 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Giocatore" as G
+actor "Admin Locale" as AL
+actor "Admin Gioco (Kiosk)" as K
+actor "Admin Piattaforma" as AP
+
+rectangle "BitPub System" {
+  usecase "Visualizzare Statistiche e Leaderboard" as UC1
+  usecase "Iscriversi a un Torneo" as UC2
+  usecase "Registrare/Accedere Account" as UC3
+  
+  usecase "Visualizzare Macchine Locali" as UC4
+  usecase "Avviare Partita (Autoplay/Demo)" as UC5
+  usecase "Ricevere Notifiche Real-time" as UC6
+  
+  usecase "Gestire Locali e Sensori" as UC7
+  usecase "Configurare Tornei Globali" as UC8
+  usecase "Monitorare Salute Rete Edge" as UC9
+  
+  usecase "Visualizzare Punteggio Real-time" as UC10
+  usecase "Pubblicare Annunci Promozionali" as UC11
+}
+
+G --> UC1
+G --> UC2
+G --> UC3
+G --> UC6
+
+AL --> UC4
+AL --> UC5
+AL --> UC3
+
+AP --> UC7
+AP --> UC8
+AP --> UC9
+AP --> UC3
+
+K --> UC10
+K --> UC11
+
+@enduml

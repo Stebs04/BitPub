@@ -1,0 +1,39 @@
+@startuml
+actor "Utente (Player/Admin)" as User
+participant "Web App\n(React)" as WebApp
+participant "API Gateway\n(Spring Cloud Gateway)" as Gateway
+participant "Auth Service\n(Spring Boot)" as Auth
+database "PostgreSQL\n(Auth DB)" as DB
+
+User -> WebApp: Inserisce credenziali (email/password) o clicca "Login with Google"
+WebApp -> Gateway: POST /api/v1/auth/login
+Gateway -> Auth: Inoltra richiesta di Login
+
+Auth -> DB: Verifica utente e hash password
+alt Credenziali Valide
+    DB --> Auth: User record
+    Auth -> Auth: Genera Access Token (JWT) e Refresh Token
+    Auth --> Gateway: 200 OK {accessToken, refreshToken}
+    Gateway --> WebApp: 200 OK {accessToken, refreshToken}
+    WebApp -> WebApp: Salva Token in localStorage / HttpOnly Cookie
+    WebApp -> User: Mostra Dashboard autenticata
+else Credenziali Invalide
+    Auth --> Gateway: 401 Unauthorized
+    Gateway --> WebApp: 401 Unauthorized
+    WebApp -> User: Mostra errore credenziali
+end
+
+== Esempio di Chiamata Autenticata successiva ==
+User -> WebApp: Richiede lista tornei
+WebApp -> Gateway: GET /api/v1/tournaments\n(Header: Authorization: Bearer <token>)
+Gateway -> Gateway: Valida firma JWT e scadenza (Gateway Filter)
+Gateway -> Gateway: Estrae Ruoli dal JWT
+alt Token Valido e Autorizzato
+    Gateway -> "Tournament Service": Inoltra GET /api/v1/tournaments (con Header User-Id)
+    "Tournament Service" --> Gateway: 200 OK [lista tornei]
+    Gateway --> WebApp: 200 OK [lista tornei]
+    WebApp -> User: Mostra lista
+else Token Invalido/Scaduto
+    Gateway --> WebApp: 401 Unauthorized / 403 Forbidden
+end
+@enduml

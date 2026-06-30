@@ -1,4 +1,0 @@
-ALTER TABLE match_sessions ADD COLUMN session_id VARCHAR(255) UNIQUE;
-ALTER TABLE match_sessions ADD COLUMN score_1 INT DEFAULT 0;
-ALTER TABLE match_sessions ADD COLUMN score_2 INT DEFAULT 0;
-ALTER TABLE match_sessions ALTER COLUMN device_id DROP NOT NULL;

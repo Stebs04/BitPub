@@ -1,0 +1,139 @@
+package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
+
+import it.uniupo.pissir.bitpub.statisticsservice.domain.AggregateStatistic;
+import it.uniupo.pissir.bitpub.statisticsservice.domain.Leaderboard;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.LeaderboardEntryDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.MatchResultEvent;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.StatisticUpdateRequest;
+import it.uniupo.pissir.bitpub.statisticsservice.repository.AggregateStatisticRepository;
+import it.uniupo.pissir.bitpub.statisticsservice.repository.LeaderboardRepository;
+import it.uniupo.pissir.bitpub.statisticsservice.service.StatisticsService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class StatisticsServiceImpl implements StatisticsService {
+
+    private final AggregateStatisticRepository statisticRepository;
+    private final LeaderboardRepository leaderboardRepository;
+
+    @Override
+    public List<AggregateStatisticDto> getStatisticsByEntity(String entityId, String entityType) {
+        return statisticRepository.findByEntityIdAndEntityType(entityId, entityType).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public AggregateStatisticDto updateStatistic(StatisticUpdateRequest request) {
+        Optional<AggregateStatistic> optionalStat = statisticRepository
+                .findByEntityIdAndEntityTypeAndMetricName(
+                        request.getEntityId(), request.getEntityType(), request.getMetricName());
+
+        AggregateStatistic stat;
+        if (optionalStat.isPresent()) {
+            stat = optionalStat.get();
+            if (request.isAbsolute()) {
+                stat.setMetricValue(request.getDeltaValue());
+            } else {
+                stat.setMetricValue(stat.getMetricValue() + request.getDeltaValue());
+            }
+        } else {
+            stat = AggregateStatistic.builder()
+                    .entityId(request.getEntityId())
+                    .entityType(request.getEntityType())
+                    .metricName(request.getMetricName())
+                    .metricValue(request.getDeltaValue())
+                    .build();
+        }
+
+        stat.setLastComputedAt(Instant.now());
+        stat = statisticRepository.save(stat);
+
+        return mapToDto(stat);
+    }
+
+    /**
+     * Records the result of a completed match and upserts leaderboard entries for winner and loser.
+     */
+    @Override
+    @Transactional
+    public void recordMatchResult(MatchResultEvent event) {
+        log.info("Recording match result: winner={}, loser={}, gameType={}",
+                event.getWinnerName(), event.getLoserName(), event.getGameTypeId());
+
+        // Upsert winner entry
+        Leaderboard winner = leaderboardRepository
+                .findByPlayerNameIgnoreCaseAndGameTypeId(event.getWinnerName(), event.getGameTypeId())
+                .orElseGet(() -> Leaderboard.builder()
+                        .playerName(event.getWinnerName())
+                        .gameTypeId(event.getGameTypeId())
+                        .build());
+        winner.setWins(winner.getWins() + 1);
+        winner.setTotalPoints(winner.getTotalPoints() + event.getWinnerScore());
+        winner.setMatchesPlayed(winner.getMatchesPlayed() + 1);
+        winner.setLastUpdated(Instant.now());
+        leaderboardRepository.save(winner);
+
+        // Upsert loser entry (only if the names are different, i.e. not a solo game)
+        if (event.getLoserName() != null && !event.getLoserName().equalsIgnoreCase(event.getWinnerName())) {
+            Leaderboard loser = leaderboardRepository
+                    .findByPlayerNameIgnoreCaseAndGameTypeId(event.getLoserName(), event.getGameTypeId())
+                    .orElseGet(() -> Leaderboard.builder()
+                            .playerName(event.getLoserName())
+                            .gameTypeId(event.getGameTypeId())
+                            .build());
+            loser.setLosses(loser.getLosses() + 1);
+            loser.setTotalPoints(loser.getTotalPoints() + event.getLoserScore());
+            loser.setMatchesPlayed(loser.getMatchesPlayed() + 1);
+            loser.setLastUpdated(Instant.now());
+            leaderboardRepository.save(loser);
+        }
+    }
+
+    @Override
+    public List<LeaderboardEntryDto> getLeaderboard(String gameTypeId) {
+        List<Leaderboard> entries = leaderboardRepository
+                .findByGameTypeIdOrderByWinsDescTotalPointsDesc(gameTypeId);
+        return entries.stream().map(this::mapToLeaderboardDto).collect(Collectors.toList());
+    }
+
+    // -------------------------------------------------------------------------
+    // Mappers
+    // -------------------------------------------------------------------------
+
+    private AggregateStatisticDto mapToDto(AggregateStatistic stat) {
+        return AggregateStatisticDto.builder()
+                .id(stat.getId())
+                .entityId(stat.getEntityId())
+                .entityType(stat.getEntityType())
+                .metricName(stat.getMetricName())
+                .metricValue(stat.getMetricValue())
+                .lastComputedAt(stat.getLastComputedAt())
+                .build();
+    }
+
+    private LeaderboardEntryDto mapToLeaderboardDto(Leaderboard entry) {
+        return LeaderboardEntryDto.builder()
+                .id(entry.getId())
+                .playerName(entry.getPlayerName())
+                .gameTypeId(entry.getGameTypeId())
+                .wins(entry.getWins())
+                .losses(entry.getLosses())
+                .totalPoints(entry.getTotalPoints())
+                .matchesPlayed(entry.getMatchesPlayed())
+                .lastUpdated(entry.getLastUpdated())
+                .build();
+    }
+}
