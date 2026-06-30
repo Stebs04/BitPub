@@ -66,7 +66,7 @@ Il progetto è interamente containerizzato e può essere avviato in locale utili
 4. **Avviare il Simulator Panel**:
    Per aprire il pannello dei simulatori, navigare nella cartella `BitPub-Simulators/demo-control-panel` ed eseguire il seguente comando:
    ```bash
-   cd BitPub-Simulators
+   cd BitPub-Simulators/demo-control-panel
    mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
    ```
    Una volta avviato, la pagina dei simulatori sarà accessibile all'indirizzo: [http://localhost:8090](http://localhost:8090)
