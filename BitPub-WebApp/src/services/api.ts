@@ -26,4 +26,13 @@ export const statsApi = axios.create({
 });
 statsApi.interceptors.request.use(authInterceptor);
 
+export interface CreateUserPayload {
+  username: string;
+  password: string;
+  email: string;
+  role: string;
+}
+
+export const createUser = (payload: CreateUserPayload) => api.post('/users', payload);
+
 export default api;

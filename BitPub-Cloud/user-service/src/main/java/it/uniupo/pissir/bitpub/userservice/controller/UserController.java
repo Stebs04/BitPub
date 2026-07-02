@@ -1,5 +1,6 @@
 package it.uniupo.pissir.bitpub.userservice.controller;
 
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
 import it.uniupo.pissir.bitpub.userservice.service.UserService;
@@ -17,9 +18,15 @@ public class UserController {
 
     private final UserService userService;
 
+    // Creazione utente con ruolo assegnato: riservata a PLATFORM_ADMIN.
+    // Il ruolo del chiamante arriva dal gateway (JwtAuthenticationFilter) nell'header X-User-Role.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserDto createUser(@Valid @RequestBody CreateUserRequest request) {
+    public UserDto createUser(@Valid @RequestBody CreateUserRequest request,
+                               @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        if (!"PLATFORM_ADMIN".equals(callerRole)) {
+            throw new BitpubException("Only PLATFORM_ADMIN can create users", HttpStatus.FORBIDDEN);
+        }
         return userService.createUser(request);
     }
 

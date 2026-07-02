@@ -1,5 +1,6 @@
 package it.uniupo.pissir.bitpub.userservice.service;
 
+import it.uniupo.pissir.bitpub.common.dto.Role;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.userservice.domain.User;
@@ -26,6 +27,11 @@ public class UserService {
         }
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BitpubException("Email already exists", HttpStatus.CONFLICT);
+        }
+        try {
+            Role.valueOf(request.getRole());
+        } catch (IllegalArgumentException e) {
+            throw new BitpubException("Invalid role: " + request.getRole(), HttpStatus.BAD_REQUEST);
         }
 
         User user = User.builder()
