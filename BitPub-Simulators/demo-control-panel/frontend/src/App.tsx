@@ -155,7 +155,7 @@ function App() {
           <h1 className="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
             BitPub Simulators Dashboard
           </h1>
-          <p className="text-slate-400 text-sm">Pannello di controllo interattivo hardware</p>
+          <p className="text-slate-400 text-sm">Pannello di controllo interattivo sensori simulati</p>
         </div>
       </header>
 

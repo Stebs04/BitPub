@@ -31,7 +31,6 @@
         <module>BitPub-Cloud</module>
         <module>BitPub-Edge</module>
         <module>BitPub-Simulators</module>
-        <module>BitPub-JavaFX</module>
     </modules>
 
     <dependencyManagement>

@@ -3,10 +3,13 @@ package it.uniupo.pissir.bitpub.matchservice.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.matchservice.domain.Match;
 import it.uniupo.pissir.bitpub.matchservice.domain.SensorEventLog;
 import it.uniupo.pissir.bitpub.matchservice.domain.Team;
+import it.uniupo.pissir.bitpub.matchservice.dto.GameActionRequestDto;
+import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.TeamResponseDto;
@@ -21,6 +24,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -31,6 +35,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,6 +57,74 @@ public class MatchServiceImpl implements MatchService {
 
     @Value("${user.service.url:http://localhost:8082}")
     private String userServiceUrl;
+
+    @Value("${locale.service.url:http://localhost:8083}")
+    private String localeServiceUrl;
+
+    /**
+     * Resolves the owning locale for a gameInstance by calling locale-service.
+     * Needed to scope LOCALE_ADMIN access to matches of their own locale.
+     */
+    private String resolveLocaleId(String gameInstanceId) {
+        Map info = fetchGameInstanceInfo(gameInstanceId);
+        return info != null && info.containsKey("localeId") ? info.get("localeId").toString() : null;
+    }
+
+    /**
+     * Fetches the full GameInstanceDto (localeId, gameTypeId, active) from locale-service.
+     * Used by the PLAYER matchmaking flow to validate the machine is switched on and to
+     * know which gameTypeId/localeId to stamp on the lobby match.
+     */
+    private Map fetchGameInstanceInfo(String gameInstanceId) {
+        try {
+            return RestClient.create(localeServiceUrl)
+                    .get()
+                    .uri("/api/v1/locales/games/{id}", gameInstanceId)
+                    .retrieve()
+                    .body(Map.class);
+        } catch (Exception e) {
+            log.error("Failed to resolve gameInstance info for gameInstanceId: {}", gameInstanceId, e);
+            return null;
+        }
+    }
+
+    /**
+     * A LOCALE_ADMIN may only access matches of the locale they are assigned to.
+     * PLATFORM_ADMIN and other roles are left unrestricted (read-only monitoring is not
+     * gated for players/other admins, only LOCALE_ADMIN is scoped down).
+     * Prefers the locale claim forwarded by the gateway (callerLocaleId); falls back to
+     * resolving it via locale-service if the caller's token predates the claim.
+     */
+    public void assertMatchLocaleAccess(String matchLocaleId, String callerId, String callerRole, String callerLocaleId) {
+        if (!"LOCALE_ADMIN".equals(callerRole)) {
+            return;
+        }
+        String adminLocaleId = callerLocaleId != null ? callerLocaleId : resolveAdminLocaleId(callerId);
+        if (adminLocaleId == null || !adminLocaleId.equals(matchLocaleId)) {
+            throw new BitpubException("LOCALE_ADMIN can only access matches of their own locale", HttpStatus.FORBIDDEN);
+        }
+    }
+
+    /** Returns the localeId of the locale owned by the given adminId, or null if none. */
+    public String resolveAdminLocaleId(String adminId) {
+        if (adminId == null) {
+            return null;
+        }
+        try {
+            List response = RestClient.create(localeServiceUrl)
+                    .get()
+                    .uri("/api/v1/locales/by-admin/{adminId}", adminId)
+                    .retrieve()
+                    .body(List.class);
+            if (response != null && !response.isEmpty() && response.get(0) instanceof Map) {
+                Object id = ((Map) response.get(0)).get("id");
+                return id != null ? id.toString() : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to resolve locale for adminId: {}", adminId, e);
+        }
+        return null;
+    }
 
     private String ensureUser(String username) {
         try {
@@ -84,6 +157,7 @@ public class MatchServiceImpl implements MatchService {
 
         Match match = Match.builder()
                 .gameInstanceId(request.getGameInstanceId())
+                .localeId(resolveLocaleId(request.getGameInstanceId()))
                 .gameTypeId(request.getGameTypeId())
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
@@ -125,12 +199,97 @@ public class MatchServiceImpl implements MatchService {
 
         match.setStatus("COMPLETED");
         match.setEndTime(Instant.now());
+        match.setCurrentTurnUserId(null);
         Match saved = matchRepository.save(match);
 
-        // Notify statistics service with the match result
+        // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
+        // (piu' basso a freccette, dove si parte da 501 e si scende a 0).
         notifyStatisticsService(saved);
+        publishGameState(saved, "FINISHED", "MATCH_END");
 
         return mapToDto(saved);
+    }
+
+    /**
+     * PLAYER matchmaking: se esiste gia' una lobby WAITING_FOR_PLAYERS su questa gameInstance,
+     * vi aggiunge il chiamante come secondo giocatore e la porta IN_PROGRESS (match "STARTED"),
+     * pubblicando lo stato aggiornato via MQTT cosi' che entrambi i client vedano la transizione
+     * in tempo reale. Altrimenti crea una nuova lobby in attesa del secondo giocatore.
+     */
+    @Override
+    @Transactional
+    public MatchDto joinLobby(JoinLobbyRequestDto request, String playerId) {
+        String gameInstanceId = request.getGameInstanceId();
+        String username = request.getUsername();
+
+        Optional<Match> waiting = matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS");
+
+        if (waiting.isPresent()) {
+            Match match = waiting.get();
+
+            // Reconnect idempotente: lo stesso giocatore che ripolla/riapre la pagina non deve duplicarsi in team.
+            boolean alreadyIn = match.getTeams() != null && match.getTeams().stream()
+                    .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId));
+            if (alreadyIn) {
+                return mapToDto(match);
+            }
+
+            Team secondTeam = Team.builder()
+                    .name(username)
+                    .playerIds(new ArrayList<>(List.of(playerId)))
+                    .score(0)
+                    .match(match)
+                    .build();
+            teamRepository.save(secondTeam);
+            match.getTeams().add(secondTeam);
+
+            match.setStatus("IN_PROGRESS");
+            match.setStartTime(Instant.now());
+            initializeGameStart(match);
+            Match saved = matchRepository.save(match);
+
+            publishLobbyState(saved, "MATCH_START");
+            log.info("Lobby {} STARTED: {} joined gameInstanceId {}", saved.getId(), username, gameInstanceId);
+            return mapToDto(saved);
+        }
+
+        // Nessuna lobby in attesa: verifica che la gameInstance sia una macchina attiva del locale.
+        Map info = fetchGameInstanceInfo(gameInstanceId);
+        boolean active = info != null && Boolean.TRUE.equals(info.get("active"));
+        if (info == null || !active) {
+            throw new BitpubException("Il gioco selezionato non e' attivo in questo momento", HttpStatus.CONFLICT);
+        }
+        String localeId = info.get("localeId") != null ? info.get("localeId").toString() : null;
+        String gameTypeId = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : "unknown";
+
+        Match match = Match.builder()
+                .gameInstanceId(gameInstanceId)
+                .localeId(localeId)
+                .gameTypeId(gameTypeId)
+                .status("WAITING_FOR_PLAYERS")
+                .teams(new ArrayList<>())
+                .build();
+        Match saved = matchRepository.save(match);
+
+        Team firstTeam = Team.builder()
+                .name(username)
+                .playerIds(new ArrayList<>(List.of(playerId)))
+                .score(0)
+                .match(saved)
+                .build();
+        teamRepository.save(firstTeam);
+        saved.getTeams().add(firstTeam);
+
+        publishLobbyState(saved, "WAITING_FOR_PLAYERS");
+        log.info("Lobby {} created WAITING_FOR_PLAYERS by {} on gameInstanceId {}", saved.getId(), username, gameInstanceId);
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<MatchDto> getWaitingLobby(String gameInstanceId) {
+        return matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS")
+                .map(this::mapToDto);
     }
 
     @Override
@@ -145,6 +304,28 @@ public class MatchServiceImpl implements MatchService {
     @Transactional(readOnly = true)
     public List<MatchDto> getActiveMatches() {
         return matchRepository.findByStatus("IN_PROGRESS").stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchDto> getActiveMatchesByLocale(String localeId) {
+        return matchRepository.findByLocaleIdAndStatus(localeId, "IN_PROGRESS").stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Player match history — used by the dashboard/stats views. No repository finder
+     * exists for team playerIds (element-collection), so filter in-memory.
+     */
+    @Transactional(readOnly = true)
+    public List<MatchDto> getMatchesByPlayer(String playerId) {
+        return matchRepository.findAll().stream()
+                .filter(m -> m.getTeams() != null && m.getTeams().stream()
+                        .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId)))
+                .sorted(Comparator.comparing(Match::getStartTime, Comparator.nullsLast(Comparator.reverseOrder())))
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
@@ -168,6 +349,7 @@ public class MatchServiceImpl implements MatchService {
         if (activeMatchOpt.isEmpty() && "MATCH_START".equals(event.getSensorType())) {
             match = Match.builder()
                 .gameInstanceId(event.getGameInstanceId())
+                .localeId(resolveLocaleId(event.getGameInstanceId()))
                 .gameTypeId(event.getGameInstanceId().contains("-") ? event.getGameInstanceId().split("-")[0] : "unknown")
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
@@ -267,16 +449,198 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
+    // ── Gameplay interattivo a turni ────────────────────────────────────────────
+
+    private enum GameKind { FOOSBALL, BILLIARDS, DARTS, UNKNOWN }
+
+    private static final int FOOSBALL_TARGET = 10;  // goal necessari per vincere a calciobalilla
+    private static final int BILLIARDS_TARGET = 7;   // palle del proprio gruppo da imbucare prima della boccia degli 8
+    private static final int DARTS_START = 501;      // punteggio iniziale a freccette (regola ufficiale "501 double-out")
+    private static final int DARTS_THROWS_PER_TURN = 3;
+
+    private static final double FOOSBALL_GOAL_CHANCE = 0.30;   // 30% goal, 70% parata/fuori
+    private static final double BILLIARDS_POCKET_CHANCE = 0.50; // 50% imbuca
+
+    private GameKind classify(String gameTypeId) {
+        String g = gameTypeId == null ? "" : gameTypeId.toLowerCase();
+        if (g.contains("calcio") || g.contains("foosball") || g.contains("balilla")) return GameKind.FOOSBALL;
+        if (g.contains("biliard") || g.contains("billiard") || g.contains("pool")) return GameKind.BILLIARDS;
+        if (g.contains("frecc") || g.contains("dart")) return GameKind.DARTS;
+        return GameKind.UNKNOWN;
+    }
+
+    private String firstPlayerId(Team team) {
+        return team != null && team.getPlayerIds() != null && !team.getPlayerIds().isEmpty()
+                ? team.getPlayerIds().get(0) : null;
+    }
+
+    /**
+     * Allo START del match assegna casualmente il primo turno e inizializza lo stato specifico
+     * del gioco (punteggio 501 a freccette, spaccata non ancora avvenuta a biliardo).
+     */
+    private void initializeGameStart(Match match) {
+        List<Team> teams = match.getTeams();
+        if (teams == null || teams.size() < 2) return;
+
+        Team starter = ThreadLocalRandom.current().nextBoolean() ? teams.get(0) : teams.get(1);
+        match.setCurrentTurnUserId(firstPlayerId(starter));
+        match.setBreakDone(false);
+        match.setSolidTeamId(null);
+        match.setStripedTeamId(null);
+        match.setThrowsInTurn(0);
+
+        if (classify(match.getGameTypeId()) == GameKind.DARTS) {
+            teams.forEach(t -> t.setScore(DARTS_START));
+            teamRepository.saveAll(teams);
+        }
+    }
+
+    @Override
+    @Transactional
+    public MatchDto processGameAction(String matchId, String playerId, GameActionRequestDto action) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
+
+        if (!"IN_PROGRESS".equals(match.getStatus())) {
+            throw new BitpubException("La partita non e' in corso", HttpStatus.CONFLICT);
+        }
+        if (match.getCurrentTurnUserId() == null || !match.getCurrentTurnUserId().equals(playerId)) {
+            throw new BitpubException("Non e' il tuo turno", HttpStatus.FORBIDDEN);
+        }
+
+        List<Team> teams = match.getTeams();
+        if (teams == null || teams.size() < 2) {
+            throw new BitpubException("Partita senza due giocatori", HttpStatus.CONFLICT);
+        }
+
+        Team current = teams.stream()
+                .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
+                .findFirst()
+                .orElseThrow(() -> new BitpubException("Giocatore non nel match", HttpStatus.FORBIDDEN));
+        Team opponent = teams.stream().filter(t -> !t.getId().equals(current.getId())).findFirst().orElse(null);
+
+        String eventMessage;
+        boolean finished = false;
+
+        switch (classify(match.getGameTypeId())) {
+            case FOOSBALL: {
+                boolean goal = ThreadLocalRandom.current().nextDouble() < FOOSBALL_GOAL_CHANCE;
+                if (goal) {
+                    current.setScore(current.getScore() + 1);
+                    eventMessage = "GOAL";
+                    if (current.getScore() >= FOOSBALL_TARGET) finished = true;
+                } else {
+                    eventMessage = "SAVE";
+                }
+                // Il turno passa sempre all'avversario dopo il tiro.
+                if (!finished) match.setCurrentTurnUserId(firstPlayerId(opponent));
+                break;
+            }
+            case BILLIARDS: {
+                if (!match.isBreakDone()) {
+                    // Spaccata: assegna casualmente Piene/Spezzate ai due team.
+                    boolean currentGetsSolid = ThreadLocalRandom.current().nextBoolean();
+                    match.setSolidTeamId(currentGetsSolid ? current.getId() : opponent.getId());
+                    match.setStripedTeamId(currentGetsSolid ? opponent.getId() : current.getId());
+                    match.setBreakDone(true);
+                    eventMessage = "BREAK";
+                    // Dopo la spaccata il turno resta a chi ha spaccato.
+                } else if (current.getScore() >= BILLIARDS_TARGET) {
+                    // Regola 8-ball: dopo aver imbucato tutte le palle del proprio gruppo (7),
+                    // il colpo successivo deve imbucare la boccia nera (8) per vincere la partita.
+                    // Un tiro mancato qui e' semplicemente un errore normale (passa il turno);
+                    // imbucare la boccia nera prima di aver completato il gruppo non e' modellabile
+                    // con l'azione generica "SHOOT" attuale, quindi si applica solo a gruppo completo.
+                    boolean pocketedEightBall = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    if (pocketedEightBall) {
+                        eventMessage = "BALL_POCKETED";
+                        finished = true;
+                    } else {
+                        eventMessage = "MISS";
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                } else {
+                    boolean pocket = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    if (pocket) {
+                        current.setScore(current.getScore() + 1);
+                        eventMessage = "BALL_POCKETED";
+                        // Imbuca: mantiene il turno. Il gruppo si completa a BILLIARDS_TARGET,
+                        // ma la vittoria arriva solo imbucando poi la boccia nera (ramo sopra).
+                    } else {
+                        eventMessage = "MISS";
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                }
+                break;
+            }
+            case DARTS: {
+                // Regola ufficiale "501 double-out": si chiude solo con un doppio (o il Bull, 50).
+                // Bust (tiro annullato, punteggio invariato) se si va sotto 0, si resta a 1
+                // (impossibile chiudere da 1 con un doppio), o si arriva a 0 senza un doppio.
+                int sector = action.getSector() != null ? action.getSector() : 0;
+                int multiplier = action.getMultiplier() != null ? action.getMultiplier() : 1;
+                int points = sector * multiplier;
+                int remaining = current.getScore() - points;
+                boolean isDoubleFinish = multiplier == 2 || sector == 50;
+                if (remaining < 0 || remaining == 1 || (remaining == 0 && !isDoubleFinish)) {
+                    eventMessage = "FOUL";
+                } else {
+                    current.setScore(remaining);
+                    eventMessage = "DART_HIT";
+                    if (remaining == 0) finished = true;
+                }
+                if (!finished) {
+                    match.setThrowsInTurn(match.getThrowsInTurn() + 1);
+                    if (match.getThrowsInTurn() >= DARTS_THROWS_PER_TURN) {
+                        match.setThrowsInTurn(0);
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                }
+                break;
+            }
+            default:
+                throw new BitpubException("Tipo di gioco non supportato per le azioni interattive", HttpStatus.BAD_REQUEST);
+        }
+
+        if (finished) {
+            match.setStatus("COMPLETED");
+            match.setEndTime(Instant.now());
+            match.setCurrentTurnUserId(null);
+        }
+
+        teamRepository.saveAll(teams);
+        Match saved = matchRepository.save(match);
+
+        if (finished) {
+            notifyStatisticsService(saved);
+            publishGameState(saved, "FINISHED", "MATCH_END");
+        } else {
+            publishGameState(saved, "PLAYING", eventMessage);
+        }
+
+        return mapToDto(saved);
+    }
+
     /**
      * Determines the winner team (highest score) and notifies the statistics-service
      * to update the leaderboard for both players.
      */
+    /**
+     * Team vincitore: a freccette vince chi ha il punteggio piu' basso (parte da 501 e scala a 0),
+     * negli altri giochi vince chi ha il punteggio piu' alto.
+     */
+    private Team winnerTeam(Match match) {
+        if (match.getTeams() == null || match.getTeams().isEmpty()) return null;
+        Comparator<Team> byScore = Comparator.comparingInt(Team::getScore);
+        return classify(match.getGameTypeId()) == GameKind.DARTS
+                ? match.getTeams().stream().min(byScore).orElse(null)
+                : match.getTeams().stream().max(byScore).orElse(null);
+    }
+
     private void notifyStatisticsService(Match match) {
         if (match.getTeams() == null || match.getTeams().isEmpty()) return;
         try {
-            Team winner = match.getTeams().stream()
-                    .max(Comparator.comparingInt(Team::getScore))
-                    .orElse(null);
+            Team winner = winnerTeam(match);
             Team loser = match.getTeams().stream()
                     .filter(t -> winner == null || !t.getId().equals(winner.getId()))
                     .findFirst().orElse(null);
@@ -286,14 +650,14 @@ public class MatchServiceImpl implements MatchService {
             int winnerScore   = winner != null ? winner.getScore() : 0;
             int loserScore    = loser  != null ? loser.getScore()  : 0;
 
-            Map<String, Object> resultEvent = Map.of(
-                    "gameTypeId",   match.getGameTypeId(),
-                    "winnerName",   winnerName,
-                    "loserName",    loserName,
-                    "winnerScore",  winnerScore,
-                    "loserScore",   loserScore,
-                    "matchId",      match.getId()
-            );
+            Map<String, Object> resultEvent = new java.util.HashMap<>();
+            resultEvent.put("gameTypeId", match.getGameTypeId());
+            resultEvent.put("winnerName", winnerName);
+            resultEvent.put("loserName", loserName);
+            resultEvent.put("winnerScore", winnerScore);
+            resultEvent.put("loserScore", loserScore);
+            resultEvent.put("matchId", match.getId());
+            resultEvent.put("localeId", match.getLocaleId());
 
             String body = objectMapper.writeValueAsString(resultEvent);
             RestClient.create(statisticsServiceUrl)
@@ -310,6 +674,21 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private void publishGameState(Match match, SensorEvent event) {
+        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
+        publishGameState(match, status, event.getSensorType());
+    }
+
+    /**
+     * Publishes lobby transitions (WAITING_FOR_PLAYERS / MATCH_START) triggered by the
+     * PLAYER matchmaking flow, reusing the same GameStateDto/topic the Kiosk view already
+     * consumes so the transition from waiting-room to live match is instantaneous.
+     */
+    private void publishLobbyState(Match match, String eventMessage) {
+        String status = "WAITING_FOR_PLAYERS".equals(match.getStatus()) ? "WAITING" : "PLAYING";
+        publishGameState(match, status, eventMessage);
+    }
+
+    private void publishGameState(Match match, String status, String eventMessage) {
         String teamAName = "RED";
         String teamBName = "BLUE";
         int scoreA = 0;
@@ -322,15 +701,18 @@ public class MatchServiceImpl implements MatchService {
                 scoreB    = match.getTeams().get(1).getScore();
             }
         }
-        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
 
-        // Determine winner name on match end
+        // Determine winner name on match end (game-aware: darts = lowest score)
         String winnerName = null;
-        if ("FINISHED".equals(status) && match.getTeams() != null && !match.getTeams().isEmpty()) {
-            winnerName = match.getTeams().stream()
-                    .max(Comparator.comparingInt(Team::getScore))
-                    .map(Team::getName).orElse(null);
+        if ("FINISHED".equals(status)) {
+            Team w = winnerTeam(match);
+            winnerName = w != null ? w.getName() : null;
         }
+
+        // Nomi dei giocatori con Piene/Spezzate (biliardo), risolti dagli id di team assegnati.
+        String solidPlayerName = teamNameById(match, match.getSolidTeamId());
+        String stripedPlayerName = teamNameById(match, match.getStripedTeamId());
+        int throwsRemaining = Math.max(0, DARTS_THROWS_PER_TURN - match.getThrowsInTurn());
 
         GameStateDto stateDto = GameStateDto.builder()
                 .matchId(match.getId())
@@ -341,13 +723,19 @@ public class MatchServiceImpl implements MatchService {
                 .scoreTeamA(scoreA)
                 .scoreTeamB(scoreB)
                 .timeRemainingSeconds(0)
-                .currentEventMessage(event.getSensorType())
+                .currentEventMessage(eventMessage)
                 .winnerName(winnerName)
+                .currentTurnUserId(match.getCurrentTurnUserId())
+                .breakDone(match.isBreakDone())
+                .solidPlayerName(solidPlayerName)
+                .stripedPlayerName(stripedPlayerName)
+                .throwsRemaining(throwsRemaining)
                 .build();
 
         try {
             String statePayload = objectMapper.writeValueAsString(stateDto);
-            String topic = "bitpub/match/LOC-1/" + match.getGameInstanceId() + "/state";
+            String topicLocaleId = match.getLocaleId() != null ? match.getLocaleId() : "unknown";
+            String topic = it.uniupo.pissir.bitpub.common.constants.MqttTopics.getGameStateTopic(topicLocaleId, match.getGameInstanceId());
             mqttOutboundChannel.send(MessageBuilder.withPayload(statePayload)
                     .setHeader(MqttHeaders.TOPIC, topic)
                     .setHeader(MqttHeaders.RETAINED, true)
@@ -355,6 +743,13 @@ public class MatchServiceImpl implements MatchService {
         } catch (Exception e) {
             log.error("Failed to publish GameStateDto", e);
         }
+    }
+
+    private String teamNameById(Match match, String teamId) {
+        if (teamId == null || match.getTeams() == null) return null;
+        return match.getTeams().stream()
+                .filter(t -> teamId.equals(t.getId()))
+                .map(Team::getName).findFirst().orElse(null);
     }
 
     private MatchDto mapToDto(Match match) {
@@ -370,12 +765,17 @@ public class MatchServiceImpl implements MatchService {
         return MatchDto.builder()
                 .id(match.getId())
                 .gameInstanceId(match.getGameInstanceId())
+                .localeId(match.getLocaleId())
                 .gameTypeId(match.getGameTypeId())
                 .status(match.getStatus())
                 .startTime(match.getStartTime())
                 .endTime(match.getEndTime())
                 .teams(teamDtos)
                 .resultPayload(match.getResultPayload())
+                .currentTurnUserId(match.getCurrentTurnUserId())
+                .breakDone(match.isBreakDone())
+                .solidTeamId(match.getSolidTeamId())
+                .stripedTeamId(match.getStripedTeamId())
                 .build();
     }
 }

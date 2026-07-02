@@ -17,6 +17,10 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>it.uniupo.pissir.bitpub</groupId>
             <artifactId>bitpub-common</artifactId>
             <version>1.0.0-SNAPSHOT</version>

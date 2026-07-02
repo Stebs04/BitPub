@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Wifi, WifiOff, Trophy, Zap } from 'lucide-react';
-
-// MQTT over WebSocket (port 9001 as defined in mosquitto.conf)
-const MQTT_WS_URL = 'ws://localhost:9001';
+import { Activity, Wifi, WifiOff, Trophy, Zap, Square } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import api, { endMatch } from '../services/api';
+import { notificationService } from '../services/notificationService';
 
 interface GameState {
   matchId: string;
@@ -48,7 +48,10 @@ const getEventLabel = (type: string, state: GameState): string => {
     case 'GOAL':        return `⚽ GOAL!`;
     case 'BALL_POCKETED': return `🎱 Palla imbucata`;
     case 'DART_HIT':    return `🎯 Freccia lanciata`;
-    case 'FOUL':        return `⛔ Fallo!`;
+    case 'SAVE':        return `🧤 Parato!`;
+    case 'MISS':        return `😖 Mancato`;
+    case 'BREAK':       return `💥 Spaccata!`;
+    case 'FOUL':        return `⛔ Fallo / Bust!`;
     default:            return `⚡ ${type}`;
   }
 };
@@ -68,157 +71,68 @@ const getEventColor = (type: string): string => {
  * real-time game state: scores, player names, event log.
  */
 const LiveMatchView: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+
+  // Un LOCALE_ADMIN monitora solo le partite del proprio locale: si sottoscrive
+  // esclusivamente al topic MQTT del proprio localeId invece che al wildcard globale.
+  // Il localeId puo' arrivare dal claim JWT (token aggiornato) o, se l'admin non ha
+  // ancora rifatto login dopo l'assegnazione del locale, via fallback REST (stesso
+  // endpoint /locales/by-admin usato da Dashboard e LocalesPage).
+  const [ownLocaleId, setOwnLocaleId] = useState<string | null>(user?.localeId ?? null);
+
+  useEffect(() => {
+    if (user?.role !== 'LOCALE_ADMIN') {
+      setOwnLocaleId(null);
+      return;
+    }
+    if (user.localeId) {
+      setOwnLocaleId(user.localeId);
+      return;
+    }
+    api.get(`/locales/by-admin/${user.id}`)
+      .then((res) => setOwnLocaleId(res.data?.[0]?.id ?? null))
+      .catch(() => setOwnLocaleId(null));
+  }, [user]);
+
+  // null = nessuna sottoscrizione: un LOCALE_ADMIN senza locale (ancora) assegnato non deve
+  // MAI ricadere sul wildcard globale, altrimenti vedrebbe le partite di tutti i locali.
+  const matchStateTopic = user?.role === 'LOCALE_ADMIN'
+    ? (ownLocaleId ? `bitpub/match/${ownLocaleId}/+/state` : null)
+    : 'bitpub/match/+/+/state';
+
   const [connected, setConnected] = useState(false);
   const [gameStates, setGameStates] = useState<Record<string, GameState>>({});
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
-  const clientRef = useRef<WebSocket | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  // Sottoscrizione al broker MQTT (condivisa via notificationService) per lo stato partite in tempo reale.
   useEffect(() => {
-    // Use raw MQTT over WebSocket via the Paho or native WS approach.
-    // We use a simple approach: connect to mosquitto WS port.
-    let ws: WebSocket;
-    let pingInterval: ReturnType<typeof setInterval>;
+    // LOCALE_ADMIN senza locale assegnato: nessun topic sicuro da sottoscrivere, non connettere.
+    if (matchStateTopic === null) {
+      setConnected(false);
+      return;
+    }
 
-    // Helper: cast Uint8Array to ArrayBuffer so ws.send() is happy under TS strict mode
-    const sendPacket = (data: Uint8Array): void => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer);
-      }
-    };
+    const unsubscribeConnection = notificationService.onConnectionChange(setConnected);
+    const unsubscribeTopic = notificationService.subscribe(matchStateTopic, (payload: GameState, topic: string) => {
+      const instanceId = topic.split('/')[3] ?? topic;
+      setGameStates(prev => ({ ...prev, [instanceId]: payload }));
 
-    const connect = () => {
-      try {
-        // MQTT protocol over WebSocket using sub-protocol
-        ws = new WebSocket(MQTT_WS_URL, ['mqtt']);
-        clientRef.current = ws;
-
-        ws.binaryType = 'arraybuffer';
-
-        ws.onopen = () => {
-          // Send MQTT CONNECT packet
-          const connectPacket = buildMqttConnect('kiosk-' + Math.random().toString(36).slice(2, 8));
-          sendPacket(connectPacket);
-        };
-
-        ws.onmessage = (event) => {
-          const data = new Uint8Array(event.data as ArrayBuffer);
-          handleMqttPacket(data, ws);
-        };
-
-        ws.onclose = () => {
-          setConnected(false);
-          clearInterval(pingInterval);
-          // Reconnect after 3s
-          setTimeout(connect, 3000);
-        };
-
-        ws.onerror = () => {
-          ws.close();
-        };
-      } catch {
-        setTimeout(connect, 3000);
-      }
-    };
-
-    // MQTT packet builder helpers
-    const encodeString = (str: string): Uint8Array => {
-      const encoded = new TextEncoder().encode(str);
-      const buf = new Uint8Array(2 + encoded.length);
-      buf[0] = (encoded.length >> 8) & 0xff;
-      buf[1] = encoded.length & 0xff;
-      buf.set(encoded, 2);
-      return buf;
-    };
-
-    const buildMqttConnect = (clientId: string): Uint8Array => {
-      const protocol = encodeString('MQTT');
-      const cid = encodeString(clientId);
-      // Fixed header + variable header + payload
-      const varHeader = new Uint8Array([
-        ...protocol,
-        4,    // protocol level (3.1.1)
-        0,    // connect flags: clean session
-        0, 60 // keep-alive 60s
-      ]);
-      const payload = cid;
-      const remainingLength = varHeader.length + payload.length;
-      return new Uint8Array([0x10, remainingLength, ...varHeader, ...payload]);
-    };
-
-    const buildMqttSubscribe = (topic: string, packetId: number): Uint8Array => {
-      const topicData = encodeString(topic);
-      const varHeader = new Uint8Array([packetId >> 8, packetId & 0xff]);
-      const payload = new Uint8Array([...topicData, 0]); // QoS 0
-      const remainingLength = varHeader.length + payload.length;
-      return new Uint8Array([0x82, remainingLength, ...varHeader, ...payload]);
-    };
-
-    const buildMqttPingReq = (): Uint8Array => new Uint8Array([0xc0, 0]);
-
-    const handleMqttPacket = (data: Uint8Array, ws: WebSocket) => {
-      const type = (data[0] >> 4) & 0xf;
-      if (type === 2) {
-        // CONNACK — subscribe to game state topic
-        setConnected(true);
-        sendPacket(buildMqttSubscribe('bitpub/match/+/+/state', 1));
-        pingInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) sendPacket(buildMqttPingReq());
-        }, 25000);
-      } else if (type === 3) {
-        // PUBLISH — parse topic and payload
-        parseMqttPublish(data);
-      }
-    };
-
-    const parseMqttPublish = (data: Uint8Array) => {
-      try {
-        let idx = 1;
-        // Decode remaining length
-        let remainingLength = 0;
-        let multiplier = 1;
-        while (true) {
-          const byte = data[idx++];
-          remainingLength += (byte & 0x7f) * multiplier;
-          multiplier *= 128;
-          if ((byte & 0x80) === 0) break;
-        }
-        // Topic length
-        const topicLen = (data[idx] << 8) | data[idx + 1];
-        idx += 2;
-        const topicBytes = data.slice(idx, idx + topicLen);
-        const topic = new TextDecoder().decode(topicBytes);
-        idx += topicLen;
-        // Payload
-        const payloadBytes = data.slice(idx);
-        const payloadStr = new TextDecoder().decode(payloadBytes);
-
-        const gameState: GameState = JSON.parse(payloadStr);
-        const instanceId = topic.split('/')[3] ?? topic;
-
-        setGameStates(prev => ({ ...prev, [instanceId]: gameState }));
-
-        // Add to event log
-        const entry: LogEntry = {
-          id: ++logId,
-          time: new Date().toLocaleTimeString('it-IT'),
-          gameTypeId: gameState.gameTypeId ?? instanceId,
-          message: getEventLabel(gameState.currentEventMessage, gameState),
-          color: getEventColor(gameState.currentEventMessage),
-        };
-        setEventLog(prev => [entry, ...prev].slice(0, 50));
-      } catch {
-        // Ignore malformed packets
-      }
-    };
-
-    connect();
+      const entry: LogEntry = {
+        id: ++logId,
+        time: new Date().toLocaleTimeString('it-IT'),
+        gameTypeId: payload.gameTypeId ?? instanceId,
+        message: getEventLabel(payload.currentEventMessage, payload),
+        color: getEventColor(payload.currentEventMessage),
+      };
+      setEventLog(prev => [entry, ...prev].slice(0, 50));
+    });
 
     return () => {
-      clearInterval(pingInterval);
-      if (clientRef.current) clientRef.current.close();
+      unsubscribeConnection();
+      unsubscribeTopic();
     };
-  }, []);
+  }, [matchStateTopic]);
 
   // Auto-scroll log
   useEffect(() => {
@@ -226,6 +140,18 @@ const LiveMatchView: React.FC = () => {
   }, [eventLog]);
 
   const activeGames = Object.entries(gameStates);
+  // Solo chi gestisce il locale (o la piattaforma) puo' forzare la fine di una partita.
+  const canEndMatch = user?.role === 'LOCALE_ADMIN' || user?.role === 'PLATFORM_ADMIN';
+
+  const handleEndMatch = async (matchId: string) => {
+    if (!window.confirm('Terminare subito questa partita? Il vincitore sara\' calcolato in base al punteggio attuale.')) return;
+    try {
+      await endMatch(matchId);
+    } catch (err) {
+      console.error('Errore terminazione partita:', err);
+      alert('Impossibile terminare la partita.');
+    }
+  };
 
   return (
     <div className="p-6 md:p-8 animate-slide-up space-y-8">
@@ -256,7 +182,13 @@ const LiveMatchView: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeGames.map(([instanceId, state]) => (
-            <ScoreCard key={instanceId} instanceId={instanceId} state={state} />
+            <ScoreCard
+              key={instanceId}
+              instanceId={instanceId}
+              state={state}
+              canEndMatch={canEndMatch}
+              onEndMatch={handleEndMatch}
+            />
           ))}
         </div>
       )}
@@ -287,9 +219,20 @@ const LiveMatchView: React.FC = () => {
 };
 
 // ─── ScoreCard ────────────────────────────────────────────────────────────────
-function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState }) {
+function ScoreCard({
+  instanceId,
+  state,
+  canEndMatch,
+  onEndMatch,
+}: {
+  instanceId: string;
+  state: GameState;
+  canEndMatch: boolean;
+  onEndMatch: (matchId: string) => void;
+}) {
   const gradient = getGameGradient(state.gameTypeId ?? instanceId);
   const isFinished = state.status === 'FINISHED';
+  const isWaiting = state.status === 'WAITING';
 
   return (
     <div className={`glass-panel overflow-hidden`}>
@@ -303,8 +246,12 @@ function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState
             <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{state.gameTypeId ?? instanceId}</p>
             <p className="text-sm text-slate-400 font-mono">{instanceId}</p>
           </div>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
-            {isFinished ? '✔ Finita' : '🔴 LIVE'}
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+            isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+            : isWaiting ? 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          }`}>
+            {isFinished ? '✔ Finita' : isWaiting ? '⏳ In attesa' : '🔴 LIVE'}
           </span>
         </div>
 
@@ -337,6 +284,16 @@ function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState
             <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
             <p className="text-yellow-300 font-bold text-sm">Vince: {state.winnerName}</p>
           </div>
+        )}
+
+        {/* Termina subito: solo LOCALE_ADMIN/PLATFORM_ADMIN, solo su partite non gia' finite */}
+        {canEndMatch && !isFinished && !isWaiting && (
+          <button
+            onClick={() => onEndMatch(state.matchId)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm font-bold transition-all active:scale-95"
+          >
+            <Square className="w-4 h-4" /> Termina Ora
+          </button>
         )}
       </div>
     </div>

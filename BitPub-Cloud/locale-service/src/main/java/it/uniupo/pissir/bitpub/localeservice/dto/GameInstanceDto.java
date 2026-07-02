@@ -15,6 +15,7 @@ public class GameInstanceDto {
     private String id;
     private String localInstanceId;
     private String gameTypeId;
+    private String localeId;
     private Instant installedAt;
     private boolean active;
 }

@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal } from 'lucide-react';
-
-// Direct call to statistics-service (bypasses gateway for simplicity in Kiosk context)
-const STATS_BASE = 'http://localhost:8087/api/v1/statistics';
+import { statsApi } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 interface LeaderboardEntry {
   id: string;
@@ -65,6 +64,7 @@ const RANK_ICONS: Record<number, string> = {
 };
 
 const LeaderboardPage: React.FC = () => {
+  const currentUsername = useAuthStore((state) => state.user?.username);
   const [activeTab, setActiveTab] = useState<GameTab>('calciobalilla');
   const [data, setData] = useState<Record<GameTab, LeaderboardEntry[]>>({
     biliardo: [],
@@ -79,10 +79,8 @@ const LeaderboardPage: React.FC = () => {
     try {
       // Translate the Italian UI tab ID to the English backend ID
       const backendId = GAME_TYPE_MAP[gameTypeId];
-      const res = await fetch(`${STATS_BASE}/leaderboard/${backendId}`);
-      if (!res.ok) throw new Error('Network error');
-      const entries: LeaderboardEntry[] = await res.json();
-      setData(prev => ({ ...prev, [gameTypeId]: entries }));
+      const res = await statsApi.get<LeaderboardEntry[]>(`/leaderboard/${backendId}`);
+      setData(prev => ({ ...prev, [gameTypeId]: res.data }));
       setLastRefresh(new Date());
     } catch {
       // Keep stale data on error
@@ -194,11 +192,12 @@ const LeaderboardPage: React.FC = () => {
                     : 0;
                   const rankColor = RANK_COLORS[idx] ?? 'text-slate-300';
                   const rankIcon = RANK_ICONS[idx];
+                  const isMe = !!currentUsername && entry.playerName.toLowerCase() === currentUsername.toLowerCase();
 
                   return (
                     <tr
                       key={entry.id}
-                      className="hover:bg-white/5 transition-colors group"
+                      className={`hover:bg-white/5 transition-colors group ${isMe ? 'bg-brand/10' : ''}`}
                     >
                       {/* Rank */}
                       <td className="py-4 px-4">
@@ -210,6 +209,7 @@ const LeaderboardPage: React.FC = () => {
                       {/* Player name */}
                       <td className="py-4 px-4">
                         <span className="font-semibold text-white text-base">{entry.playerName}</span>
+                        {isMe && <span className="ml-2 text-xs font-semibold text-brand-light">(Tu)</span>}
                       </td>
 
                       {/* Wins */}

@@ -14,4 +14,5 @@ public class MatchResultEvent {
     private int winnerScore;
     private int loserScore;
     private String matchId;
+    private String localeId;
 }

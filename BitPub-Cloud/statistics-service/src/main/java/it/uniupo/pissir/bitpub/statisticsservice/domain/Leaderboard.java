@@ -33,6 +33,9 @@ public class Leaderboard {
     @Column(nullable = false)
     private String gameTypeId;
 
+    /** Locale in cui e' stato registrato l'ultimo match, per il filtro leaderboard-per-locale del LOCALE_ADMIN. */
+    private String localeId;
+
     @Builder.Default
     private int wins = 0;
 

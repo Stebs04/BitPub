@@ -1,10 +1,13 @@
 package it.uniupo.pissir.bitpub.userservice.service;
 
+import it.uniupo.pissir.bitpub.common.dto.Role;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
+import it.uniupo.pissir.bitpub.common.security.PasswordUtils;
 import it.uniupo.pissir.bitpub.userservice.domain.User;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
+import it.uniupo.pissir.bitpub.userservice.dto.VerifyCredentialsRequest;
 import it.uniupo.pissir.bitpub.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordUtils passwordUtils;
 
     public UserDto createUser(CreateUserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -27,10 +31,15 @@ public class UserService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BitpubException("Email already exists", HttpStatus.CONFLICT);
         }
+        try {
+            Role.valueOf(request.getRole());
+        } catch (IllegalArgumentException e) {
+            throw new BitpubException("Invalid role: " + request.getRole(), HttpStatus.BAD_REQUEST);
+        }
 
         User user = User.builder()
                 .username(request.getUsername())
-                .passwordHash(request.getPassword()) // Assumendo che password sia l'hash, oppure fare hashing qui
+                .passwordHash(passwordUtils.hash(request.getPassword()))
                 .email(request.getEmail())
                 .role(request.getRole())
                 .createdAt(Instant.now())
@@ -46,13 +55,24 @@ public class UserService {
                 .orElseGet(() -> {
                     User newUser = User.builder()
                             .username(username)
-                            .passwordHash("arcade_password_" + java.util.UUID.randomUUID().toString().substring(0, 8))
+                            .passwordHash(passwordUtils.hash("arcade_password_" + java.util.UUID.randomUUID().toString().substring(0, 8)))
                             .email(username.toLowerCase().replaceAll("\\s+", "") + "@bitpub.local")
                             .role("PLAYER")
                             .createdAt(Instant.now())
                             .build();
                     return mapToDto(userRepository.save(newUser));
                 });
+    }
+
+    public UserDto verifyCredentials(VerifyCredentialsRequest request) {
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED));
+
+        if (!passwordUtils.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
+        }
+
+        return mapToDto(user);
     }
 
     public UserDto getUserById(String id) {
@@ -77,12 +97,50 @@ public class UserService {
         return userRepository.count();
     }
 
+    public List<UserDto> getUsersByRole(String role) {
+        return userRepository.findAll().stream()
+                .filter(u -> u.getRole().equalsIgnoreCase(role))
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    public UserDto updateUserRole(String id, String role) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        try {
+            Role.valueOf(role);
+        } catch (IllegalArgumentException e) {
+            throw new BitpubException("Invalid role: " + role, HttpStatus.BAD_REQUEST);
+        }
+        user.setRole(role);
+        return mapToDto(userRepository.save(user));
+    }
+
+    public void deleteUser(String id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User", "id", id);
+        }
+        userRepository.deleteById(id);
+    }
+
+    /**
+     * Chiamato da locale-service quando un LOCALE_ADMIN viene assegnato (o riassegnato)
+     * a un locale, cosi' il localeId finisce nel claim JWT al login successivo.
+     */
+    public UserDto updateUserLocale(String id, String localeId) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        user.setLocaleId(localeId);
+        return mapToDto(userRepository.save(user));
+    }
+
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .localeId(user.getLocaleId())
                 .createdAt(user.getCreatedAt())
                 .lastLogin(user.getLastLogin())
                 .build();

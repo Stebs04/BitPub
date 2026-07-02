@@ -14,6 +14,7 @@ spring:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
             allowedHeaders: "*"
@@ -27,6 +28,8 @@ spring:
           uri: http://user-service:8082
           predicates:
             - Path=/api/v1/users/**
+          filters:
+            - name: JwtAuthenticationFilter
 
         - id: locale-service
           uri: http://locale-service:8083
@@ -46,16 +49,22 @@ spring:
           uri: http://match-service:8085
           predicates:
             - Path=/api/matches/**
+          filters:
+            - name: JwtAuthenticationFilter
 
         - id: tournament-service
           uri: http://tournament-service:8086
           predicates:
             - Path=/api/v1/tournaments/**
+          filters:
+            - name: JwtAuthenticationFilter
 
         - id: statistics-service
           uri: http://statistics-service:8087
           predicates:
             - Path=/api/v1/statistics/**
+          filters:
+            - name: JwtAuthenticationFilter
 
 bitpub:
   jwt:

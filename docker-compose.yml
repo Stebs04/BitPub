@@ -48,6 +48,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - BITPUB_SERVICES_USER_SERVICE_URL=http://user-service:8082
     networks:
       - bitpub-network
 
@@ -72,10 +73,14 @@ services:
       - "8083:8083"
     depends_on:
       - postgres
+      - user-service
+      - game-catalog-service
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - USER_SERVICE_URL=http://user-service:8082
+      - CATALOG_SERVICE_URL=http://game-catalog-service:8084
     networks:
       - bitpub-network
 
@@ -110,6 +115,7 @@ services:
       - MQTT_CLIENT_ID=match-service-docker
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
       - USER_SERVICE_URL=http://user-service:8082
+      - LOCALE_SERVICE_URL=http://locale-service:8083
     networks:
       - bitpub-network
 

@@ -26,10 +26,15 @@ public class JwtUtils {
     }
 
     public String generateToken(String username, String role, String userId) {
+        return generateToken(username, role, userId, null);
+    }
+
+    public String generateToken(String username, String role, String userId, String localeId) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
                 .claim("userId", userId)
+                .claim("localeId", localeId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(getSigningKey())
@@ -39,13 +44,17 @@ public class JwtUtils {
     public String getUsernameFromToken(String token) {
         return extractClaim(token, Claims::getSubject);
     }
-    
+
     public String getRoleFromToken(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
-    
+
     public String getUserIdFromToken(String token) {
         return extractClaim(token, claims -> claims.get("userId", String.class));
+    }
+
+    public String getLocaleIdFromToken(String token) {
+        return extractClaim(token, claims -> claims.get("localeId", String.class));
     }
 
     public Date getExpirationDateFromToken(String token) {

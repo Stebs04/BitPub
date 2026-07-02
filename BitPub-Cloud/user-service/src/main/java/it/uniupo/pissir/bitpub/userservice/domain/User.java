@@ -30,6 +30,8 @@ public class User {
     @Column(nullable = false)
     private String role; // PLAYER, LOCALE_ADMIN, GAME_ADMIN, PLATFORM_ADMIN
 
+    private String localeId; // Valorizzato solo per LOCALE_ADMIN: locale di appartenenza
+
     @Column(nullable = false)
     private Instant createdAt;
 
