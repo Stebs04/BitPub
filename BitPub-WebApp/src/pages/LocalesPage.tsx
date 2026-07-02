@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { MapPin, Server, Plus, Power } from 'lucide-react';
-import api from '../services/api';
+import { MapPin, Server, Plus, Power, Trash2 } from 'lucide-react';
+import api, { deleteLocale } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
@@ -100,6 +100,16 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  const handleDeleteLocale = async (localeId: string, localeName: string) => {
+    if (!window.confirm(`Eliminare definitivamente il locale "${localeName}" e tutti i suoi dispositivi?`)) return;
+    try {
+      await deleteLocale(localeId);
+      setLocales((prev) => prev.filter((l) => l.id !== localeId));
+    } catch (error) {
+      console.error('Error deleting locale:', error);
+    }
+  };
+
   const handleToggleGameInstance = async (localeId: string, instance: GameInstance) => {
     try {
       await api.patch(`/locales/${localeId}/games/${instance.id}/status?active=${!instance.active}`);
@@ -168,9 +178,20 @@ const LocalesPage: React.FC = () => {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>{locale.name}</CardTitle>
-                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-semibold">
-                  ONLINE
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-semibold">
+                    ONLINE
+                  </span>
+                  {isPlatformAdmin && (
+                    <button
+                      onClick={() => handleDeleteLocale(locale.id, locale.name)}
+                      className="text-slate-400 hover:text-red-400"
+                      title="Elimina locale"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>

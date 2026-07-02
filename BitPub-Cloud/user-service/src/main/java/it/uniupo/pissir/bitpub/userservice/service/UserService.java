@@ -107,8 +107,20 @@ public class UserService {
     public UserDto updateUserRole(String id, String role) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        try {
+            Role.valueOf(role);
+        } catch (IllegalArgumentException e) {
+            throw new BitpubException("Invalid role: " + role, HttpStatus.BAD_REQUEST);
+        }
         user.setRole(role);
         return mapToDto(userRepository.save(user));
+    }
+
+    public void deleteUser(String id) {
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User", "id", id);
+        }
+        userRepository.deleteById(id);
     }
 
     private UserDto mapToDto(User user) {

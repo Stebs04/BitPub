@@ -1,9 +1,40 @@
 import { create } from 'zustand';
 
+export type Role = 'PLAYER' | 'LOCALE_ADMIN' | 'GAME_ADMIN' | 'PLATFORM_ADMIN';
+
 interface User {
   id: string;
   username: string;
-  role: 'PLAYER' | 'LOCALE_ADMIN' | 'GAME_ADMIN' | 'PLATFORM_ADMIN';
+  role: Role;
+}
+
+interface JwtPayload {
+  sub?: string;
+  userId?: string;
+  role?: string;
+}
+
+// Decodifica il payload del JWT (nessuna verifica firma: la validazione avviene lato gateway).
+// Usata solo per ripristinare l'utente in memoria dopo un refresh della pagina.
+function decodeJwtPayload(token: string): JwtPayload | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+function userFromToken(token: string | null): User | null {
+  if (!token) return null;
+  const payload = decodeJwtPayload(token);
+  if (!payload?.role) return null;
+  return {
+    id: payload.userId || '',
+    username: payload.sub || '',
+    role: payload.role as Role,
+  };
 }
 
 interface AuthState {
@@ -12,12 +43,16 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  isPlatformAdmin: () => boolean;
+  hasRole: (role: Role) => boolean;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: localStorage.getItem('bitpub_token'),
-  user: null, // Should ideally be hydrated from the token or an API call on load
-  isAuthenticated: !!localStorage.getItem('bitpub_token'),
+const initialToken = localStorage.getItem('bitpub_token');
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  token: initialToken,
+  user: userFromToken(initialToken),
+  isAuthenticated: !!initialToken,
   login: (token, user) => {
     localStorage.setItem('bitpub_token', token);
     set({ token, user, isAuthenticated: true });
@@ -26,4 +61,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('bitpub_token');
     set({ token: null, user: null, isAuthenticated: false });
   },
+  isPlatformAdmin: () => get().user?.role === 'PLATFORM_ADMIN',
+  hasRole: (role) => get().user?.role === role,
 }));

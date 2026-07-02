@@ -47,6 +47,34 @@ public class LocaleService {
         return mapToDto(locale);
     }
 
+    /**
+     * Modifica di un locale: consentita al PLATFORM_ADMIN o al LOCALE_ADMIN proprietario del locale.
+     */
+    @Transactional
+    public LocaleDto updateLocale(String id, CreateLocaleRequest request, String callerId, String callerRole) {
+        Locale locale = localeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Locale", "id", id));
+
+        assertLocaleManageable(locale, callerId, callerRole);
+
+        locale.setName(request.getName());
+        locale.setAddress(request.getAddress());
+        locale.setAdminId(request.getAdminId());
+
+        return mapToDto(localeRepository.save(locale));
+    }
+
+    /**
+     * Eliminazione di un locale: operazione riservata al PLATFORM_ADMIN (CRUD completo sui locali).
+     */
+    @Transactional
+    public void deleteLocale(String id) {
+        if (!localeRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Locale", "id", id);
+        }
+        localeRepository.deleteById(id);
+    }
+
     public List<LocaleDto> getLocalesByAdmin(String adminId) {
         return localeRepository.findByAdminId(adminId).stream()
                 .map(this::mapToDto)

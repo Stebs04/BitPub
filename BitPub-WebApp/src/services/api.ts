@@ -33,6 +33,32 @@ export interface CreateUserPayload {
   role: string;
 }
 
+export interface UserRecord {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+export interface GlobalStats {
+  totalLocales: number;
+  totalUsers: number;
+  activeMatches: number;
+  activeTournaments: number;
+}
+
+// Gestione utenti (PLATFORM_ADMIN)
 export const createUser = (payload: CreateUserPayload) => api.post('/users', payload);
+export const getAllUsers = () => api.get<UserRecord[]>('/users');
+export const updateUserRole = (id: string, role: string) => api.patch<UserRecord>(`/users/${id}/role`, null, { params: { role } });
+export const deleteUser = (id: string) => api.delete(`/users/${id}`);
+
+// Gestione locali (PLATFORM_ADMIN)
+export const deleteLocale = (id: string) => api.delete(`/locales/${id}`);
+
+// Statistiche globali della piattaforma (PLATFORM_ADMIN)
+export const getGlobalStats = () => statsApi.get<GlobalStats>('/global');
 
 export default api;

@@ -1,6 +1,5 @@
 package it.uniupo.pissir.bitpub.userservice.controller;
 
-import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
 import it.uniupo.pissir.bitpub.userservice.dto.VerifyCredentialsRequest;
@@ -8,6 +7,7 @@ import it.uniupo.pissir.bitpub.userservice.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,15 +19,13 @@ public class UserController {
 
     private final UserService userService;
 
-    // Creazione utente con ruolo assegnato: riservata a PLATFORM_ADMIN.
-    // Il ruolo del chiamante arriva dal gateway (JwtAuthenticationFilter) nell'header X-User-Role.
+    // Gestione utenti (CRUD completo): riservata a PLATFORM_ADMIN.
+    // Il ruolo arriva dal JWT inoltrato dal gateway ed e' valorizzato nel SecurityContext
+    // dal JwtAuthenticationFilter condiviso (bitpub-common).
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserDto createUser(@Valid @RequestBody CreateUserRequest request,
-                               @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
-        if (!"PLATFORM_ADMIN".equals(callerRole)) {
-            throw new BitpubException("Only PLATFORM_ADMIN can create users", HttpStatus.FORBIDDEN);
-        }
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    public UserDto createUser(@Valid @RequestBody CreateUserRequest request) {
         return userService.createUser(request);
     }
 
@@ -54,6 +52,7 @@ public class UserController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public List<UserDto> getAllUsers() {
         return userService.getAllUsers();
     }
@@ -64,12 +63,21 @@ public class UserController {
     }
 
     @GetMapping("/by-role/{role}")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public List<UserDto> getUsersByRole(@PathVariable("role") String role) {
         return userService.getUsersByRole(role);
     }
 
     @PatchMapping("/{id}/role")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public UserDto updateUserRole(@PathVariable("id") String id, @RequestParam String role) {
         return userService.updateUserRole(id, role);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    public void deleteUser(@PathVariable("id") String id) {
+        userService.deleteUser(id);
     }
 }

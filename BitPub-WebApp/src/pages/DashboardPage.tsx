@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import api, { matchApi } from '../services/api';
+import api, { matchApi, getGlobalStats } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { Activity } from 'lucide-react';
 
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
+const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
 
 interface StatTile {
   label: string;
@@ -17,6 +19,7 @@ const DashboardPage: React.FC = () => {
   const [tiles, setTiles] = useState<StatTile[]>([]);
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [systemTiles, setSystemTiles] = useState<StatTile[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -57,24 +60,16 @@ const DashboardPage: React.FC = () => {
             { label: 'Tipologie di Gioco', value: gameTypes.length, color: 'text-brand-light' },
             { label: 'Sensori Configurati', value: totalSensors, color: 'text-emerald-400' },
           ]);
-        } else {
-          // PLATFORM_ADMIN — global overview
-          const [matchesRes, tournamentsRes, usersRes] = await Promise.all([
-            matchApi.get('/active'),
-            api.get('/tournaments/active'),
-            api.get('/users'),
-          ]);
+        } else if (role === PLATFORM_ADMIN) {
+          // PLATFORM_ADMIN — monitoraggio del sistema e statistiche globali della piattaforma
+          const globalRes = await getGlobalStats();
+          const stats = globalRes.data;
 
-          const allMatches = matchesRes.data || [];
-          const activeMatchesList = allMatches.filter((m: any) => m.status === 'IN_PROGRESS');
-
-          const allUsers = usersRes.data || [];
-          const playersCount = allUsers.filter((u: any) => u.role === 'PLAYER').length;
-
-          setTiles([
-            { label: 'Partite Attive', value: activeMatchesList.length, color: 'text-brand-light' },
-            { label: 'Tornei in Corso', value: tournamentsRes.data?.length || 0, color: 'text-accent-pink' },
-            { label: 'Giocatori Registrati', value: playersCount, color: 'text-emerald-400' },
+          setSystemTiles([
+            { label: 'Locali Registrati', value: stats.totalLocales, color: 'text-brand-light' },
+            { label: 'Utenti Registrati', value: stats.totalUsers, color: 'text-emerald-400' },
+            { label: 'Partite Attive', value: stats.activeMatches, color: 'text-accent-pink' },
+            { label: 'Tornei in Corso', value: stats.activeTournaments, color: 'text-yellow-400' },
           ]);
         }
       } catch (error) {
@@ -99,14 +94,34 @@ const DashboardPage: React.FC = () => {
   return (
     <div className="p-8 animate-slide-up">
       <h1 className="text-3xl font-bold text-white mb-6">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tiles.map((tile) => (
-          <div key={tile.label} className="glass-panel p-6">
-            <h2 className="text-xl font-semibold text-white mb-2">{tile.label}</h2>
-            <p className={`text-4xl font-bold ${tile.color}`}>{tile.value}</p>
+      {tiles.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tiles.map((tile) => (
+            <div key={tile.label} className="glass-panel p-6">
+              <h2 className="text-xl font-semibold text-white mb-2">{tile.label}</h2>
+              <p className={`text-4xl font-bold ${tile.color}`}>{tile.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {role === PLATFORM_ADMIN && (
+        <div className="mt-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Activity className="w-6 h-6 text-brand-light" />
+            <h2 className="text-2xl font-bold text-white">Monitoraggio del Sistema</h2>
           </div>
-        ))}
-      </div>
+          <p className="text-slate-400 mb-4">Statistiche globali della piattaforma, aggregate da tutti i locali.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {systemTiles.map((tile) => (
+              <div key={tile.label} className="glass-panel p-6">
+                <h3 className="text-lg font-semibold text-white mb-2">{tile.label}</h3>
+                <p className={`text-4xl font-bold ${tile.color}`}>{tile.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {role === 'PLAYER' && recentMatches.length > 0 && (
         <div className="glass-panel mt-6 overflow-hidden">
