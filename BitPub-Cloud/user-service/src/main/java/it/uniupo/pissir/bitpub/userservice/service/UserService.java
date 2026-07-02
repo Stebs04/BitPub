@@ -123,12 +123,24 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
+    /**
+     * Chiamato da locale-service quando un LOCALE_ADMIN viene assegnato (o riassegnato)
+     * a un locale, cosi' il localeId finisce nel claim JWT al login successivo.
+     */
+    public UserDto updateUserLocale(String id, String localeId) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        user.setLocaleId(localeId);
+        return mapToDto(userRepository.save(user));
+    }
+
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .localeId(user.getLocaleId())
                 .createdAt(user.getCreatedAt())
                 .lastLogin(user.getLastLogin())
                 .build();

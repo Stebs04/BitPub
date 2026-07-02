@@ -74,6 +74,13 @@ public class UserController {
         return userService.updateUserRole(id, role);
     }
 
+    // Chiamata interna da locale-service (service-to-service, come /ensure) quando un
+    // LOCALE_ADMIN viene assegnato a un locale, per sincronizzare il localeId sull'utente.
+    @PatchMapping("/{id}/locale")
+    public UserDto updateUserLocale(@PathVariable("id") String id, @RequestParam String localeId) {
+        return userService.updateUserLocale(id, localeId);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")

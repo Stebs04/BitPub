@@ -6,12 +6,14 @@ interface User {
   id: string;
   username: string;
   role: Role;
+  localeId?: string | null;
 }
 
 interface JwtPayload {
   sub?: string;
   userId?: string;
   role?: string;
+  localeId?: string | null;
 }
 
 // Decodifica il payload del JWT (nessuna verifica firma: la validazione avviene lato gateway).
@@ -34,6 +36,7 @@ function userFromToken(token: string | null): User | null {
     id: payload.userId || '',
     username: payload.sub || '',
     role: payload.role as Role,
+    localeId: payload.localeId || null,
   };
 }
 

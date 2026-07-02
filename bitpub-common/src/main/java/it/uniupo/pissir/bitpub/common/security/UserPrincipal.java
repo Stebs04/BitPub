@@ -11,6 +11,7 @@ public class UserPrincipal implements Principal {
     private final String id;
     private final String username;
     private final String role;
+    private final String localeId;
 
     @Override
     public String getName() {

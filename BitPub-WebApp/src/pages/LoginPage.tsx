@@ -17,12 +17,13 @@ const LoginPage: React.FC = () => {
 
     try {
       const res = await api.post('/auth/login', { username, password });
-      const { token, id, role } = res.data;
+      const { token, id, role, localeId } = res.data;
 
       login(token, {
         id,
         username,
         role,
+        localeId: localeId ?? null,
       });
       navigate('/');
     } catch (err) {

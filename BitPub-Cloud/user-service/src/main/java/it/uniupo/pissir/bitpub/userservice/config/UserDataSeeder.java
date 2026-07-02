@@ -23,8 +23,11 @@ public class UserDataSeeder implements CommandLineRunner {
     public void run(String... args) {
         for (Role role : Role.values()) {
             String email = role.name().toLowerCase() + "@test.com";
-            // Rimuove il profilo seed esistente (es. con hash legacy in chiaro) per ricrearlo pulito.
-            userRepository.findByEmail(email).ifPresent(userRepository::delete);
+            // Idempotente: se il seed esiste gia' non va ricreato, altrimenti perderebbe l'id
+            // ad ogni riavvio, orfanizzando i locali gia' assegnati a un LOCALE_ADMIN esistente.
+            if (userRepository.findByEmail(email).isPresent()) {
+                continue;
+            }
 
             User user = User.builder()
                     .username(role.name().toLowerCase())

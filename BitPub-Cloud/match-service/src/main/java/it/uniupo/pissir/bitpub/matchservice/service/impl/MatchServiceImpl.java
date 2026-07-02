@@ -80,12 +80,14 @@ public class MatchServiceImpl implements MatchService {
      * A LOCALE_ADMIN may only access matches of the locale they are assigned to.
      * PLATFORM_ADMIN and other roles are left unrestricted (read-only monitoring is not
      * gated for players/other admins, only LOCALE_ADMIN is scoped down).
+     * Prefers the locale claim forwarded by the gateway (callerLocaleId); falls back to
+     * resolving it via locale-service if the caller's token predates the claim.
      */
-    public void assertMatchLocaleAccess(String matchLocaleId, String callerId, String callerRole) {
+    public void assertMatchLocaleAccess(String matchLocaleId, String callerId, String callerRole, String callerLocaleId) {
         if (!"LOCALE_ADMIN".equals(callerRole)) {
             return;
         }
-        String adminLocaleId = resolveAdminLocaleId(callerId);
+        String adminLocaleId = callerLocaleId != null ? callerLocaleId : resolveAdminLocaleId(callerId);
         if (adminLocaleId == null || !adminLocaleId.equals(matchLocaleId)) {
             throw new BitpubException("LOCALE_ADMIN can only access matches of their own locale", HttpStatus.FORBIDDEN);
         }
@@ -430,7 +432,8 @@ public class MatchServiceImpl implements MatchService {
 
         try {
             String statePayload = objectMapper.writeValueAsString(stateDto);
-            String topic = "bitpub/match/LOC-1/" + match.getGameInstanceId() + "/state";
+            String topicLocaleId = match.getLocaleId() != null ? match.getLocaleId() : "unknown";
+            String topic = it.uniupo.pissir.bitpub.common.constants.MqttTopics.getGameStateTopic(topicLocaleId, match.getGameInstanceId());
             mqttOutboundChannel.send(MessageBuilder.withPayload(statePayload)
                     .setHeader(MqttHeaders.TOPIC, topic)
                     .setHeader(MqttHeaders.RETAINED, true)

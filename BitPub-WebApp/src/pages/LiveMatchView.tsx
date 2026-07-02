@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Wifi, WifiOff, Trophy, Zap } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import api from '../services/api';
 
 // MQTT over WebSocket (port 9001 as defined in mosquitto.conf)
 const MQTT_WS_URL = 'ws://localhost:9001';
@@ -68,6 +70,35 @@ const getEventColor = (type: string): string => {
  * real-time game state: scores, player names, event log.
  */
 const LiveMatchView: React.FC = () => {
+  const user = useAuthStore((state) => state.user);
+
+  // Un LOCALE_ADMIN monitora solo le partite del proprio locale: si sottoscrive
+  // esclusivamente al topic MQTT del proprio localeId invece che al wildcard globale.
+  // Il localeId puo' arrivare dal claim JWT (token aggiornato) o, se l'admin non ha
+  // ancora rifatto login dopo l'assegnazione del locale, via fallback REST (stesso
+  // endpoint /locales/by-admin usato da Dashboard e LocalesPage).
+  const [ownLocaleId, setOwnLocaleId] = useState<string | null>(user?.localeId ?? null);
+
+  useEffect(() => {
+    if (user?.role !== 'LOCALE_ADMIN') {
+      setOwnLocaleId(null);
+      return;
+    }
+    if (user.localeId) {
+      setOwnLocaleId(user.localeId);
+      return;
+    }
+    api.get(`/locales/by-admin/${user.id}`)
+      .then((res) => setOwnLocaleId(res.data?.[0]?.id ?? null))
+      .catch(() => setOwnLocaleId(null));
+  }, [user]);
+
+  // null = nessuna sottoscrizione: un LOCALE_ADMIN senza locale (ancora) assegnato non deve
+  // MAI ricadere sul wildcard globale, altrimenti vedrebbe le partite di tutti i locali.
+  const matchStateTopic = user?.role === 'LOCALE_ADMIN'
+    ? (ownLocaleId ? `bitpub/match/${ownLocaleId}/+/state` : null)
+    : 'bitpub/match/+/+/state';
+
   const [connected, setConnected] = useState(false);
   const [gameStates, setGameStates] = useState<Record<string, GameState>>({});
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
@@ -75,6 +106,12 @@ const LiveMatchView: React.FC = () => {
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // LOCALE_ADMIN senza locale assegnato: nessun topic sicuro da sottoscrivere, non connettere.
+    if (matchStateTopic === null) {
+      setConnected(false);
+      return;
+    }
+
     // Use raw MQTT over WebSocket via the Paho or native WS approach.
     // We use a simple approach: connect to mosquitto WS port.
     let ws: WebSocket;
@@ -163,7 +200,7 @@ const LiveMatchView: React.FC = () => {
       if (type === 2) {
         // CONNACK — subscribe to game state topic
         setConnected(true);
-        sendPacket(buildMqttSubscribe('bitpub/match/+/+/state', 1));
+        sendPacket(buildMqttSubscribe(matchStateTopic, 1));
         pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) sendPacket(buildMqttPingReq());
         }, 25000);
@@ -222,7 +259,7 @@ const LiveMatchView: React.FC = () => {
       clearTimeout(reconnectTimeout);
       if (clientRef.current) clientRef.current.close();
     };
-  }, []);
+  }, [matchStateTopic]);
 
   // Auto-scroll log
   useEffect(() => {
