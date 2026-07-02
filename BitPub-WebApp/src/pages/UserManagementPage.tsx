@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { UserPlus, Trash2, Users as UsersIcon } from 'lucide-react';
-import { createUser, deleteUser, getAllUsers, updateUserRole, UserRecord } from '../services/api';
+import { createUser, deleteUser, getAllUsers, updateUserRole, type UserRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 // NOTE: bitpub-common Role enum values (verbatim strings expected by the backend)
