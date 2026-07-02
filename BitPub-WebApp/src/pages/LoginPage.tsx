@@ -1,29 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import api from '../services/api';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
-  
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Simulated login for now
-    let role = 'PLAYER';
-    if (username === 'platformadmin') role = 'PLATFORM_ADMIN';
-    else if (username === 'gameadmin') role = 'GAME_ADMIN';
-    else if (username === 'localeadmin') role = 'LOCALE_ADMIN';
+    setError('');
 
-    login('dummy-token', {
-      id: '1',
-      username: username || 'admin',
-      role: role as any,
-    });
-    navigate('/');
+    try {
+      const res = await api.post('/auth/login', { username, password });
+      const { token, id, role } = res.data;
+
+      login(token, {
+        id,
+        username,
+        role,
+      });
+      navigate('/');
+    } catch (err) {
+      setError('Credenziali non valide');
+    }
   };
 
   return (
@@ -55,7 +59,10 @@ const LoginPage: React.FC = () => {
               required
             />
           </div>
-          <button 
+          {error && (
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
+          <button
             type="submit"
             className="w-full bg-brand hover:bg-brand-light text-white font-bold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-brand/50 mt-4">
             Sign In

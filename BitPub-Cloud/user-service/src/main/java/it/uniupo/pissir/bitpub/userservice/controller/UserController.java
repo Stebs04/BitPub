@@ -3,6 +3,7 @@ package it.uniupo.pissir.bitpub.userservice.controller;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
+import it.uniupo.pissir.bitpub.userservice.dto.VerifyCredentialsRequest;
 import it.uniupo.pissir.bitpub.userservice.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,12 @@ public class UserController {
             throw new BitpubException("Only PLATFORM_ADMIN can create users", HttpStatus.FORBIDDEN);
         }
         return userService.createUser(request);
+    }
+
+    // Verifica username/password contro l'hash memorizzato: usato dall'auth-service per il login.
+    @PostMapping("/verify")
+    public UserDto verifyCredentials(@Valid @RequestBody VerifyCredentialsRequest request) {
+        return userService.verifyCredentials(request);
     }
 
     @PostMapping("/ensure")

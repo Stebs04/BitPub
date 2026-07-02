@@ -3,9 +3,11 @@ package it.uniupo.pissir.bitpub.userservice.service;
 import it.uniupo.pissir.bitpub.common.dto.Role;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
+import it.uniupo.pissir.bitpub.common.security.PasswordUtils;
 import it.uniupo.pissir.bitpub.userservice.domain.User;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
+import it.uniupo.pissir.bitpub.userservice.dto.VerifyCredentialsRequest;
 import it.uniupo.pissir.bitpub.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordUtils passwordUtils;
 
     public UserDto createUser(CreateUserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -36,7 +39,7 @@ public class UserService {
 
         User user = User.builder()
                 .username(request.getUsername())
-                .passwordHash(request.getPassword()) // Assumendo che password sia l'hash, oppure fare hashing qui
+                .passwordHash(passwordUtils.hash(request.getPassword()))
                 .email(request.getEmail())
                 .role(request.getRole())
                 .createdAt(Instant.now())
@@ -52,13 +55,24 @@ public class UserService {
                 .orElseGet(() -> {
                     User newUser = User.builder()
                             .username(username)
-                            .passwordHash("arcade_password_" + java.util.UUID.randomUUID().toString().substring(0, 8))
+                            .passwordHash(passwordUtils.hash("arcade_password_" + java.util.UUID.randomUUID().toString().substring(0, 8)))
                             .email(username.toLowerCase().replaceAll("\\s+", "") + "@bitpub.local")
                             .role("PLAYER")
                             .createdAt(Instant.now())
                             .build();
                     return mapToDto(userRepository.save(newUser));
                 });
+    }
+
+    public UserDto verifyCredentials(VerifyCredentialsRequest request) {
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED));
+
+        if (!passwordUtils.matches(request.getPassword(), user.getPasswordHash())) {
+            throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
+        }
+
+        return mapToDto(user);
     }
 
     public UserDto getUserById(String id) {

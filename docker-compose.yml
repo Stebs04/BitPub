@@ -48,6 +48,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - BITPUB_SERVICES_USER_SERVICE_URL=http://user-service:8082
     networks:
       - bitpub-network
 
