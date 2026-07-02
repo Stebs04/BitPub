@@ -61,4 +61,43 @@ export const deleteLocale = (id: string) => api.delete(`/locales/${id}`);
 // Statistiche globali della piattaforma (PLATFORM_ADMIN)
 export const getGlobalStats = () => statsApi.get<GlobalStats>('/global');
 
+// ── Catalogo giochi (GAME_ADMIN) ───────────────────────────────────────────────
+// Un evento simulato del gioco e' modellato da SensorDefinition (sostituisce il MAC hardware):
+// `type` = tipologia di evento MQTT (GOAL, DART_HIT, BALL_POCKETED, MATCH_START, ...).
+// Il campo booleano lato backend e' `isActuator` (Lombok) -> Jackson lo serializza come `actuator`.
+export interface SensorDefinitionRecord {
+  id: string;
+  type: string;
+  description: string;
+  actuator: boolean;
+}
+
+export interface GameTypeRecord {
+  id: string;
+  name: string;
+  description: string;
+  sensors: SensorDefinitionRecord[];
+}
+
+export interface CreateGameTypePayload {
+  name: string;
+  description: string;
+}
+
+export interface AddSensorPayload {
+  type: string;
+  description: string;
+  actuator: boolean;
+}
+
+export const getGameTypes = () => api.get<GameTypeRecord[]>('/catalog/games');
+export const getGameTypeById = (id: string) => api.get<GameTypeRecord>(`/catalog/games/${id}`);
+export const createGameType = (payload: CreateGameTypePayload) => api.post<GameTypeRecord>('/catalog/games', payload);
+export const updateGameType = (id: string, payload: CreateGameTypePayload) => api.put<GameTypeRecord>(`/catalog/games/${id}`, payload);
+export const getSensorsByGameType = (gameTypeId: string) => api.get<SensorDefinitionRecord[]>(`/catalog/games/${gameTypeId}/sensors`);
+export const addSensorToGameType = (gameTypeId: string, payload: AddSensorPayload) =>
+  api.post<SensorDefinitionRecord>(`/catalog/games/${gameTypeId}/sensors`, payload);
+export const deleteSensor = (gameTypeId: string, sensorId: string) =>
+  api.delete(`/catalog/games/${gameTypeId}/sensors/${sensorId}`);
+
 export default api;
