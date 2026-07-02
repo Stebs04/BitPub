@@ -35,11 +35,52 @@ public class GameCatalogService {
         GameType gameType = GameType.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                // Derived from name since rulesEngineId is not part of the create request;
+                // match-service's Strategy lookup uses this key (e.g. "Calciobalilla" -> "calciobalilla").
+                .rulesEngineId(request.getName().trim().toLowerCase().replaceAll("\\s+", "_"))
                 .sensors(new ArrayList<>())
                 .build();
 
         GameType saved = gameTypeRepository.save(gameType);
         return mapToDto(saved);
+    }
+
+    /**
+     * Modifica nome/descrizione di un tipo di gioco. Il rulesEngineId NON viene rigenerato:
+     * e' la chiave usata dal match-service per selezionare la Strategy e cambiarlo
+     * desincronizzerebbe le partite gia' collegate a questo GameType.
+     */
+    @Transactional
+    public GameTypeDto updateGameType(String id, CreateGameTypeRequest request) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("GameType", "id", id));
+
+        if (!gameType.getName().equals(request.getName())
+                && gameTypeRepository.findByName(request.getName()).isPresent()) {
+            throw new BitpubException("GameType with this name already exists", HttpStatus.CONFLICT);
+        }
+
+        gameType.setName(request.getName());
+        gameType.setDescription(request.getDescription());
+
+        GameType saved = gameTypeRepository.save(gameType);
+        return mapToDto(saved);
+    }
+
+    /**
+     * Rimuove un evento simulato (SensorDefinition) da un tipo di gioco.
+     * Verifica che il sensore appartenga davvero al GameType indicato.
+     */
+    @Transactional
+    public void deleteSensor(String gameTypeId, String sensorId) {
+        SensorDefinition sensor = sensorDefinitionRepository.findById(sensorId)
+                .orElseThrow(() -> new ResourceNotFoundException("SensorDefinition", "id", sensorId));
+
+        if (sensor.getGameType() == null || !gameTypeId.equals(sensor.getGameType().getId())) {
+            throw new BitpubException("Sensor does not belong to the specified GameType", HttpStatus.BAD_REQUEST);
+        }
+
+        sensorDefinitionRepository.delete(sensor);
     }
 
     public GameTypeDto getGameTypeById(String id) {

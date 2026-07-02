@@ -5,6 +5,11 @@ import DashboardPage from '../pages/DashboardPage';
 import LeaderboardPage from '../pages/LeaderboardPage';
 import LocalesPage from '../pages/LocalesPage';
 import LiveMatchView from '../pages/LiveMatchView';
+import UserManagementPage from '../pages/UserManagementPage';
+import GameCatalogPage from '../pages/GameCatalogPage';
+import PlayerStatsPage from '../pages/PlayerStatsPage';
+import TournamentsPage from '../pages/TournamentsPage';
+import GamesPage from '../pages/GamesPage';
 import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
 
@@ -16,11 +21,60 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const isPlatformAdmin = useAuthStore((state) => state.isPlatformAdmin());
+  if (!isPlatformAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+const GameAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role !== 'GAME_ADMIN') {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Solo il PLAYER: matchmaking/gioco. Gli altri ruoli vengono rimandati alla home.
+const PlayerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role !== 'PLAYER') {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Live Match e' una vista di monitoraggio: il PLAYER non deve accedervi (nemmeno via URL).
+const NonPlayerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role === 'PLAYER') {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <RedirectIfAuthenticated>
+              <LoginPage />
+            </RedirectIfAuthenticated>
+          }
+        />
 
         {/* Protected Routes */}
         <Route
@@ -34,7 +88,40 @@ const AppRouter: React.FC = () => {
           <Route index element={<DashboardPage />} />
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="locales" element={<LocalesPage />} />
-          <Route path="live" element={<LiveMatchView />} />
+          <Route
+            path="catalog"
+            element={
+              <GameAdminRoute>
+                <GameCatalogPage />
+              </GameAdminRoute>
+            }
+          />
+          <Route
+            path="live"
+            element={
+              <NonPlayerRoute>
+                <LiveMatchView />
+              </NonPlayerRoute>
+            }
+          />
+          <Route
+            path="games"
+            element={
+              <PlayerRoute>
+                <GamesPage />
+              </PlayerRoute>
+            }
+          />
+          <Route path="stats" element={<PlayerStatsPage />} />
+          <Route path="tournaments" element={<TournamentsPage />} />
+          <Route
+            path="admin/users"
+            element={
+              <PlatformAdminRoute>
+                <UserManagementPage />
+              </PlatformAdminRoute>
+            }
+          />
         </Route>
 
         {/* Fallback route */}

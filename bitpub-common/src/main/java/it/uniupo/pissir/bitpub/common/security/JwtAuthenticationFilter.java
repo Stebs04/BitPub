@@ -34,12 +34,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = jwtUtils.getUsernameFromToken(jwt);
                 String role = jwtUtils.getRoleFromToken(jwt);
                 String userId = jwtUtils.getUserIdFromToken(jwt);
-                
+                String localeId = jwtUtils.getLocaleIdFromToken(jwt);
+
                 // Add ROLE_ prefix for Spring Security
                 String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-                
+
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        new UserPrincipal(userId, username, role), null, Collections.singletonList(new SimpleGrantedAuthority(authority)));
+                        new UserPrincipal(userId, username, role, localeId), null, Collections.singletonList(new SimpleGrantedAuthority(authority)));
                 
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 

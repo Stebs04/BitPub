@@ -75,6 +75,18 @@ public class TournamentServiceImpl implements TournamentService {
         return mapToDto(tournamentRepository.save(tournament));
     }
 
+    /**
+     * Player's own tournament registrations — used by the dashboard "my tournaments" view.
+     * No repository finder exists by participantId, so filter in-memory.
+     */
+    @Transactional(readOnly = true)
+    public List<TournamentRegistrationDto> getRegistrationsByParticipant(String participantId) {
+        return registrationRepository.findAll().stream()
+                .filter(r -> r.getParticipantId().equals(participantId))
+                .map(this::mapRegistrationToDto)
+                .collect(Collectors.toList());
+    }
+
     @Override
     @Transactional
     public TournamentRegistrationDto registerToTournament(String tournamentId, TournamentRegistrationDto dto) {
