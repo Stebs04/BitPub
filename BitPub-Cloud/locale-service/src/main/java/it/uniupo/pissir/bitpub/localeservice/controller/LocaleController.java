@@ -50,4 +50,9 @@ public class LocaleController {
     public List<GameInstanceDto> getGameInstances(@PathVariable String localeId) {
         return localeService.getGameInstancesByLocale(localeId);
     }
+
+    @PatchMapping("/{localeId}/games/{gameInstanceId}/status")
+    public GameInstanceDto setGameInstanceStatus(@PathVariable String localeId, @PathVariable String gameInstanceId, @RequestParam boolean active) {
+        return localeService.setGameInstanceActive(localeId, gameInstanceId, active);
+    }
 }

@@ -35,6 +35,9 @@ public class GameCatalogService {
         GameType gameType = GameType.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                // Derived from name since rulesEngineId is not part of the create request;
+                // match-service's Strategy lookup uses this key (e.g. "Calciobalilla" -> "calciobalilla").
+                .rulesEngineId(request.getName().trim().toLowerCase().replaceAll("\\s+", "_"))
                 .sensors(new ArrayList<>())
                 .build();
 

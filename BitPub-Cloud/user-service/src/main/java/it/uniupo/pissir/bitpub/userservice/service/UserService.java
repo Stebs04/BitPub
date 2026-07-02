@@ -77,6 +77,20 @@ public class UserService {
         return userRepository.count();
     }
 
+    public List<UserDto> getUsersByRole(String role) {
+        return userRepository.findAll().stream()
+                .filter(u -> u.getRole().equalsIgnoreCase(role))
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    public UserDto updateUserRole(String id, String role) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        user.setRole(role);
+        return mapToDto(userRepository.save(user));
+    }
+
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())

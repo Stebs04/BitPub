@@ -3,7 +3,7 @@ package it.uniupo.pissir.bitpub.matchservice.controller;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
-import it.uniupo.pissir.bitpub.matchservice.service.MatchService;
+import it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,7 +17,7 @@ import java.util.List;
 @Slf4j
 public class MatchController {
 
-    private final MatchService matchService;
+    private final MatchServiceImpl matchService;
 
     @PostMapping
     public ResponseEntity<MatchDto> startMatch(@RequestBody StartMatchRequestDto request) {
@@ -33,6 +33,11 @@ public class MatchController {
     @GetMapping("/{id}")
     public ResponseEntity<MatchDto> getMatch(@PathVariable String id) {
         return ResponseEntity.ok(matchService.getMatch(id));
+    }
+
+    @GetMapping("/by-player/{playerId}")
+    public ResponseEntity<List<MatchDto>> getMatchesByPlayer(@PathVariable String playerId) {
+        return ResponseEntity.ok(matchService.getMatchesByPlayer(playerId));
     }
 
     @PostMapping("/{id}/end")

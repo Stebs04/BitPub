@@ -86,6 +86,22 @@ public class LocaleService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Toggles a simulated device on/off for the LOCALE_ADMIN device-config panel.
+     */
+    @Transactional
+    public GameInstanceDto setGameInstanceActive(String localeId, String gameInstanceId, boolean active) {
+        GameInstance instance = gameInstanceRepository.findById(gameInstanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("GameInstance", "id", gameInstanceId));
+
+        if (!instance.getLocale().getId().equals(localeId)) {
+            throw new ResourceNotFoundException("GameInstance", "id", gameInstanceId);
+        }
+
+        instance.setActive(active);
+        return mapGameInstanceToDto(gameInstanceRepository.save(instance));
+    }
+
     private LocaleDto mapToDto(Locale locale) {
         return LocaleDto.builder()
                 .id(locale.getId())

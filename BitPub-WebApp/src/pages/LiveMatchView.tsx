@@ -79,6 +79,8 @@ const LiveMatchView: React.FC = () => {
     // We use a simple approach: connect to mosquitto WS port.
     let ws: WebSocket;
     let pingInterval: ReturnType<typeof setInterval>;
+    let reconnectTimeout: ReturnType<typeof setTimeout>;
+    let unmounted = false;
 
     // Helper: cast Uint8Array to ArrayBuffer so ws.send() is happy under TS strict mode
     const sendPacket = (data: Uint8Array): void => {
@@ -109,15 +111,15 @@ const LiveMatchView: React.FC = () => {
         ws.onclose = () => {
           setConnected(false);
           clearInterval(pingInterval);
-          // Reconnect after 3s
-          setTimeout(connect, 3000);
+          // Reconnect after 3s, unless the component has unmounted
+          if (!unmounted) reconnectTimeout = setTimeout(connect, 3000);
         };
 
         ws.onerror = () => {
           ws.close();
         };
       } catch {
-        setTimeout(connect, 3000);
+        if (!unmounted) reconnectTimeout = setTimeout(connect, 3000);
       }
     };
 
@@ -215,7 +217,9 @@ const LiveMatchView: React.FC = () => {
     connect();
 
     return () => {
+      unmounted = true;
       clearInterval(pingInterval);
+      clearTimeout(reconnectTimeout);
       if (clientRef.current) clientRef.current.close();
     };
   }, []);
