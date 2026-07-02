@@ -149,6 +149,20 @@ public class MatchServiceImpl implements MatchService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Player match history — used by the dashboard/stats views. No repository finder
+     * exists for team playerIds (element-collection), so filter in-memory.
+     */
+    @Transactional(readOnly = true)
+    public List<MatchDto> getMatchesByPlayer(String playerId) {
+        return matchRepository.findAll().stream()
+                .filter(m -> m.getTeams() != null && m.getTeams().stream()
+                        .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId)))
+                .sorted(Comparator.comparing(Match::getStartTime, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
     @Override
     @Transactional
     public void processSensorEvent(SensorEvent event) {

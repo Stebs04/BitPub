@@ -2,7 +2,7 @@ package it.uniupo.pissir.bitpub.tournamentservice.controller;
 
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRegistrationDto;
-import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentService;
+import it.uniupo.pissir.bitpub.tournamentservice.service.impl.TournamentServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TournamentController {
 
-    private final TournamentService tournamentService;
+    private final TournamentServiceImpl tournamentService;
 
     @PostMapping
     public ResponseEntity<TournamentDto> createTournament(@RequestBody TournamentDto tournamentDto) {
@@ -52,5 +52,10 @@ public class TournamentController {
             @PathVariable String id,
             @RequestBody TournamentRegistrationDto registrationDto) {
         return new ResponseEntity<>(tournamentService.registerToTournament(id, registrationDto), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/by-player/{playerId}")
+    public ResponseEntity<List<TournamentRegistrationDto>> getRegistrationsByPlayer(@PathVariable String playerId) {
+        return ResponseEntity.ok(tournamentService.getRegistrationsByParticipant(playerId));
     }
 }

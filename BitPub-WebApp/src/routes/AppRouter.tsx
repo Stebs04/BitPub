@@ -16,11 +16,26 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <RedirectIfAuthenticated>
+              <LoginPage />
+            </RedirectIfAuthenticated>
+          }
+        />
 
         {/* Protected Routes */}
         <Route

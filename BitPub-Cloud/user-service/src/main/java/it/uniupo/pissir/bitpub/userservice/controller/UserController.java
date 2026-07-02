@@ -48,4 +48,14 @@ public class UserController {
     public long countTotalUsers() {
         return userService.countTotalUsers();
     }
+
+    @GetMapping("/by-role/{role}")
+    public List<UserDto> getUsersByRole(@PathVariable("role") String role) {
+        return userService.getUsersByRole(role);
+    }
+
+    @PatchMapping("/{id}/role")
+    public UserDto updateUserRole(@PathVariable("id") String id, @RequestParam String role) {
+        return userService.updateUserRole(id, role);
+    }
 }
