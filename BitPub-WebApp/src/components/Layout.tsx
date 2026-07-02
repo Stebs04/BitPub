@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity, Users, Boxes } from 'lucide-react';
+import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity, Users, Boxes, BarChart3, Swords, Play } from 'lucide-react';
 import { cn } from './Button';
 
 const Layout: React.FC = () => {
@@ -14,11 +14,21 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
+  const isPlayer = user?.role === 'PLAYER';
+
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/live', icon: Activity, label: 'Live Match' },
+    // Il PLAYER gioca dalla scheda "Gioca"; Live Match e Locali restano agli amministratori.
+    ...(isPlayer
+      ? [{ to: '/games', icon: Play, label: 'Gioca' }]
+      : [{ to: '/live', icon: Activity, label: 'Live Match' }]),
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
-    { to: '/locales', icon: MapPin, label: 'Locali' },
+    ...(isPlayer
+      ? [
+          { to: '/stats', icon: BarChart3, label: 'Le mie Statistiche' },
+          { to: '/tournaments', icon: Swords, label: 'Tornei' },
+        ]
+      : [{ to: '/locales', icon: MapPin, label: 'Locali' }]),
     ...(user?.role === 'GAME_ADMIN'
       ? [{ to: '/catalog', icon: Boxes, label: 'Catalogo' }]
       : []),

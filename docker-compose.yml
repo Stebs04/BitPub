@@ -115,6 +115,7 @@ services:
       - MQTT_CLIENT_ID=match-service-docker
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
       - USER_SERVICE_URL=http://user-service:8082
+      - LOCALE_SERVICE_URL=http://locale-service:8083
     networks:
       - bitpub-network
 

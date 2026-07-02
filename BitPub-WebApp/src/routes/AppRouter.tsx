@@ -7,6 +7,9 @@ import LocalesPage from '../pages/LocalesPage';
 import LiveMatchView from '../pages/LiveMatchView';
 import UserManagementPage from '../pages/UserManagementPage';
 import GameCatalogPage from '../pages/GameCatalogPage';
+import PlayerStatsPage from '../pages/PlayerStatsPage';
+import TournamentsPage from '../pages/TournamentsPage';
+import GamesPage from '../pages/GamesPage';
 import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
 
@@ -29,6 +32,24 @@ const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
 const GameAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const role = useAuthStore((state) => state.user?.role);
   if (role !== 'GAME_ADMIN') {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Solo il PLAYER: matchmaking/gioco. Gli altri ruoli vengono rimandati alla home.
+const PlayerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role !== 'PLAYER') {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
+
+// Live Match e' una vista di monitoraggio: il PLAYER non deve accedervi (nemmeno via URL).
+const NonPlayerRoute = ({ children }: { children: React.ReactNode }) => {
+  const role = useAuthStore((state) => state.user?.role);
+  if (role === 'PLAYER') {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -75,7 +96,24 @@ const AppRouter: React.FC = () => {
               </GameAdminRoute>
             }
           />
-          <Route path="live" element={<LiveMatchView />} />
+          <Route
+            path="live"
+            element={
+              <NonPlayerRoute>
+                <LiveMatchView />
+              </NonPlayerRoute>
+            }
+          />
+          <Route
+            path="games"
+            element={
+              <PlayerRoute>
+                <GamesPage />
+              </PlayerRoute>
+            }
+          />
+          <Route path="stats" element={<PlayerStatsPage />} />
+          <Route path="tournaments" element={<TournamentsPage />} />
           <Route
             path="admin/users"
             element={

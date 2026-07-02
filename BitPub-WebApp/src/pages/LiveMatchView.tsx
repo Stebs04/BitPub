@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Wifi, WifiOff, Trophy, Zap } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
-
-// MQTT over WebSocket (port 9001 as defined in mosquitto.conf)
-const MQTT_WS_URL = 'ws://localhost:9001';
+import { notificationService } from '../services/notificationService';
 
 interface GameState {
   matchId: string;
@@ -102,9 +100,9 @@ const LiveMatchView: React.FC = () => {
   const [connected, setConnected] = useState(false);
   const [gameStates, setGameStates] = useState<Record<string, GameState>>({});
   const [eventLog, setEventLog] = useState<LogEntry[]>([]);
-  const clientRef = useRef<WebSocket | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  // Sottoscrizione al broker MQTT (condivisa via notificationService) per lo stato partite in tempo reale.
   useEffect(() => {
     // LOCALE_ADMIN senza locale assegnato: nessun topic sicuro da sottoscrivere, non connettere.
     if (matchStateTopic === null) {
@@ -112,152 +110,24 @@ const LiveMatchView: React.FC = () => {
       return;
     }
 
-    // Use raw MQTT over WebSocket via the Paho or native WS approach.
-    // We use a simple approach: connect to mosquitto WS port.
-    let ws: WebSocket;
-    let pingInterval: ReturnType<typeof setInterval>;
-    let reconnectTimeout: ReturnType<typeof setTimeout>;
-    let unmounted = false;
+    const unsubscribeConnection = notificationService.onConnectionChange(setConnected);
+    const unsubscribeTopic = notificationService.subscribe(matchStateTopic, (payload: GameState, topic: string) => {
+      const instanceId = topic.split('/')[3] ?? topic;
+      setGameStates(prev => ({ ...prev, [instanceId]: payload }));
 
-    // Helper: cast Uint8Array to ArrayBuffer so ws.send() is happy under TS strict mode
-    const sendPacket = (data: Uint8Array): void => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer);
-      }
-    };
-
-    const connect = () => {
-      try {
-        // MQTT protocol over WebSocket using sub-protocol
-        ws = new WebSocket(MQTT_WS_URL, ['mqtt']);
-        clientRef.current = ws;
-
-        ws.binaryType = 'arraybuffer';
-
-        ws.onopen = () => {
-          // Send MQTT CONNECT packet
-          const connectPacket = buildMqttConnect('kiosk-' + Math.random().toString(36).slice(2, 8));
-          sendPacket(connectPacket);
-        };
-
-        ws.onmessage = (event) => {
-          const data = new Uint8Array(event.data as ArrayBuffer);
-          handleMqttPacket(data, ws);
-        };
-
-        ws.onclose = () => {
-          setConnected(false);
-          clearInterval(pingInterval);
-          // Reconnect after 3s, unless the component has unmounted
-          if (!unmounted) reconnectTimeout = setTimeout(connect, 3000);
-        };
-
-        ws.onerror = () => {
-          ws.close();
-        };
-      } catch {
-        if (!unmounted) reconnectTimeout = setTimeout(connect, 3000);
-      }
-    };
-
-    // MQTT packet builder helpers
-    const encodeString = (str: string): Uint8Array => {
-      const encoded = new TextEncoder().encode(str);
-      const buf = new Uint8Array(2 + encoded.length);
-      buf[0] = (encoded.length >> 8) & 0xff;
-      buf[1] = encoded.length & 0xff;
-      buf.set(encoded, 2);
-      return buf;
-    };
-
-    const buildMqttConnect = (clientId: string): Uint8Array => {
-      const protocol = encodeString('MQTT');
-      const cid = encodeString(clientId);
-      // Fixed header + variable header + payload
-      const varHeader = new Uint8Array([
-        ...protocol,
-        4,    // protocol level (3.1.1)
-        0,    // connect flags: clean session
-        0, 60 // keep-alive 60s
-      ]);
-      const payload = cid;
-      const remainingLength = varHeader.length + payload.length;
-      return new Uint8Array([0x10, remainingLength, ...varHeader, ...payload]);
-    };
-
-    const buildMqttSubscribe = (topic: string, packetId: number): Uint8Array => {
-      const topicData = encodeString(topic);
-      const varHeader = new Uint8Array([packetId >> 8, packetId & 0xff]);
-      const payload = new Uint8Array([...topicData, 0]); // QoS 0
-      const remainingLength = varHeader.length + payload.length;
-      return new Uint8Array([0x82, remainingLength, ...varHeader, ...payload]);
-    };
-
-    const buildMqttPingReq = (): Uint8Array => new Uint8Array([0xc0, 0]);
-
-    const handleMqttPacket = (data: Uint8Array, ws: WebSocket) => {
-      const type = (data[0] >> 4) & 0xf;
-      if (type === 2) {
-        // CONNACK — subscribe to game state topic
-        setConnected(true);
-        sendPacket(buildMqttSubscribe(matchStateTopic, 1));
-        pingInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) sendPacket(buildMqttPingReq());
-        }, 25000);
-      } else if (type === 3) {
-        // PUBLISH — parse topic and payload
-        parseMqttPublish(data);
-      }
-    };
-
-    const parseMqttPublish = (data: Uint8Array) => {
-      try {
-        let idx = 1;
-        // Decode remaining length
-        let remainingLength = 0;
-        let multiplier = 1;
-        while (true) {
-          const byte = data[idx++];
-          remainingLength += (byte & 0x7f) * multiplier;
-          multiplier *= 128;
-          if ((byte & 0x80) === 0) break;
-        }
-        // Topic length
-        const topicLen = (data[idx] << 8) | data[idx + 1];
-        idx += 2;
-        const topicBytes = data.slice(idx, idx + topicLen);
-        const topic = new TextDecoder().decode(topicBytes);
-        idx += topicLen;
-        // Payload
-        const payloadBytes = data.slice(idx);
-        const payloadStr = new TextDecoder().decode(payloadBytes);
-
-        const gameState: GameState = JSON.parse(payloadStr);
-        const instanceId = topic.split('/')[3] ?? topic;
-
-        setGameStates(prev => ({ ...prev, [instanceId]: gameState }));
-
-        // Add to event log
-        const entry: LogEntry = {
-          id: ++logId,
-          time: new Date().toLocaleTimeString('it-IT'),
-          gameTypeId: gameState.gameTypeId ?? instanceId,
-          message: getEventLabel(gameState.currentEventMessage, gameState),
-          color: getEventColor(gameState.currentEventMessage),
-        };
-        setEventLog(prev => [entry, ...prev].slice(0, 50));
-      } catch {
-        // Ignore malformed packets
-      }
-    };
-
-    connect();
+      const entry: LogEntry = {
+        id: ++logId,
+        time: new Date().toLocaleTimeString('it-IT'),
+        gameTypeId: payload.gameTypeId ?? instanceId,
+        message: getEventLabel(payload.currentEventMessage, payload),
+        color: getEventColor(payload.currentEventMessage),
+      };
+      setEventLog(prev => [entry, ...prev].slice(0, 50));
+    });
 
     return () => {
-      unmounted = true;
-      clearInterval(pingInterval);
-      clearTimeout(reconnectTimeout);
-      if (clientRef.current) clientRef.current.close();
+      unsubscribeConnection();
+      unsubscribeTopic();
     };
   }, [matchStateTopic]);
 
@@ -331,6 +201,7 @@ const LiveMatchView: React.FC = () => {
 function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState }) {
   const gradient = getGameGradient(state.gameTypeId ?? instanceId);
   const isFinished = state.status === 'FINISHED';
+  const isWaiting = state.status === 'WAITING';
 
   return (
     <div className={`glass-panel overflow-hidden`}>
@@ -344,8 +215,12 @@ function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState
             <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{state.gameTypeId ?? instanceId}</p>
             <p className="text-sm text-slate-400 font-mono">{instanceId}</p>
           </div>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
-            {isFinished ? '✔ Finita' : '🔴 LIVE'}
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+            isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+            : isWaiting ? 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+          }`}>
+            {isFinished ? '✔ Finita' : isWaiting ? '⏳ In attesa' : '🔴 LIVE'}
           </span>
         </div>
 
