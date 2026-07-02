@@ -11,11 +11,14 @@ import it.uniupo.pissir.bitpub.statisticsservice.repository.LeaderboardRepositor
 import it.uniupo.pissir.bitpub.statisticsservice.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -26,6 +29,31 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private final AggregateStatisticRepository statisticRepository;
     private final LeaderboardRepository leaderboardRepository;
+
+    @Value("${locale.service.url:http://localhost:8083}")
+    private String localeServiceUrl;
+
+    /** Returns the localeId of the locale owned by the given adminId, or null if none. */
+    @Override
+    public String resolveAdminLocaleId(String adminId) {
+        if (adminId == null) {
+            return null;
+        }
+        try {
+            List response = RestClient.create(localeServiceUrl)
+                    .get()
+                    .uri("/api/v1/locales/by-admin/{adminId}", adminId)
+                    .retrieve()
+                    .body(List.class);
+            if (response != null && !response.isEmpty() && response.get(0) instanceof Map) {
+                Object id = ((Map) response.get(0)).get("id");
+                return id != null ? id.toString() : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to resolve locale for adminId: {}", adminId, e);
+        }
+        return null;
+    }
 
     @Override
     public List<AggregateStatisticDto> getStatisticsByEntity(String entityId, String entityType) {
@@ -84,6 +112,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         winner.setTotalPoints(winner.getTotalPoints() + event.getWinnerScore());
         winner.setMatchesPlayed(winner.getMatchesPlayed() + 1);
         winner.setLastUpdated(Instant.now());
+        winner.setLocaleId(event.getLocaleId());
         leaderboardRepository.save(winner);
 
         // Upsert loser entry (only if the names are different, i.e. not a solo game)
@@ -98,6 +127,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             loser.setTotalPoints(loser.getTotalPoints() + event.getLoserScore());
             loser.setMatchesPlayed(loser.getMatchesPlayed() + 1);
             loser.setLastUpdated(Instant.now());
+            loser.setLocaleId(event.getLocaleId());
             leaderboardRepository.save(loser);
         }
     }
@@ -106,6 +136,13 @@ public class StatisticsServiceImpl implements StatisticsService {
     public List<LeaderboardEntryDto> getLeaderboard(String gameTypeId) {
         List<Leaderboard> entries = leaderboardRepository
                 .findByGameTypeIdOrderByWinsDescTotalPointsDesc(gameTypeId);
+        return entries.stream().map(this::mapToLeaderboardDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<LeaderboardEntryDto> getLeaderboardByLocale(String gameTypeId, String localeId) {
+        List<Leaderboard> entries = leaderboardRepository
+                .findByGameTypeIdAndLocaleIdOrderByWinsDescTotalPointsDesc(gameTypeId, localeId);
         return entries.stream().map(this::mapToLeaderboardDto).collect(Collectors.toList());
     }
 
@@ -129,6 +166,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .id(entry.getId())
                 .playerName(entry.getPlayerName())
                 .gameTypeId(entry.getGameTypeId())
+                .localeId(entry.getLocaleId())
                 .wins(entry.getWins())
                 .losses(entry.getLosses())
                 .totalPoints(entry.getTotalPoints())

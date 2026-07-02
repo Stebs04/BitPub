@@ -13,6 +13,7 @@ public class LeaderboardEntryDto {
     private String id;
     private String playerName;
     private String gameTypeId;
+    private String localeId;
     private int wins;
     private int losses;
     private int totalPoints;

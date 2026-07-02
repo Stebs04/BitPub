@@ -10,5 +10,6 @@ public interface MatchService {
     MatchDto endMatch(String matchId);
     MatchDto getMatch(String matchId);
     List<MatchDto> getActiveMatches();
+    List<MatchDto> getActiveMatchesByLocale(String localeId);
     void processSensorEvent(SensorEvent event);
 }
