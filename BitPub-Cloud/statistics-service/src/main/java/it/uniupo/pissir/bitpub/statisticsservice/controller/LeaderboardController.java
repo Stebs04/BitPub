@@ -18,7 +18,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/statistics/leaderboard")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class LeaderboardController {
 
     private final StatisticsService statisticsService;

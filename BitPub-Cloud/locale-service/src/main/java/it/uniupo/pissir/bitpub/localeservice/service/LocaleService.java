@@ -11,9 +11,12 @@ import it.uniupo.pissir.bitpub.localeservice.dto.LocaleDto;
 import it.uniupo.pissir.bitpub.localeservice.repository.GameInstanceRepository;
 import it.uniupo.pissir.bitpub.localeservice.repository.LocaleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -22,10 +25,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LocaleService {
 
     private final LocaleRepository localeRepository;
     private final GameInstanceRepository gameInstanceRepository;
+
+    @Value("${user.service.url:http://localhost:8082}")
+    private String userServiceUrl;
 
     @Transactional
     public LocaleDto createLocale(CreateLocaleRequest request) {
@@ -38,9 +45,28 @@ public class LocaleService {
                 .build();
 
         Locale saved = localeRepository.save(locale);
+        syncAdminLocaleId(saved.getAdminId(), saved.getId());
         return mapToDto(saved);
     }
 
+    /**
+     * Sincronizza il localeId sull'utente LOCALE_ADMIN, cosi' che al login successivo
+     * il claim JWT (e X-User-Locale-Id inoltrato dal gateway) rifletta il locale assegnato.
+     */
+    private void syncAdminLocaleId(String adminId, String localeId) {
+        if (adminId == null) return;
+        try {
+            RestClient.create(userServiceUrl)
+                    .patch()
+                    .uri("/api/v1/users/{id}/locale?localeId={localeId}", adminId, localeId)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.error("Failed to sync localeId for adminId: {}", adminId, e);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public LocaleDto getLocaleById(String id) {
         Locale locale = localeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Locale", "id", id));
@@ -61,7 +87,9 @@ public class LocaleService {
         locale.setAddress(request.getAddress());
         locale.setAdminId(request.getAdminId());
 
-        return mapToDto(localeRepository.save(locale));
+        Locale saved = localeRepository.save(locale);
+        syncAdminLocaleId(saved.getAdminId(), saved.getId());
+        return mapToDto(saved);
     }
 
     /**
@@ -75,6 +103,7 @@ public class LocaleService {
         localeRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<LocaleDto> getLocalesByAdmin(String adminId) {
         return localeRepository.findByAdminId(adminId).stream()
                 .map(this::mapToDto)
@@ -111,6 +140,7 @@ public class LocaleService {
         return mapGameInstanceToDto(saved);
     }
 
+    @Transactional(readOnly = true)
     public List<GameInstanceDto> getGameInstancesByLocale(String localeId) {
         return gameInstanceRepository.findByLocaleId(localeId).stream()
                 .map(this::mapGameInstanceToDto)

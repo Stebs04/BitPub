@@ -16,6 +16,7 @@ public class UserDto {
     private String username;
     private String email;
     private String role;
+    private String localeId;
     private Instant createdAt;
     private Instant lastLogin;
 }

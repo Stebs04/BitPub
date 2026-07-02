@@ -34,7 +34,7 @@ public class AuthService {
             throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
         }
 
-        String token = jwtUtils.generateToken(user.getUsername(), user.getRole(), user.getId());
+        String token = jwtUtils.generateToken(user.getUsername(), user.getRole(), user.getId(), user.getLocaleId());
 
         return JwtResponse.builder()
                 .token(token)
@@ -43,6 +43,7 @@ public class AuthService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .localeId(user.getLocaleId())
                 .build();
     }
 }

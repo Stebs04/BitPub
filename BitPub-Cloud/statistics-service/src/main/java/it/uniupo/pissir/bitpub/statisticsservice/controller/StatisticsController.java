@@ -17,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/statistics")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class StatisticsController {
 
     private final StatisticsService statisticsService;
@@ -29,9 +28,10 @@ public class StatisticsController {
             @RequestParam String entityId,
             @RequestParam String entityType,
             @RequestHeader(value = "X-User-Id", required = false) String callerId,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
         if ("LOCALE_ADMIN".equals(callerRole)) {
-            String ownLocaleId = statisticsService.resolveAdminLocaleId(callerId);
+            String ownLocaleId = callerLocaleId != null ? callerLocaleId : statisticsService.resolveAdminLocaleId(callerId);
             if (!"LOCALE".equals(entityType) || ownLocaleId == null || !ownLocaleId.equals(entityId)) {
                 throw new BitpubException("LOCALE_ADMIN can only view statistics of their own locale", HttpStatus.FORBIDDEN);
             }

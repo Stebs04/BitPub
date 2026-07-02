@@ -42,11 +42,15 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 if (jwtUtils.validateToken(token)) {
                     String userId = jwtUtils.getUserIdFromToken(token);
                     String role = jwtUtils.getRoleFromToken(token);
+                    String localeId = jwtUtils.getLocaleIdFromToken(token);
 
-                    ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                    ServerHttpRequest.Builder mutatedRequest = exchange.getRequest().mutate()
                             .header("X-User-Id", userId)
-                            .header("X-User-Role", role)
-                            .build();
+                            .header("X-User-Role", role);
+                    if (localeId != null) {
+                        mutatedRequest.header("X-User-Locale-Id", localeId);
+                    }
+                    ServerHttpRequest modifiedRequest = mutatedRequest.build();
 
                     return chain.filter(exchange.mutate().request(modifiedRequest).build());
                 } else {

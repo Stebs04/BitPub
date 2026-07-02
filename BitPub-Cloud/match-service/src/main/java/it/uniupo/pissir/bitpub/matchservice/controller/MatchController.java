@@ -26,14 +26,16 @@ public class MatchController {
     }
 
     // Se il chiamante e' un LOCALE_ADMIN, la lista viene sempre limitata al proprio locale
-    // (ricavato via user-id -> locale-service), a prescindere dal parametro localeId passato.
+    // (dal claim JWT X-User-Locale-Id inoltrato dal gateway, o in fallback via user-id ->
+    // locale-service se il token non lo contiene ancora), a prescindere dal parametro localeId passato.
     @GetMapping("/active")
     public ResponseEntity<List<MatchDto>> getActiveMatches(
             @RequestParam(required = false) String localeId,
             @RequestHeader(value = "X-User-Id", required = false) String callerId,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
         if ("LOCALE_ADMIN".equals(callerRole)) {
-            String ownLocaleId = matchService.resolveAdminLocaleId(callerId);
+            String ownLocaleId = callerLocaleId != null ? callerLocaleId : matchService.resolveAdminLocaleId(callerId);
             return ResponseEntity.ok(matchService.getActiveMatchesByLocale(ownLocaleId));
         }
         if (localeId != null) {
@@ -45,9 +47,10 @@ public class MatchController {
     @GetMapping("/{id}")
     public ResponseEntity<MatchDto> getMatch(@PathVariable String id,
             @RequestHeader(value = "X-User-Id", required = false) String callerId,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
         MatchDto match = matchService.getMatch(id);
-        matchService.assertMatchLocaleAccess(match.getLocaleId(), callerId, callerRole);
+        matchService.assertMatchLocaleAccess(match.getLocaleId(), callerId, callerRole, callerLocaleId);
         return ResponseEntity.ok(match);
     }
 
