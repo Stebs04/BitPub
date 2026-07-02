@@ -22,6 +22,10 @@ public class Match {
     @Column(nullable = false)
     private String gameInstanceId; // Riferimento all'istanza fisica (da locale-service)
 
+    // Locale di appartenenza della gameInstance, risolto da locale-service alla creazione del match.
+    // Usato per limitare l'accesso dei LOCALE_ADMIN alle sole partite del proprio locale.
+    private String localeId;
+
     @Column(nullable = false)
     private String gameTypeId; // Es. ID per "Calciobalilla"
 

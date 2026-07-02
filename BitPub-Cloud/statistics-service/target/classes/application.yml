@@ -16,3 +16,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+locale:
+  service:
+    url: ${LOCALE_SERVICE_URL:http://localhost:8083}

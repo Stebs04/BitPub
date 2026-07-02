@@ -18,4 +18,7 @@ public interface LeaderboardRepository extends JpaRepository<Leaderboard, String
 
     /** Returns top-N players across all game types (for a global leaderboard if needed). */
     List<Leaderboard> findTop10ByOrderByWinsDescTotalPointsDesc();
+
+    /** Returns all entries for a game type within a single locale, ordered by wins DESC then totalPoints DESC. */
+    List<Leaderboard> findByGameTypeIdAndLocaleIdOrderByWinsDescTotalPointsDesc(String gameTypeId, String localeId);
 }

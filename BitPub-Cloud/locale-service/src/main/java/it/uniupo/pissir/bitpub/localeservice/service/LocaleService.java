@@ -61,9 +61,11 @@ public class LocaleService {
     }
 
     @Transactional
-    public GameInstanceDto addGameInstance(String localeId, AddGameInstanceRequest request) {
+    public GameInstanceDto addGameInstance(String localeId, AddGameInstanceRequest request, String callerId, String callerRole) {
         Locale locale = localeRepository.findById(localeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Locale", "id", localeId));
+
+        assertLocaleManageable(locale, callerId, callerRole);
 
         if (gameInstanceRepository.findByLocaleIdAndLocalInstanceId(localeId, request.getLocalInstanceId()).isPresent()) {
             throw new BitpubException("A game instance with the same localInstanceId already exists in this locale", HttpStatus.CONFLICT);
@@ -91,7 +93,7 @@ public class LocaleService {
      * Toggles a simulated device on/off for the LOCALE_ADMIN device-config panel.
      */
     @Transactional
-    public GameInstanceDto setGameInstanceActive(String localeId, String gameInstanceId, boolean active) {
+    public GameInstanceDto setGameInstanceActive(String localeId, String gameInstanceId, boolean active, String callerId, String callerRole) {
         GameInstance instance = gameInstanceRepository.findById(gameInstanceId)
                 .orElseThrow(() -> new ResourceNotFoundException("GameInstance", "id", gameInstanceId));
 
@@ -99,8 +101,34 @@ public class LocaleService {
             throw new ResourceNotFoundException("GameInstance", "id", gameInstanceId);
         }
 
+        assertLocaleManageable(instance.getLocale(), callerId, callerRole);
+
         instance.setActive(active);
         return mapGameInstanceToDto(gameInstanceRepository.save(instance));
+    }
+
+    @Transactional(readOnly = true)
+    public GameInstanceDto getGameInstanceById(String gameInstanceId) {
+        GameInstance instance = gameInstanceRepository.findById(gameInstanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("GameInstance", "id", gameInstanceId));
+        return mapGameInstanceToDto(instance);
+    }
+
+    /**
+     * A LOCALE_ADMIN may only manage game instances of the locale they are assigned to (locale.adminId).
+     * PLATFORM_ADMIN bypasses the check.
+     */
+    private void assertLocaleManageable(Locale locale, String callerId, String callerRole) {
+        if ("PLATFORM_ADMIN".equals(callerRole)) {
+            return;
+        }
+        if ("LOCALE_ADMIN".equals(callerRole)) {
+            if (callerId == null || !callerId.equals(locale.getAdminId())) {
+                throw new BitpubException("LOCALE_ADMIN can only manage their own locale", HttpStatus.FORBIDDEN);
+            }
+            return;
+        }
+        throw new BitpubException("Only LOCALE_ADMIN or PLATFORM_ADMIN can manage locale devices", HttpStatus.FORBIDDEN);
     }
 
     private LocaleDto mapToDto(Locale locale) {
@@ -120,6 +148,7 @@ public class LocaleService {
                 .id(instance.getId())
                 .localInstanceId(instance.getLocalInstanceId())
                 .gameTypeId(instance.getGameTypeId())
+                .localeId(instance.getLocale() != null ? instance.getLocale().getId() : null)
                 .installedAt(instance.getInstalledAt())
                 .active(instance.isActive())
                 .build();

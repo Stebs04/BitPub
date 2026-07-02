@@ -25,14 +25,30 @@ public class MatchController {
         return new ResponseEntity<>(match, HttpStatus.CREATED);
     }
 
+    // Se il chiamante e' un LOCALE_ADMIN, la lista viene sempre limitata al proprio locale
+    // (ricavato via user-id -> locale-service), a prescindere dal parametro localeId passato.
     @GetMapping("/active")
-    public ResponseEntity<List<MatchDto>> getActiveMatches() {
+    public ResponseEntity<List<MatchDto>> getActiveMatches(
+            @RequestParam(required = false) String localeId,
+            @RequestHeader(value = "X-User-Id", required = false) String callerId,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        if ("LOCALE_ADMIN".equals(callerRole)) {
+            String ownLocaleId = matchService.resolveAdminLocaleId(callerId);
+            return ResponseEntity.ok(matchService.getActiveMatchesByLocale(ownLocaleId));
+        }
+        if (localeId != null) {
+            return ResponseEntity.ok(matchService.getActiveMatchesByLocale(localeId));
+        }
         return ResponseEntity.ok(matchService.getActiveMatches());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MatchDto> getMatch(@PathVariable String id) {
-        return ResponseEntity.ok(matchService.getMatch(id));
+    public ResponseEntity<MatchDto> getMatch(@PathVariable String id,
+            @RequestHeader(value = "X-User-Id", required = false) String callerId,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        MatchDto match = matchService.getMatch(id);
+        matchService.assertMatchLocaleAccess(match.getLocaleId(), callerId, callerRole);
+        return ResponseEntity.ok(match);
     }
 
     @GetMapping("/by-player/{playerId}")

@@ -3,6 +3,7 @@ package it.uniupo.pissir.bitpub.matchservice.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.matchservice.domain.Match;
 import it.uniupo.pissir.bitpub.matchservice.domain.SensorEventLog;
@@ -21,6 +22,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -53,6 +55,63 @@ public class MatchServiceImpl implements MatchService {
     @Value("${user.service.url:http://localhost:8082}")
     private String userServiceUrl;
 
+    @Value("${locale.service.url:http://localhost:8083}")
+    private String localeServiceUrl;
+
+    /**
+     * Resolves the owning locale for a gameInstance by calling locale-service.
+     * Needed to scope LOCALE_ADMIN access to matches of their own locale.
+     */
+    private String resolveLocaleId(String gameInstanceId) {
+        try {
+            Map response = RestClient.create(localeServiceUrl)
+                    .get()
+                    .uri("/api/v1/locales/games/{id}", gameInstanceId)
+                    .retrieve()
+                    .body(Map.class);
+            return response != null && response.containsKey("localeId") ? response.get("localeId").toString() : null;
+        } catch (Exception e) {
+            log.error("Failed to resolve localeId for gameInstanceId: {}", gameInstanceId, e);
+            return null;
+        }
+    }
+
+    /**
+     * A LOCALE_ADMIN may only access matches of the locale they are assigned to.
+     * PLATFORM_ADMIN and other roles are left unrestricted (read-only monitoring is not
+     * gated for players/other admins, only LOCALE_ADMIN is scoped down).
+     */
+    public void assertMatchLocaleAccess(String matchLocaleId, String callerId, String callerRole) {
+        if (!"LOCALE_ADMIN".equals(callerRole)) {
+            return;
+        }
+        String adminLocaleId = resolveAdminLocaleId(callerId);
+        if (adminLocaleId == null || !adminLocaleId.equals(matchLocaleId)) {
+            throw new BitpubException("LOCALE_ADMIN can only access matches of their own locale", HttpStatus.FORBIDDEN);
+        }
+    }
+
+    /** Returns the localeId of the locale owned by the given adminId, or null if none. */
+    public String resolveAdminLocaleId(String adminId) {
+        if (adminId == null) {
+            return null;
+        }
+        try {
+            List response = RestClient.create(localeServiceUrl)
+                    .get()
+                    .uri("/api/v1/locales/by-admin/{adminId}", adminId)
+                    .retrieve()
+                    .body(List.class);
+            if (response != null && !response.isEmpty() && response.get(0) instanceof Map) {
+                Object id = ((Map) response.get(0)).get("id");
+                return id != null ? id.toString() : null;
+            }
+        } catch (Exception e) {
+            log.error("Failed to resolve locale for adminId: {}", adminId, e);
+        }
+        return null;
+    }
+
     private String ensureUser(String username) {
         try {
             Map<String, String> request = Map.of("username", username);
@@ -84,6 +143,7 @@ public class MatchServiceImpl implements MatchService {
 
         Match match = Match.builder()
                 .gameInstanceId(request.getGameInstanceId())
+                .localeId(resolveLocaleId(request.getGameInstanceId()))
                 .gameTypeId(request.getGameTypeId())
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
@@ -149,6 +209,14 @@ public class MatchServiceImpl implements MatchService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchDto> getActiveMatchesByLocale(String localeId) {
+        return matchRepository.findByLocaleIdAndStatus(localeId, "IN_PROGRESS").stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
     /**
      * Player match history — used by the dashboard/stats views. No repository finder
      * exists for team playerIds (element-collection), so filter in-memory.
@@ -182,6 +250,7 @@ public class MatchServiceImpl implements MatchService {
         if (activeMatchOpt.isEmpty() && "MATCH_START".equals(event.getSensorType())) {
             match = Match.builder()
                 .gameInstanceId(event.getGameInstanceId())
+                .localeId(resolveLocaleId(event.getGameInstanceId()))
                 .gameTypeId(event.getGameInstanceId().contains("-") ? event.getGameInstanceId().split("-")[0] : "unknown")
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
@@ -300,14 +369,14 @@ public class MatchServiceImpl implements MatchService {
             int winnerScore   = winner != null ? winner.getScore() : 0;
             int loserScore    = loser  != null ? loser.getScore()  : 0;
 
-            Map<String, Object> resultEvent = Map.of(
-                    "gameTypeId",   match.getGameTypeId(),
-                    "winnerName",   winnerName,
-                    "loserName",    loserName,
-                    "winnerScore",  winnerScore,
-                    "loserScore",   loserScore,
-                    "matchId",      match.getId()
-            );
+            Map<String, Object> resultEvent = new java.util.HashMap<>();
+            resultEvent.put("gameTypeId", match.getGameTypeId());
+            resultEvent.put("winnerName", winnerName);
+            resultEvent.put("loserName", loserName);
+            resultEvent.put("winnerScore", winnerScore);
+            resultEvent.put("loserScore", loserScore);
+            resultEvent.put("matchId", match.getId());
+            resultEvent.put("localeId", match.getLocaleId());
 
             String body = objectMapper.writeValueAsString(resultEvent);
             RestClient.create(statisticsServiceUrl)
@@ -384,6 +453,7 @@ public class MatchServiceImpl implements MatchService {
         return MatchDto.builder()
                 .id(match.getId())
                 .gameInstanceId(match.getGameInstanceId())
+                .localeId(match.getLocaleId())
                 .gameTypeId(match.getGameTypeId())
                 .status(match.getStatus())
                 .startTime(match.getStartTime())

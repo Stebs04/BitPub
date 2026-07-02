@@ -40,10 +40,14 @@ public class LocaleController {
         return localeService.getLocalesByAdmin(adminId);
     }
 
+    // Gestione dei dispositivi: riservata al LOCALE_ADMIN proprietario del locale (o PLATFORM_ADMIN).
+    // Ruolo e id del chiamante arrivano dal gateway (JwtAuthenticationFilter) negli header X-User-Id / X-User-Role.
     @PostMapping("/{localeId}/games")
     @ResponseStatus(HttpStatus.CREATED)
-    public GameInstanceDto addGameInstance(@PathVariable String localeId, @Valid @RequestBody AddGameInstanceRequest request) {
-        return localeService.addGameInstance(localeId, request);
+    public GameInstanceDto addGameInstance(@PathVariable String localeId, @Valid @RequestBody AddGameInstanceRequest request,
+                                            @RequestHeader(value = "X-User-Id", required = false) String callerId,
+                                            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        return localeService.addGameInstance(localeId, request, callerId, callerRole);
     }
 
     @GetMapping("/{localeId}/games")
@@ -51,8 +55,15 @@ public class LocaleController {
         return localeService.getGameInstancesByLocale(localeId);
     }
 
+    @GetMapping("/games/{gameInstanceId}")
+    public GameInstanceDto getGameInstanceById(@PathVariable String gameInstanceId) {
+        return localeService.getGameInstanceById(gameInstanceId);
+    }
+
     @PatchMapping("/{localeId}/games/{gameInstanceId}/status")
-    public GameInstanceDto setGameInstanceStatus(@PathVariable String localeId, @PathVariable String gameInstanceId, @RequestParam boolean active) {
-        return localeService.setGameInstanceActive(localeId, gameInstanceId, active);
+    public GameInstanceDto setGameInstanceStatus(@PathVariable String localeId, @PathVariable String gameInstanceId, @RequestParam boolean active,
+                                                  @RequestHeader(value = "X-User-Id", required = false) String callerId,
+                                                  @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        return localeService.setGameInstanceActive(localeId, gameInstanceId, active, callerId, callerRole);
     }
 }
