@@ -22,22 +22,18 @@ public class AuthService {
     private String userServiceUrl;
 
     public JwtResponse login(LoginRequest request) {
-        // Chiama user-service per ottenere l'utente
+        // Chiama user-service per verificare username/password contro l'hash memorizzato
         UserDto user;
         try {
-            user = restClient.get()
-                    .uri(userServiceUrl + "/api/v1/users/by-username/" + request.getUsername())
+            user = restClient.post()
+                    .uri(userServiceUrl + "/api/v1/users/verify")
+                    .body(request)
                     .retrieve()
                     .body(UserDto.class);
         } catch (Exception e) {
             throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
         }
 
-        // Simula la verifica della password (qui andrebbe usato BCrypt)
-        // Per il progetto demo assumiamo che la password passata sia validata contro l'hash
-        // Per semplicità non avendo BCrypt nel DTO, accetteremo sempre se l'utente esiste
-        // In una vera implementazione, chiederemmo a user-service di validare, o scaricheremmo l'hash.
-        
         String token = jwtUtils.generateToken(user.getUsername(), user.getRole(), user.getId());
 
         return JwtResponse.builder()
