@@ -3,6 +3,7 @@ package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
 import it.uniupo.pissir.bitpub.statisticsservice.domain.AggregateStatistic;
 import it.uniupo.pissir.bitpub.statisticsservice.domain.Leaderboard;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.GlobalStatsDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.LeaderboardEntryDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.MatchResultEvent;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.StatisticUpdateRequest;
@@ -32,6 +33,46 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Value("${locale.service.url:http://localhost:8083}")
     private String localeServiceUrl;
+
+    @Value("${user.service.url:http://localhost:8082}")
+    private String userServiceUrl;
+
+    @Value("${match.service.url:http://localhost:8085}")
+    private String matchServiceUrl;
+
+    @Value("${tournament.service.url:http://localhost:8086}")
+    private String tournamentServiceUrl;
+
+    /** Aggregates platform-wide monitoring data for the PLATFORM_ADMIN dashboard. */
+    @Override
+    public GlobalStatsDto getGlobalOverview() {
+        return GlobalStatsDto.builder()
+                .totalLocales(fetchListSize(localeServiceUrl, "/api/v1/locales"))
+                .totalUsers(fetchCount(userServiceUrl, "/api/v1/users/count"))
+                .activeMatches(fetchListSize(matchServiceUrl, "/api/matches/active"))
+                .activeTournaments(fetchListSize(tournamentServiceUrl, "/api/v1/tournaments/active"))
+                .build();
+    }
+
+    private long fetchListSize(String baseUrl, String path) {
+        try {
+            List<?> response = RestClient.create(baseUrl).get().uri(path).retrieve().body(List.class);
+            return response != null ? response.size() : 0;
+        } catch (Exception e) {
+            log.error("Failed to fetch {}{}", baseUrl, path, e);
+            return 0;
+        }
+    }
+
+    private long fetchCount(String baseUrl, String path) {
+        try {
+            Long response = RestClient.create(baseUrl).get().uri(path).retrieve().body(Long.class);
+            return response != null ? response : 0;
+        } catch (Exception e) {
+            log.error("Failed to fetch {}{}", baseUrl, path, e);
+            return 0;
+        }
+    }
 
     /** Returns the localeId of the locale owned by the given adminId, or null if none. */
     @Override

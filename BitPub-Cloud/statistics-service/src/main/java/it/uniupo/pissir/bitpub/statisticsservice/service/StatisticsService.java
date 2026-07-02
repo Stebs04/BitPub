@@ -1,6 +1,7 @@
 package it.uniupo.pissir.bitpub.statisticsservice.service;
 
 import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.GlobalStatsDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.LeaderboardEntryDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.MatchResultEvent;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.StatisticUpdateRequest;
@@ -22,5 +23,8 @@ public interface StatisticsService {
 
     /** Returns the localeId of the locale owned by the given adminId, or null if none. */
     String resolveAdminLocaleId(String adminId);
+
+    /** Aggregates platform-wide monitoring data for the PLATFORM_ADMIN dashboard. */
+    GlobalStatsDto getGlobalOverview();
 }
 

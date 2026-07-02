@@ -18,8 +18,8 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const user = useAuthStore((state) => state.user);
-  if (user?.role !== 'PLATFORM_ADMIN') {
+  const isPlatformAdmin = useAuthStore((state) => state.isPlatformAdmin());
+  if (!isPlatformAdmin) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;

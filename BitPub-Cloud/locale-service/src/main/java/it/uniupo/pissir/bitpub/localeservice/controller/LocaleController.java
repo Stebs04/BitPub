@@ -8,6 +8,7 @@ import it.uniupo.pissir.bitpub.localeservice.service.LocaleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +20,11 @@ public class LocaleController {
 
     private final LocaleService localeService;
 
+    // Gestione locali (CRUD completo): creazione ed eliminazione riservate a PLATFORM_ADMIN;
+    // la modifica e' consentita anche al LOCALE_ADMIN proprietario (verificato nel service).
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public LocaleDto createLocale(@Valid @RequestBody CreateLocaleRequest request) {
         return localeService.createLocale(request);
     }
@@ -38,6 +42,21 @@ public class LocaleController {
     @GetMapping("/by-admin/{adminId}")
     public List<LocaleDto> getLocalesByAdmin(@PathVariable String adminId) {
         return localeService.getLocalesByAdmin(adminId);
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'LOCALE_ADMIN')")
+    public LocaleDto updateLocale(@PathVariable String id, @Valid @RequestBody CreateLocaleRequest request,
+                                   @RequestHeader(value = "X-User-Id", required = false) String callerId,
+                                   @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        return localeService.updateLocale(id, request, callerId, callerRole);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    public void deleteLocale(@PathVariable String id) {
+        localeService.deleteLocale(id);
     }
 
     // Gestione dei dispositivi: riservata al LOCALE_ADMIN proprietario del locale (o PLATFORM_ADMIN).
