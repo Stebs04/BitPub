@@ -8,6 +8,7 @@ import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.matchservice.domain.Match;
 import it.uniupo.pissir.bitpub.matchservice.domain.SensorEventLog;
 import it.uniupo.pissir.bitpub.matchservice.domain.Team;
+import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.TeamResponseDto;
@@ -63,15 +64,24 @@ public class MatchServiceImpl implements MatchService {
      * Needed to scope LOCALE_ADMIN access to matches of their own locale.
      */
     private String resolveLocaleId(String gameInstanceId) {
+        Map info = fetchGameInstanceInfo(gameInstanceId);
+        return info != null && info.containsKey("localeId") ? info.get("localeId").toString() : null;
+    }
+
+    /**
+     * Fetches the full GameInstanceDto (localeId, gameTypeId, active) from locale-service.
+     * Used by the PLAYER matchmaking flow to validate the machine is switched on and to
+     * know which gameTypeId/localeId to stamp on the lobby match.
+     */
+    private Map fetchGameInstanceInfo(String gameInstanceId) {
         try {
-            Map response = RestClient.create(localeServiceUrl)
+            return RestClient.create(localeServiceUrl)
                     .get()
                     .uri("/api/v1/locales/games/{id}", gameInstanceId)
                     .retrieve()
                     .body(Map.class);
-            return response != null && response.containsKey("localeId") ? response.get("localeId").toString() : null;
         } catch (Exception e) {
-            log.error("Failed to resolve localeId for gameInstanceId: {}", gameInstanceId, e);
+            log.error("Failed to resolve gameInstance info for gameInstanceId: {}", gameInstanceId, e);
             return null;
         }
     }
@@ -193,6 +203,87 @@ public class MatchServiceImpl implements MatchService {
         notifyStatisticsService(saved);
 
         return mapToDto(saved);
+    }
+
+    /**
+     * PLAYER matchmaking: se esiste gia' una lobby WAITING_FOR_PLAYERS su questa gameInstance,
+     * vi aggiunge il chiamante come secondo giocatore e la porta IN_PROGRESS (match "STARTED"),
+     * pubblicando lo stato aggiornato via MQTT cosi' che entrambi i client vedano la transizione
+     * in tempo reale. Altrimenti crea una nuova lobby in attesa del secondo giocatore.
+     */
+    @Override
+    @Transactional
+    public MatchDto joinLobby(JoinLobbyRequestDto request, String playerId) {
+        String gameInstanceId = request.getGameInstanceId();
+        String username = request.getUsername();
+
+        Optional<Match> waiting = matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS");
+
+        if (waiting.isPresent()) {
+            Match match = waiting.get();
+
+            // Reconnect idempotente: lo stesso giocatore che ripolla/riapre la pagina non deve duplicarsi in team.
+            boolean alreadyIn = match.getTeams() != null && match.getTeams().stream()
+                    .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId));
+            if (alreadyIn) {
+                return mapToDto(match);
+            }
+
+            Team secondTeam = Team.builder()
+                    .name(username)
+                    .playerIds(new ArrayList<>(List.of(playerId)))
+                    .score(0)
+                    .match(match)
+                    .build();
+            teamRepository.save(secondTeam);
+            match.getTeams().add(secondTeam);
+
+            match.setStatus("IN_PROGRESS");
+            match.setStartTime(Instant.now());
+            Match saved = matchRepository.save(match);
+
+            publishLobbyState(saved, "MATCH_START");
+            log.info("Lobby {} STARTED: {} joined gameInstanceId {}", saved.getId(), username, gameInstanceId);
+            return mapToDto(saved);
+        }
+
+        // Nessuna lobby in attesa: verifica che la gameInstance sia una macchina attiva del locale.
+        Map info = fetchGameInstanceInfo(gameInstanceId);
+        boolean active = info != null && Boolean.TRUE.equals(info.get("active"));
+        if (info == null || !active) {
+            throw new BitpubException("Il gioco selezionato non e' attivo in questo momento", HttpStatus.CONFLICT);
+        }
+        String localeId = info.get("localeId") != null ? info.get("localeId").toString() : null;
+        String gameTypeId = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : "unknown";
+
+        Match match = Match.builder()
+                .gameInstanceId(gameInstanceId)
+                .localeId(localeId)
+                .gameTypeId(gameTypeId)
+                .status("WAITING_FOR_PLAYERS")
+                .teams(new ArrayList<>())
+                .build();
+        Match saved = matchRepository.save(match);
+
+        Team firstTeam = Team.builder()
+                .name(username)
+                .playerIds(new ArrayList<>(List.of(playerId)))
+                .score(0)
+                .match(saved)
+                .build();
+        teamRepository.save(firstTeam);
+        saved.getTeams().add(firstTeam);
+
+        publishLobbyState(saved, "WAITING_FOR_PLAYERS");
+        log.info("Lobby {} created WAITING_FOR_PLAYERS by {} on gameInstanceId {}", saved.getId(), username, gameInstanceId);
+        return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<MatchDto> getWaitingLobby(String gameInstanceId) {
+        return matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS")
+                .map(this::mapToDto);
     }
 
     @Override
@@ -395,6 +486,21 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private void publishGameState(Match match, SensorEvent event) {
+        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
+        publishGameState(match, status, event.getSensorType());
+    }
+
+    /**
+     * Publishes lobby transitions (WAITING_FOR_PLAYERS / MATCH_START) triggered by the
+     * PLAYER matchmaking flow, reusing the same GameStateDto/topic the Kiosk view already
+     * consumes so the transition from waiting-room to live match is instantaneous.
+     */
+    private void publishLobbyState(Match match, String eventMessage) {
+        String status = "WAITING_FOR_PLAYERS".equals(match.getStatus()) ? "WAITING" : "PLAYING";
+        publishGameState(match, status, eventMessage);
+    }
+
+    private void publishGameState(Match match, String status, String eventMessage) {
         String teamAName = "RED";
         String teamBName = "BLUE";
         int scoreA = 0;
@@ -407,7 +513,6 @@ public class MatchServiceImpl implements MatchService {
                 scoreB    = match.getTeams().get(1).getScore();
             }
         }
-        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
 
         // Determine winner name on match end
         String winnerName = null;
@@ -426,7 +531,7 @@ public class MatchServiceImpl implements MatchService {
                 .scoreTeamA(scoreA)
                 .scoreTeamB(scoreB)
                 .timeRemainingSeconds(0)
-                .currentEventMessage(event.getSensorType())
+                .currentEventMessage(eventMessage)
                 .winnerName(winnerName)
                 .build();
 

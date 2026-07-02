@@ -117,6 +117,20 @@ public class LocaleService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Locali "ONLINE" per l'esplorazione del PLAYER: non un elenco statico, ma il filtro in
+     * tempo reale sui locali che hanno almeno una gameInstance attiva. Il flag active e' lo
+     * stesso heartbeat simulato gia' pilotato dal LOCALE_ADMIN (toggle dispositivo simulato),
+     * quindi riflette lo stato corrente del locale senza introdurre nuova infrastruttura.
+     */
+    @Transactional(readOnly = true)
+    public List<LocaleDto> getOnlineLocales() {
+        return localeRepository.findAll().stream()
+                .filter(l -> l.getGameInstances() != null && l.getGameInstances().stream().anyMatch(GameInstance::isActive))
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public GameInstanceDto addGameInstance(String localeId, AddGameInstanceRequest request, String callerId, String callerRole) {
         Locale locale = localeRepository.findById(localeId)

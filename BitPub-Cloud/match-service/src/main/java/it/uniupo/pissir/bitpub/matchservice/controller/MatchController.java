@@ -1,6 +1,8 @@
 package it.uniupo.pissir.bitpub.matchservice.controller;
 
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
+import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImpl;
@@ -57,6 +59,29 @@ public class MatchController {
     @GetMapping("/by-player/{playerId}")
     public ResponseEntity<List<MatchDto>> getMatchesByPlayer(@PathVariable String playerId) {
         return ResponseEntity.ok(matchService.getMatchesByPlayer(playerId));
+    }
+
+    /**
+     * Matchmaking PLAYER: entra in lobby su una gameInstance. Se e' il primo giocatore,
+     * crea la lobby in stato WAITING_FOR_PLAYERS; se e' il secondo, la partita passa
+     * IN_PROGRESS in tempo reale (evento propagato via MQTT sul topic di match-state).
+     */
+    @PostMapping("/lobby")
+    public ResponseEntity<MatchDto> joinLobby(@RequestBody JoinLobbyRequestDto request,
+            @RequestHeader(value = "X-User-Id", required = false) String callerId) {
+        if (callerId == null || request.getGameInstanceId() == null || request.getUsername() == null) {
+            throw new BitpubException("gameInstanceId, username e utente autenticato sono obbligatori", HttpStatus.BAD_REQUEST);
+        }
+        MatchDto match = matchService.joinLobby(request, callerId);
+        return ResponseEntity.ok(match);
+    }
+
+    /** Ritorna la lobby in attesa di un secondo giocatore su una gameInstance, se presente. */
+    @GetMapping("/lobby/{gameInstanceId}")
+    public ResponseEntity<MatchDto> getWaitingLobby(@PathVariable String gameInstanceId) {
+        return matchService.getWaitingLobby(gameInstanceId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/{id}/end")

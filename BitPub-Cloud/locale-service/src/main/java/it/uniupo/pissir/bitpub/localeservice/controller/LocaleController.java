@@ -34,6 +34,13 @@ public class LocaleController {
         return localeService.getAllLocales();
     }
 
+    // Esplorazione PLAYER: locali attualmente ONLINE (con almeno una macchina simulata attiva),
+    // calcolato in tempo reale sullo stato dei dispositivi, non una lista statica salvata a DB.
+    @GetMapping("/online")
+    public List<LocaleDto> getOnlineLocales() {
+        return localeService.getOnlineLocales();
+    }
+
     @GetMapping("/{id}")
     public LocaleDto getLocaleById(@PathVariable String id) {
         return localeService.getLocaleById(id);

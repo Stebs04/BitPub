@@ -100,4 +100,97 @@ export const addSensorToGameType = (gameTypeId: string, payload: AddSensorPayloa
 export const deleteSensor = (gameTypeId: string, sensorId: string) =>
   api.delete(`/catalog/games/${gameTypeId}/sensors/${sensorId}`);
 
+// ── Esplorazione locali / matchmaking PLAYER ────────────────────────────────────
+export interface GameInstanceRecord {
+  id: string;
+  localInstanceId: string;
+  gameTypeId: string;
+  localeId: string;
+  active: boolean;
+}
+
+export interface LocaleRecord {
+  id: string;
+  name: string;
+  address: string;
+  adminId: string;
+  games: GameInstanceRecord[];
+}
+
+export interface TeamRecord {
+  id: string;
+  name: string;
+  playerIds: string[];
+  score: number;
+}
+
+export interface MatchRecord {
+  id: string;
+  gameInstanceId: string;
+  localeId: string;
+  gameTypeId: string;
+  status: string; // WAITING_FOR_PLAYERS | IN_PROGRESS | COMPLETED | CANCELLED
+  startTime: string | null;
+  endTime: string | null;
+  teams: TeamRecord[];
+}
+
+// Locali ONLINE in tempo reale (almeno una macchina simulata attiva), non l'elenco statico completo.
+export const getOnlineLocales = () => api.get<LocaleRecord[]>('/locales/online');
+
+// Entra in lobby su una gameInstance: crea/aggiorna la partita (WAITING_FOR_PLAYERS -> IN_PROGRESS).
+export const joinMatchLobby = (gameInstanceId: string, username: string) =>
+  matchApi.post<MatchRecord>('/lobby', { gameInstanceId, username });
+
+export const getWaitingLobby = (gameInstanceId: string) =>
+  matchApi.get<MatchRecord>(`/lobby/${gameInstanceId}`);
+
+export const getMatch = (matchId: string) => matchApi.get<MatchRecord>(`/${matchId}`);
+
+export const getMatchesByPlayer = (playerId: string) => matchApi.get<MatchRecord[]>(`/by-player/${playerId}`);
+
+// ── Statistiche personali PLAYER ────────────────────────────────────────────────
+export interface LeaderboardEntryRecord {
+  id: string;
+  playerName: string;
+  gameTypeId: string;
+  localeId: string | null;
+  wins: number;
+  losses: number;
+  totalPoints: number;
+  matchesPlayed: number;
+  lastUpdated: string | null;
+}
+
+export const getMyLeaderboardStats = (playerName: string) =>
+  statsApi.get<LeaderboardEntryRecord[]>(`/leaderboard/me/${encodeURIComponent(playerName)}`);
+
+// ── Tornei ───────────────────────────────────────────────────────────────────────
+export interface TournamentRegistrationRecord {
+  id: string;
+  tournamentId: string;
+  participantId: string;
+  participantName: string;
+  localeId: string;
+  registeredAt: string;
+}
+
+export interface TournamentRecord {
+  id: string;
+  name: string;
+  gameTypeId: string;
+  teamBased: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  status: string; // UPCOMING | ACTIVE | COMPLETED
+  registrations?: TournamentRegistrationRecord[];
+}
+
+export const getAllTournaments = () => api.get<TournamentRecord[]>('/tournaments');
+export const getActiveTournaments = () => api.get<TournamentRecord[]>('/tournaments/active');
+export const getTournamentRegistrationsByPlayer = (playerId: string) =>
+  api.get<TournamentRegistrationRecord[]>(`/tournaments/by-player/${playerId}`);
+export const registerToTournament = (tournamentId: string, payload: { participantId: string; participantName: string; localeId: string }) =>
+  api.post<TournamentRegistrationRecord>(`/tournaments/${tournamentId}/register`, payload);
+
 export default api;

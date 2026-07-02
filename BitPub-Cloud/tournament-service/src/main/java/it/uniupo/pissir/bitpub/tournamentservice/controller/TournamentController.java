@@ -1,5 +1,6 @@
 package it.uniupo.pissir.bitpub.tournamentservice.controller;
 
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRegistrationDto;
 import it.uniupo.pissir.bitpub.tournamentservice.service.impl.TournamentServiceImpl;
@@ -9,16 +10,30 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/tournaments")
 @RequiredArgsConstructor
 public class TournamentController {
 
+    // tournament-service non dipende da spring-security (nessun SecurityConfig/@PreAuthorize
+    // qui, a differenza di locale-service/statistics-service): il controllo ruolo replica lo
+    // stesso pattern header-based gia' usato in MatchController (X-User-Role dal gateway).
+    private static final Set<String> TOURNAMENT_MANAGERS = Set.of("PLATFORM_ADMIN", "LOCALE_ADMIN");
+
     private final TournamentServiceImpl tournamentService;
 
+    private void assertCanManageTournaments(String callerRole) {
+        if (callerRole == null || !TOURNAMENT_MANAGERS.contains(callerRole)) {
+            throw new BitpubException("Only LOCALE_ADMIN or PLATFORM_ADMIN can manage tournaments", HttpStatus.FORBIDDEN);
+        }
+    }
+
     @PostMapping
-    public ResponseEntity<TournamentDto> createTournament(@RequestBody TournamentDto tournamentDto) {
+    public ResponseEntity<TournamentDto> createTournament(@RequestBody TournamentDto tournamentDto,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        assertCanManageTournaments(callerRole);
         return new ResponseEntity<>(tournamentService.createTournament(tournamentDto), HttpStatus.CREATED);
     }
 
@@ -38,15 +53,21 @@ public class TournamentController {
     }
 
     @PutMapping("/{id}/start")
-    public ResponseEntity<TournamentDto> startTournament(@PathVariable String id) {
+    public ResponseEntity<TournamentDto> startTournament(@PathVariable String id,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        assertCanManageTournaments(callerRole);
         return ResponseEntity.ok(tournamentService.startTournament(id));
     }
 
     @PutMapping("/{id}/end")
-    public ResponseEntity<TournamentDto> endTournament(@PathVariable String id) {
+    public ResponseEntity<TournamentDto> endTournament(@PathVariable String id,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        assertCanManageTournaments(callerRole);
         return ResponseEntity.ok(tournamentService.endTournament(id));
     }
 
+    // Iscrizione: aperta a qualunque utente autenticato (in primis il PLAYER). Nessuna
+    // restrizione di ruolo qui, cosi' come in precedenza.
     @PostMapping("/{id}/register")
     public ResponseEntity<TournamentRegistrationDto> registerToTournament(
             @PathVariable String id,
