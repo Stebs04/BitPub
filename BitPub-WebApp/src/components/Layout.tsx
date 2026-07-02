@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity, Users } from 'lucide-react';
+import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity, Users, Boxes } from 'lucide-react';
 import { cn } from './Button';
 
 const Layout: React.FC = () => {
@@ -19,6 +19,9 @@ const Layout: React.FC = () => {
     { to: '/live', icon: Activity, label: 'Live Match' },
     { to: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { to: '/locales', icon: MapPin, label: 'Locali' },
+    ...(user?.role === 'GAME_ADMIN'
+      ? [{ to: '/catalog', icon: Boxes, label: 'Catalogo' }]
+      : []),
     ...(user?.role === 'PLATFORM_ADMIN'
       ? [{ to: '/admin/users', icon: Users, label: 'Utenti' }]
       : []),
