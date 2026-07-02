@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import api, { matchApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
-// NOTE: the backend Role enum (bitpub-common) uses "LOCALE_ADMIN", not "LOCAL_ADMIN"
-// as typed in authStore.ts — compare against the real value coming from the API.
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 
 interface StatTile {

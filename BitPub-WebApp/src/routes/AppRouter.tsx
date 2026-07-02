@@ -5,6 +5,7 @@ import DashboardPage from '../pages/DashboardPage';
 import LeaderboardPage from '../pages/LeaderboardPage';
 import LocalesPage from '../pages/LocalesPage';
 import LiveMatchView from '../pages/LiveMatchView';
+import UserManagementPage from '../pages/UserManagementPage';
 import Layout from '../components/Layout';
 import { useAuthStore } from '../store/authStore';
 
@@ -12,6 +13,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = useAuthStore((state) => state.user);
+  if (user?.role !== 'PLATFORM_ADMIN') {
+    return <Navigate to="/" replace />;
   }
   return <>{children}</>;
 };
@@ -50,6 +59,14 @@ const AppRouter: React.FC = () => {
           <Route path="leaderboard" element={<LeaderboardPage />} />
           <Route path="locales" element={<LocalesPage />} />
           <Route path="live" element={<LiveMatchView />} />
+          <Route
+            path="admin/users"
+            element={
+              <PlatformAdminRoute>
+                <UserManagementPage />
+              </PlatformAdminRoute>
+            }
+          />
         </Route>
 
         {/* Fallback route */}
