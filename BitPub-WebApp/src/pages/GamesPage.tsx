@@ -3,9 +3,10 @@ import { Gamepad2, Server, Play, Loader2, Users, Trophy, ArrowLeft, RefreshCw } 
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import { useAuthStore } from '../store/authStore';
-import { getOnlineLocales, joinMatchLobby, getMatch } from '../services/api';
+import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction } from '../services/api';
 import type { LocaleRecord, GameInstanceRecord, MatchRecord } from '../services/api';
 import { notificationService } from '../services/notificationService';
+import GameControlPanel from '../components/GameControlPanel';
 
 // Stato di gioco pubblicato da match-service su MQTT (bitpub/match/{localeId}/{gameInstanceId}/state).
 interface GameState {
@@ -18,6 +19,11 @@ interface GameState {
   scoreTeamB: number;
   currentEventMessage: string;
   winnerName?: string;
+  currentTurnUserId?: string | null;
+  breakDone?: boolean;
+  solidPlayerName?: string | null;
+  stripedPlayerName?: string | null;
+  throwsRemaining?: number;
 }
 
 const eventLabel = (type: string, s: GameState): string => {
@@ -27,7 +33,10 @@ const eventLabel = (type: string, s: GameState): string => {
     case 'GOAL':        return '⚽ GOAL!';
     case 'BALL_POCKETED': return '🎱 Palla imbucata';
     case 'DART_HIT':    return '🎯 Freccia lanciata';
-    case 'FOUL':        return '⛔ Fallo!';
+    case 'SAVE':        return '🧤 Parato!';
+    case 'MISS':        return '😖 Mancato';
+    case 'BREAK':       return '💥 Spaccata!';
+    case 'FOUL':        return '⛔ Fallo / Bust!';
     case 'WAITING_FOR_PLAYERS': return '⏳ In attesa di giocatori';
     default:            return `⚡ ${type}`;
   }
@@ -50,6 +59,8 @@ const GamesPage: React.FC = () => {
   // Partita corrente del giocatore (dalla creazione lobby in poi) e relativo stato live via MQTT.
   const [activeMatch, setActiveMatch] = useState<MatchRecord | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [sending, setSending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchLocales = useCallback(async () => {
@@ -122,7 +133,23 @@ const GamesPage: React.FC = () => {
   const leaveMatch = () => {
     setActiveMatch(null);
     setGameState(null);
+    setActionError(null);
     fetchLocales();
+  };
+
+  // Invia un'azione di gioco. Il backend valida il turno e pubblica il nuovo stato via MQTT,
+  // sbloccando istantaneamente lo schermo dell'avversario; qui aspettiamo solo la conferma HTTP.
+  const sendAction = async (payload: { actionType: 'SHOOT' | 'BREAK' | 'THROW'; sector?: number; multiplier?: number }) => {
+    if (!activeMatch || sending) return;
+    setSending(true);
+    setActionError(null);
+    try {
+      await postGameAction(activeMatch.id, payload);
+    } catch (err: any) {
+      setActionError(err?.response?.data?.message || "Azione non consentita in questo momento.");
+    } finally {
+      setSending(false);
+    }
   };
 
   // ── Vista partita/lobby ─────────────────────────────────────────────────────
@@ -131,6 +158,7 @@ const GamesPage: React.FC = () => {
     const teamA = gameState?.teamAName || activeMatch.teams?.[0]?.name || 'Tu';
     const teamB = gameState?.teamBName || activeMatch.teams?.[1]?.name || 'Avversario';
     const isFinished = gameState?.status === 'FINISHED';
+    const isMyTurn = !!gameState && gameState.currentTurnUserId === user?.id;
 
     return (
       <div className="p-6 md:p-8 animate-slide-up space-y-6">
@@ -183,6 +211,28 @@ const GamesPage: React.FC = () => {
                 <div className="flex items-center justify-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
                   <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
                   <p className="text-yellow-300 font-bold">Vince: {gameState.winnerName}</p>
+                </div>
+              )}
+
+              {/* Joypad interattivo: pannello di controllo specifico per tipo di gioco */}
+              <GameControlPanel
+                gameTypeId={gameState?.gameTypeId ?? activeMatch.gameTypeId}
+                isMyTurn={isMyTurn}
+                finished={isFinished}
+                sending={sending}
+                breakDone={gameState?.breakDone ?? false}
+                solidPlayerName={gameState?.solidPlayerName}
+                stripedPlayerName={gameState?.stripedPlayerName}
+                throwsRemaining={gameState?.throwsRemaining ?? 3}
+                myName={user?.username ?? teamA}
+                onShoot={() => sendAction({ actionType: 'SHOOT' })}
+                onBreak={() => sendAction({ actionType: 'BREAK' })}
+                onThrow={(sector, multiplier) => sendAction({ actionType: 'THROW', sector, multiplier })}
+              />
+
+              {actionError && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 text-center">
+                  {actionError}
                 </div>
               )}
             </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Wifi, WifiOff, Trophy, Zap } from 'lucide-react';
+import { Activity, Wifi, WifiOff, Trophy, Zap, Square } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import api from '../services/api';
+import api, { endMatch } from '../services/api';
 import { notificationService } from '../services/notificationService';
 
 interface GameState {
@@ -48,7 +48,10 @@ const getEventLabel = (type: string, state: GameState): string => {
     case 'GOAL':        return `⚽ GOAL!`;
     case 'BALL_POCKETED': return `🎱 Palla imbucata`;
     case 'DART_HIT':    return `🎯 Freccia lanciata`;
-    case 'FOUL':        return `⛔ Fallo!`;
+    case 'SAVE':        return `🧤 Parato!`;
+    case 'MISS':        return `😖 Mancato`;
+    case 'BREAK':       return `💥 Spaccata!`;
+    case 'FOUL':        return `⛔ Fallo / Bust!`;
     default:            return `⚡ ${type}`;
   }
 };
@@ -137,6 +140,18 @@ const LiveMatchView: React.FC = () => {
   }, [eventLog]);
 
   const activeGames = Object.entries(gameStates);
+  // Solo chi gestisce il locale (o la piattaforma) puo' forzare la fine di una partita.
+  const canEndMatch = user?.role === 'LOCALE_ADMIN' || user?.role === 'PLATFORM_ADMIN';
+
+  const handleEndMatch = async (matchId: string) => {
+    if (!window.confirm('Terminare subito questa partita? Il vincitore sara\' calcolato in base al punteggio attuale.')) return;
+    try {
+      await endMatch(matchId);
+    } catch (err) {
+      console.error('Errore terminazione partita:', err);
+      alert('Impossibile terminare la partita.');
+    }
+  };
 
   return (
     <div className="p-6 md:p-8 animate-slide-up space-y-8">
@@ -167,7 +182,13 @@ const LiveMatchView: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {activeGames.map(([instanceId, state]) => (
-            <ScoreCard key={instanceId} instanceId={instanceId} state={state} />
+            <ScoreCard
+              key={instanceId}
+              instanceId={instanceId}
+              state={state}
+              canEndMatch={canEndMatch}
+              onEndMatch={handleEndMatch}
+            />
           ))}
         </div>
       )}
@@ -198,7 +219,17 @@ const LiveMatchView: React.FC = () => {
 };
 
 // ─── ScoreCard ────────────────────────────────────────────────────────────────
-function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState }) {
+function ScoreCard({
+  instanceId,
+  state,
+  canEndMatch,
+  onEndMatch,
+}: {
+  instanceId: string;
+  state: GameState;
+  canEndMatch: boolean;
+  onEndMatch: (matchId: string) => void;
+}) {
   const gradient = getGameGradient(state.gameTypeId ?? instanceId);
   const isFinished = state.status === 'FINISHED';
   const isWaiting = state.status === 'WAITING';
@@ -253,6 +284,16 @@ function ScoreCard({ instanceId, state }: { instanceId: string; state: GameState
             <Trophy className="w-5 h-5 text-yellow-400 shrink-0" />
             <p className="text-yellow-300 font-bold text-sm">Vince: {state.winnerName}</p>
           </div>
+        )}
+
+        {/* Termina subito: solo LOCALE_ADMIN/PLATFORM_ADMIN, solo su partite non gia' finite */}
+        {canEndMatch && !isFinished && !isWaiting && (
+          <button
+            onClick={() => onEndMatch(state.matchId)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm font-bold transition-all active:scale-95"
+          >
+            <Square className="w-4 h-4" /> Termina Ora
+          </button>
         )}
       </div>
     </div>

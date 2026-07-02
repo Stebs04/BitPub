@@ -8,6 +8,7 @@ import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.matchservice.domain.Match;
 import it.uniupo.pissir.bitpub.matchservice.domain.SensorEventLog;
 import it.uniupo.pissir.bitpub.matchservice.domain.Team;
+import it.uniupo.pissir.bitpub.matchservice.dto.GameActionRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
@@ -34,6 +35,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -197,10 +199,13 @@ public class MatchServiceImpl implements MatchService {
 
         match.setStatus("COMPLETED");
         match.setEndTime(Instant.now());
+        match.setCurrentTurnUserId(null);
         Match saved = matchRepository.save(match);
 
-        // Notify statistics service with the match result
+        // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
+        // (piu' basso a freccette, dove si parte da 501 e si scende a 0).
         notifyStatisticsService(saved);
+        publishGameState(saved, "FINISHED", "MATCH_END");
 
         return mapToDto(saved);
     }
@@ -240,6 +245,7 @@ public class MatchServiceImpl implements MatchService {
 
             match.setStatus("IN_PROGRESS");
             match.setStartTime(Instant.now());
+            initializeGameStart(match);
             Match saved = matchRepository.save(match);
 
             publishLobbyState(saved, "MATCH_START");
@@ -443,16 +449,198 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
+    // ── Gameplay interattivo a turni ────────────────────────────────────────────
+
+    private enum GameKind { FOOSBALL, BILLIARDS, DARTS, UNKNOWN }
+
+    private static final int FOOSBALL_TARGET = 10;  // goal necessari per vincere a calciobalilla
+    private static final int BILLIARDS_TARGET = 7;   // palle del proprio gruppo da imbucare prima della boccia degli 8
+    private static final int DARTS_START = 501;      // punteggio iniziale a freccette (regola ufficiale "501 double-out")
+    private static final int DARTS_THROWS_PER_TURN = 3;
+
+    private static final double FOOSBALL_GOAL_CHANCE = 0.30;   // 30% goal, 70% parata/fuori
+    private static final double BILLIARDS_POCKET_CHANCE = 0.50; // 50% imbuca
+
+    private GameKind classify(String gameTypeId) {
+        String g = gameTypeId == null ? "" : gameTypeId.toLowerCase();
+        if (g.contains("calcio") || g.contains("foosball") || g.contains("balilla")) return GameKind.FOOSBALL;
+        if (g.contains("biliard") || g.contains("billiard") || g.contains("pool")) return GameKind.BILLIARDS;
+        if (g.contains("frecc") || g.contains("dart")) return GameKind.DARTS;
+        return GameKind.UNKNOWN;
+    }
+
+    private String firstPlayerId(Team team) {
+        return team != null && team.getPlayerIds() != null && !team.getPlayerIds().isEmpty()
+                ? team.getPlayerIds().get(0) : null;
+    }
+
+    /**
+     * Allo START del match assegna casualmente il primo turno e inizializza lo stato specifico
+     * del gioco (punteggio 501 a freccette, spaccata non ancora avvenuta a biliardo).
+     */
+    private void initializeGameStart(Match match) {
+        List<Team> teams = match.getTeams();
+        if (teams == null || teams.size() < 2) return;
+
+        Team starter = ThreadLocalRandom.current().nextBoolean() ? teams.get(0) : teams.get(1);
+        match.setCurrentTurnUserId(firstPlayerId(starter));
+        match.setBreakDone(false);
+        match.setSolidTeamId(null);
+        match.setStripedTeamId(null);
+        match.setThrowsInTurn(0);
+
+        if (classify(match.getGameTypeId()) == GameKind.DARTS) {
+            teams.forEach(t -> t.setScore(DARTS_START));
+            teamRepository.saveAll(teams);
+        }
+    }
+
+    @Override
+    @Transactional
+    public MatchDto processGameAction(String matchId, String playerId, GameActionRequestDto action) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
+
+        if (!"IN_PROGRESS".equals(match.getStatus())) {
+            throw new BitpubException("La partita non e' in corso", HttpStatus.CONFLICT);
+        }
+        if (match.getCurrentTurnUserId() == null || !match.getCurrentTurnUserId().equals(playerId)) {
+            throw new BitpubException("Non e' il tuo turno", HttpStatus.FORBIDDEN);
+        }
+
+        List<Team> teams = match.getTeams();
+        if (teams == null || teams.size() < 2) {
+            throw new BitpubException("Partita senza due giocatori", HttpStatus.CONFLICT);
+        }
+
+        Team current = teams.stream()
+                .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
+                .findFirst()
+                .orElseThrow(() -> new BitpubException("Giocatore non nel match", HttpStatus.FORBIDDEN));
+        Team opponent = teams.stream().filter(t -> !t.getId().equals(current.getId())).findFirst().orElse(null);
+
+        String eventMessage;
+        boolean finished = false;
+
+        switch (classify(match.getGameTypeId())) {
+            case FOOSBALL: {
+                boolean goal = ThreadLocalRandom.current().nextDouble() < FOOSBALL_GOAL_CHANCE;
+                if (goal) {
+                    current.setScore(current.getScore() + 1);
+                    eventMessage = "GOAL";
+                    if (current.getScore() >= FOOSBALL_TARGET) finished = true;
+                } else {
+                    eventMessage = "SAVE";
+                }
+                // Il turno passa sempre all'avversario dopo il tiro.
+                if (!finished) match.setCurrentTurnUserId(firstPlayerId(opponent));
+                break;
+            }
+            case BILLIARDS: {
+                if (!match.isBreakDone()) {
+                    // Spaccata: assegna casualmente Piene/Spezzate ai due team.
+                    boolean currentGetsSolid = ThreadLocalRandom.current().nextBoolean();
+                    match.setSolidTeamId(currentGetsSolid ? current.getId() : opponent.getId());
+                    match.setStripedTeamId(currentGetsSolid ? opponent.getId() : current.getId());
+                    match.setBreakDone(true);
+                    eventMessage = "BREAK";
+                    // Dopo la spaccata il turno resta a chi ha spaccato.
+                } else if (current.getScore() >= BILLIARDS_TARGET) {
+                    // Regola 8-ball: dopo aver imbucato tutte le palle del proprio gruppo (7),
+                    // il colpo successivo deve imbucare la boccia nera (8) per vincere la partita.
+                    // Un tiro mancato qui e' semplicemente un errore normale (passa il turno);
+                    // imbucare la boccia nera prima di aver completato il gruppo non e' modellabile
+                    // con l'azione generica "SHOOT" attuale, quindi si applica solo a gruppo completo.
+                    boolean pocketedEightBall = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    if (pocketedEightBall) {
+                        eventMessage = "BALL_POCKETED";
+                        finished = true;
+                    } else {
+                        eventMessage = "MISS";
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                } else {
+                    boolean pocket = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    if (pocket) {
+                        current.setScore(current.getScore() + 1);
+                        eventMessage = "BALL_POCKETED";
+                        // Imbuca: mantiene il turno. Il gruppo si completa a BILLIARDS_TARGET,
+                        // ma la vittoria arriva solo imbucando poi la boccia nera (ramo sopra).
+                    } else {
+                        eventMessage = "MISS";
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                }
+                break;
+            }
+            case DARTS: {
+                // Regola ufficiale "501 double-out": si chiude solo con un doppio (o il Bull, 50).
+                // Bust (tiro annullato, punteggio invariato) se si va sotto 0, si resta a 1
+                // (impossibile chiudere da 1 con un doppio), o si arriva a 0 senza un doppio.
+                int sector = action.getSector() != null ? action.getSector() : 0;
+                int multiplier = action.getMultiplier() != null ? action.getMultiplier() : 1;
+                int points = sector * multiplier;
+                int remaining = current.getScore() - points;
+                boolean isDoubleFinish = multiplier == 2 || sector == 50;
+                if (remaining < 0 || remaining == 1 || (remaining == 0 && !isDoubleFinish)) {
+                    eventMessage = "FOUL";
+                } else {
+                    current.setScore(remaining);
+                    eventMessage = "DART_HIT";
+                    if (remaining == 0) finished = true;
+                }
+                if (!finished) {
+                    match.setThrowsInTurn(match.getThrowsInTurn() + 1);
+                    if (match.getThrowsInTurn() >= DARTS_THROWS_PER_TURN) {
+                        match.setThrowsInTurn(0);
+                        match.setCurrentTurnUserId(firstPlayerId(opponent));
+                    }
+                }
+                break;
+            }
+            default:
+                throw new BitpubException("Tipo di gioco non supportato per le azioni interattive", HttpStatus.BAD_REQUEST);
+        }
+
+        if (finished) {
+            match.setStatus("COMPLETED");
+            match.setEndTime(Instant.now());
+            match.setCurrentTurnUserId(null);
+        }
+
+        teamRepository.saveAll(teams);
+        Match saved = matchRepository.save(match);
+
+        if (finished) {
+            notifyStatisticsService(saved);
+            publishGameState(saved, "FINISHED", "MATCH_END");
+        } else {
+            publishGameState(saved, "PLAYING", eventMessage);
+        }
+
+        return mapToDto(saved);
+    }
+
     /**
      * Determines the winner team (highest score) and notifies the statistics-service
      * to update the leaderboard for both players.
      */
+    /**
+     * Team vincitore: a freccette vince chi ha il punteggio piu' basso (parte da 501 e scala a 0),
+     * negli altri giochi vince chi ha il punteggio piu' alto.
+     */
+    private Team winnerTeam(Match match) {
+        if (match.getTeams() == null || match.getTeams().isEmpty()) return null;
+        Comparator<Team> byScore = Comparator.comparingInt(Team::getScore);
+        return classify(match.getGameTypeId()) == GameKind.DARTS
+                ? match.getTeams().stream().min(byScore).orElse(null)
+                : match.getTeams().stream().max(byScore).orElse(null);
+    }
+
     private void notifyStatisticsService(Match match) {
         if (match.getTeams() == null || match.getTeams().isEmpty()) return;
         try {
-            Team winner = match.getTeams().stream()
-                    .max(Comparator.comparingInt(Team::getScore))
-                    .orElse(null);
+            Team winner = winnerTeam(match);
             Team loser = match.getTeams().stream()
                     .filter(t -> winner == null || !t.getId().equals(winner.getId()))
                     .findFirst().orElse(null);
@@ -514,13 +702,17 @@ public class MatchServiceImpl implements MatchService {
             }
         }
 
-        // Determine winner name on match end
+        // Determine winner name on match end (game-aware: darts = lowest score)
         String winnerName = null;
-        if ("FINISHED".equals(status) && match.getTeams() != null && !match.getTeams().isEmpty()) {
-            winnerName = match.getTeams().stream()
-                    .max(Comparator.comparingInt(Team::getScore))
-                    .map(Team::getName).orElse(null);
+        if ("FINISHED".equals(status)) {
+            Team w = winnerTeam(match);
+            winnerName = w != null ? w.getName() : null;
         }
+
+        // Nomi dei giocatori con Piene/Spezzate (biliardo), risolti dagli id di team assegnati.
+        String solidPlayerName = teamNameById(match, match.getSolidTeamId());
+        String stripedPlayerName = teamNameById(match, match.getStripedTeamId());
+        int throwsRemaining = Math.max(0, DARTS_THROWS_PER_TURN - match.getThrowsInTurn());
 
         GameStateDto stateDto = GameStateDto.builder()
                 .matchId(match.getId())
@@ -533,6 +725,11 @@ public class MatchServiceImpl implements MatchService {
                 .timeRemainingSeconds(0)
                 .currentEventMessage(eventMessage)
                 .winnerName(winnerName)
+                .currentTurnUserId(match.getCurrentTurnUserId())
+                .breakDone(match.isBreakDone())
+                .solidPlayerName(solidPlayerName)
+                .stripedPlayerName(stripedPlayerName)
+                .throwsRemaining(throwsRemaining)
                 .build();
 
         try {
@@ -546,6 +743,13 @@ public class MatchServiceImpl implements MatchService {
         } catch (Exception e) {
             log.error("Failed to publish GameStateDto", e);
         }
+    }
+
+    private String teamNameById(Match match, String teamId) {
+        if (teamId == null || match.getTeams() == null) return null;
+        return match.getTeams().stream()
+                .filter(t -> teamId.equals(t.getId()))
+                .map(Team::getName).findFirst().orElse(null);
     }
 
     private MatchDto mapToDto(Match match) {
@@ -568,6 +772,10 @@ public class MatchServiceImpl implements MatchService {
                 .endTime(match.getEndTime())
                 .teams(teamDtos)
                 .resultPayload(match.getResultPayload())
+                .currentTurnUserId(match.getCurrentTurnUserId())
+                .breakDone(match.isBreakDone())
+                .solidTeamId(match.getSolidTeamId())
+                .stripedTeamId(match.getStripedTeamId())
                 .build();
     }
 }

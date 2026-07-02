@@ -22,4 +22,10 @@ public class MatchDto {
     private Instant endTime;
     private List<TeamResponseDto> teams;
     private String resultPayload;
+
+    // Stato del gameplay a turni (esposto al frontend per abilitare/disabilitare i controlli).
+    private String currentTurnUserId;
+    private boolean breakDone;
+    private String solidTeamId;
+    private String stripedTeamId;
 }

@@ -133,6 +133,18 @@ export interface MatchRecord {
   startTime: string | null;
   endTime: string | null;
   teams: TeamRecord[];
+  currentTurnUserId?: string | null;
+  breakDone?: boolean;
+  solidTeamId?: string | null;
+  stripedTeamId?: string | null;
+}
+
+// Azione di gioco interattiva inviata dal giocatore di turno.
+// actionType: 'SHOOT' (calciobalilla / biliardo), 'BREAK' (spaccata biliardo), 'THROW' (freccette).
+export interface GameActionPayload {
+  actionType: 'SHOOT' | 'BREAK' | 'THROW';
+  sector?: number;     // freccette: 1-20, 25 (Outer Bull), 50 (Bull)
+  multiplier?: number; // freccette: 1, 2, 3
 }
 
 // Locali ONLINE in tempo reale (almeno una macchina simulata attiva), non l'elenco statico completo.
@@ -147,7 +159,15 @@ export const getWaitingLobby = (gameInstanceId: string) =>
 
 export const getMatch = (matchId: string) => matchApi.get<MatchRecord>(`/${matchId}`);
 
+// Invia un'azione di gioco; il backend valida il turno e pubblica il nuovo stato via MQTT.
+export const postGameAction = (matchId: string, action: GameActionPayload) =>
+  matchApi.post<MatchRecord>(`/${matchId}/action`, action);
+
 export const getMatchesByPlayer = (playerId: string) => matchApi.get<MatchRecord[]>(`/by-player/${playerId}`);
+
+// Termina subito una partita in corso: il backend calcola il vincitore in base al punteggio
+// piu' alto (piu' basso a freccette, dove si parte da 501 e si scende a 0) e aggiorna la leaderboard.
+export const endMatch = (matchId: string) => matchApi.post<MatchRecord>(`/${matchId}/end`);
 
 // ── Statistiche personali PLAYER ────────────────────────────────────────────────
 export interface LeaderboardEntryRecord {
