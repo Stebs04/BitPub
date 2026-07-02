@@ -53,6 +53,7 @@ public class LocaleService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<LocaleDto> getAllLocales() {
         return localeRepository.findAll().stream()
                 .map(this::mapToDto)
