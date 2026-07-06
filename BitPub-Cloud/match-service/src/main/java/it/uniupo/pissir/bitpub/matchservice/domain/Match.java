@@ -67,5 +67,10 @@ public class Match {
     
     // Campo JSONB o simile per il risultato finale (es. punteggi)
     @Column(columnDefinition = "TEXT")
-    private String resultPayload; 
+    private String resultPayload;
+
+    // Se valorizzato, questa partita e' lo scontro del tabellone (bracket match) con questo id.
+    // Nullable: le partite libere non appartengono a nessun torneo. Serve a riportare vincitore
+    // e statistiche al tournament-service e a recuperare le statistiche del torneo.
+    private String tournamentMatchId;
 }

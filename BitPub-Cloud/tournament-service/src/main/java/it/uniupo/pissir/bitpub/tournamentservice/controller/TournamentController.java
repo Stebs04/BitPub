@@ -128,6 +128,19 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.isPlayerInBracketMatch(matchId, playerId));
     }
 
+    /**
+     * Interno (chiamato da match-service a fine partita): registra il vincitore dello scontro
+     * e fa avanzare il vincitore al match successivo del tabellone. Nessun gate di ruolo (come
+     * /authorize): e' una chiamata service-to-service, non esposta ai client via gateway con auth.
+     */
+    @PostMapping("/matches/{matchId}/result")
+    public ResponseEntity<Void> reportBracketResult(@PathVariable String matchId,
+            @RequestParam String winnerId,
+            @RequestParam(required = false) String stats) {
+        tournamentService.updateMatchResult(matchId, winnerId, stats);
+        return ResponseEntity.ok().build();
+    }
+
     /** Registra il vincitore e le statistiche di uno scontro del tabellone. Solo LOCALE_ADMIN proprietario. */
     @PutMapping("/{id}/matches/{matchId}/result")
     public ResponseEntity<TournamentDto> updateMatchResult(@PathVariable String id, @PathVariable String matchId,

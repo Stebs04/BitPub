@@ -2,6 +2,7 @@ package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.Tournament;
+import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentMatch;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentRanking;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentRegistration;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRankingDto;
@@ -11,11 +12,10 @@ import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -29,60 +29,52 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
     private final TournamentRegistrationRepository registrationRepository;
     private final TournamentRepository tournamentRepository;
 
-    @Value("${statistics.service.url:http://localhost:8087}")
-    private String statisticsServiceUrl;
+    private static final int POINTS_PER_WIN = 3;
 
     /**
-     * La classifica del torneo si ricava dai match gia' registrati nello statistics-service:
-     * per ogni iscritto si prende la sua riga di leaderboard nel gioco del torneo (per nome),
-     * si aggiornano punteggio/vittorie/partite e si ricalcolano le posizioni. Nessun collegamento
-     * diretto match-torneo necessario: la pipeline match -> leaderboard e' gia' attiva.
+     * La classifica del torneo si calcola retroattivamente dagli scontri gia' giocati del tabellone
+     * (winnerId valorizzato): sorgente auto-contenuta, senza dipendere da match per nome sulla
+     * leaderboard globale. Ricalcolata a ogni lettura, quindi recupera anche le partite vecchie.
      */
     @Override
     @Transactional
     public List<TournamentRankingDto> getTournamentRankings(String tournamentId) {
-        syncFromStatistics(tournamentId);
+        syncFromBracket(tournamentId);
         return rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }
 
-    private void syncFromStatistics(String tournamentId) {
+    private void syncFromBracket(String tournamentId) {
         Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
         if (tournament == null) return;
         List<TournamentRanking> rankings = rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId);
         if (rankings.isEmpty()) return;
 
-        List<Map<String, Object>> board;
-        try {
-            board = RestClient.create(statisticsServiceUrl)
-                    .get()
-                    .uri("/api/v1/statistics/leaderboard/{gameTypeId}", tournament.getGameTypeId())
-                    .retrieve()
-                    .body(List.class);
-        } catch (Exception e) {
-            log.error("Sync classifica torneo {} da statistics-service fallito", tournamentId, e);
-            return;
+        // participantId -> [partite giocate, vittorie]. Conta ogni scontro concluso del tabellone.
+        Map<String, int[]> tally = new HashMap<>();
+        List<TournamentMatch> bracket = tournament.getBracketMatches();
+        if (bracket != null) {
+            for (TournamentMatch m : bracket) {
+                if (m.getWinnerId() == null) continue; // scontro non ancora giocato
+                countPlayed(tally, m.getPlayer1Id());
+                countPlayed(tally, m.getPlayer2Id());
+                tally.computeIfAbsent(m.getWinnerId(), k -> new int[2])[1]++;
+            }
         }
-        if (board == null) return;
 
         for (TournamentRanking r : rankings) {
-            board.stream()
-                    .filter(m -> r.getParticipantName() != null
-                            && r.getParticipantName().equalsIgnoreCase(String.valueOf(m.get("playerName"))))
-                    .findFirst()
-                    .ifPresent(m -> {
-                        r.setScore(asInt(m.get("totalPoints")));
-                        r.setMatchesWon(asInt(m.get("wins")));
-                        r.setMatchesPlayed(asInt(m.get("matchesPlayed")));
-                    });
+            int[] t = tally.getOrDefault(r.getParticipantId(), new int[2]);
+            r.setMatchesPlayed(t[0]);
+            r.setMatchesWon(t[1]);
+            r.setScore(t[1] * POINTS_PER_WIN);
         }
         rankingRepository.saveAll(rankings);
         recalculateRankings(tournamentId);
     }
 
-    private int asInt(Object o) {
-        return o instanceof Number ? ((Number) o).intValue() : 0;
+    private void countPlayed(Map<String, int[]> tally, String participantId) {
+        if (participantId != null) tally.computeIfAbsent(participantId, k -> new int[2])[0]++;
     }
 
     @Override
