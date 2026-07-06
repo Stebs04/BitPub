@@ -50,18 +50,18 @@ interface AuthState {
   hasRole: (role: Role) => boolean;
 }
 
-const initialToken = localStorage.getItem('bitpub_token');
+const initialToken = sessionStorage.getItem('bitpub_token');
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: initialToken,
   user: userFromToken(initialToken),
   isAuthenticated: !!initialToken,
   login: (token, user) => {
-    localStorage.setItem('bitpub_token', token);
+    sessionStorage.setItem('bitpub_token', token);
     set({ token, user, isAuthenticated: true });
   },
   logout: () => {
-    localStorage.removeItem('bitpub_token');
+    sessionStorage.removeItem('bitpub_token');
     set({ token: null, user: null, isAuthenticated: false });
   },
   isPlatformAdmin: () => get().user?.role === 'PLATFORM_ADMIN',
