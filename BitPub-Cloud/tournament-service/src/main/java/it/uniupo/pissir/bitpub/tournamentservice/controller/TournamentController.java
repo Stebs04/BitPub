@@ -87,13 +87,8 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.getActiveTournaments());
     }
 
-    @PutMapping("/{id}/start")
-    public ResponseEntity<TournamentDto> startTournament(@PathVariable String id,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
-            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
-        assertOwns(id, requireLocaleAdmin(callerRole, callerLocaleId));
-        return ResponseEntity.ok(tournamentService.startTournament(id));
-    }
+    // Avvio manuale rimosso: il torneo si avvia da solo generando il tabellone al raggiungimento
+    // di maxParticipants (vedi registerToTournament -> generateBracket). L'admin non lo avvia piu'.
 
     @PutMapping("/{id}/end")
     public ResponseEntity<TournamentDto> endTournament(@PathVariable String id,
@@ -120,13 +115,17 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.getRegistrationsByParticipant(playerId));
     }
 
-    /** Genera il tabellone a eliminazione diretta (iscritti == maxParticipants). Solo LOCALE_ADMIN proprietario. */
-    @PostMapping("/{id}/bracket")
-    public ResponseEntity<TournamentDto> generateBracket(@PathVariable String id,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
-            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
-        assertOwns(id, requireLocaleAdmin(callerRole, callerLocaleId));
-        return ResponseEntity.ok(tournamentService.generateBracket(id));
+    // Generazione manuale del tabellone rimossa: avviene in automatico al raggiungimento di
+    // maxParticipants durante l'iscrizione. Nessun endpoint di avvio manuale esposto.
+
+    /**
+     * Controllo interno (chiamato da match-service): il player e' abbinato in questo scontro
+     * del tabellone? Impedisce ai giocatori non abbinati di connettersi alla partita di torneo.
+     */
+    @GetMapping("/matches/{matchId}/authorize")
+    public ResponseEntity<Boolean> authorizeBracketPlayer(@PathVariable String matchId,
+            @RequestParam String playerId) {
+        return ResponseEntity.ok(tournamentService.isPlayerInBracketMatch(matchId, playerId));
     }
 
     /** Registra il vincitore e le statistiche di uno scontro del tabellone. Solo LOCALE_ADMIN proprietario. */

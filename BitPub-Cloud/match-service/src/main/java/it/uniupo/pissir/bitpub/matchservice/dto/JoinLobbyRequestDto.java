@@ -17,4 +17,7 @@ import lombok.NoArgsConstructor;
 public class JoinLobbyRequestDto {
     private String gameInstanceId;
     private String username;
+    // Se valorizzato, la lobby e' una partita di torneo: solo i due giocatori abbinati
+    // in questo scontro del tabellone possono connettersi. Null = partita libera.
+    private String tournamentMatchId;
 }

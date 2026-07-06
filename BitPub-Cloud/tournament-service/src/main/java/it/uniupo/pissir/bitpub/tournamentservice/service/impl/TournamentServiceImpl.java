@@ -43,7 +43,8 @@ public class TournamentServiceImpl implements TournamentService {
                 .name(tournamentDto.getName())
                 .gameTypeId(tournamentDto.getGameTypeId())
                 .teamBased(tournamentDto.isTeamBased())
-                .localeIds(tournamentDto.getLocaleIds())
+                // Lista mutabile: Hibernate deve poter fare clear/merge sull'@ElementCollection.
+                .localeIds(tournamentDto.getLocaleIds() == null ? new ArrayList<>() : new ArrayList<>(tournamentDto.getLocaleIds()))
                 .startDate(tournamentDto.getStartDate())
                 .endDate(tournamentDto.getEndDate())
                 .status("UPCOMING")
@@ -68,7 +69,9 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.setName(dto.getName());
         tournament.setGameTypeId(dto.getGameTypeId());
         tournament.setTeamBased(dto.isTeamBased());
-        tournament.setLocaleIds(dto.getLocaleIds());
+        // Lista mutabile: passare List.of(...) qui fa fallire il merge Hibernate con
+        // UnsupportedOperationException su ImmutableCollections.clear.
+        tournament.setLocaleIds(dto.getLocaleIds() == null ? new ArrayList<>() : new ArrayList<>(dto.getLocaleIds()));
         tournament.setMaxParticipants(dto.getMaxParticipants());
         return mapToDto(tournamentRepository.save(tournament));
     }
@@ -158,6 +161,16 @@ public class TournamentServiceImpl implements TournamentService {
                 .build();
         
         registration = registrationRepository.save(registration);
+
+        // Avvio automatico: al raggiungimento di maxParticipants il tabellone si genera da solo
+        // (l'admin non avvia piu' manualmente). Guardia su bracket vuoto per non ri-generare.
+        Integer max = tournament.getMaxParticipants();
+        boolean bracketEmpty = tournament.getBracketMatches() == null || tournament.getBracketMatches().isEmpty();
+        if (max != null && bracketEmpty
+                && registrationRepository.findByTournamentId(tournamentId).size() >= max) {
+            generateBracket(tournamentId);
+        }
+
         return mapRegistrationToDto(registration);
     }
 
@@ -225,6 +238,8 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.setStartDate(Instant.now());
         tournament.setBracketMatches(all);
         tournamentRepository.save(tournament);
+        // Classifica inizializzata all'attivazione (prima lo faceva startTournament, ora rimosso).
+        rankingService.initializeRankingsForTournament(tournamentId);
         return mapToDto(tournament);
     }
 
@@ -267,6 +282,19 @@ public class TournamentServiceImpl implements TournamentService {
             tournamentRepository.save(tournament);
         }
         return mapToDto(match.getTournament());
+    }
+
+    /**
+     * Il player e' uno dei due giocatori abbinati nello scontro del tabellone.
+     * Usato da match-service per impedire a chi non e' abbinato di connettersi alla partita.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isPlayerInBracketMatch(String matchId, String playerId) {
+        return matchRepository.findById(matchId)
+                .map(m -> playerId != null
+                        && (playerId.equals(m.getPlayer1Id()) || playerId.equals(m.getPlayer2Id())))
+                .orElse(false);
     }
 
     private TournamentDto mapToDto(Tournament tournament) {
