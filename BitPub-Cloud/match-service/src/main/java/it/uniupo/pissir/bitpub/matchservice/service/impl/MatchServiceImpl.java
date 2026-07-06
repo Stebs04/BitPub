@@ -502,6 +502,15 @@ public class MatchServiceImpl implements MatchService {
         return GameKind.UNKNOWN;
     }
 
+    /**
+     * Esito di un tiro a RNG (calciobalilla goal/parata, biliardo imbuca/manca): tirato
+     * server-side. Autorevole il cloud, non il client (non manomettibile). Elaborato una sola
+     * volta grazie all'idempotenza su eventId, quindi il replay offline resta corretto.
+     */
+    private boolean decideOutcome(double chance) {
+        return ThreadLocalRandom.current().nextDouble() < chance;
+    }
+
     /** Partita a squadre se almeno un team ha piu' di un giocatore; altrimenti individuale. */
     private boolean isTeamBased(Match match) {
         return match.getTeams() != null && match.getTeams().stream()
@@ -540,6 +549,13 @@ public class MatchServiceImpl implements MatchService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
 
+        // Idempotency: a buffered action replayed after the cloud came back must not apply twice.
+        // Return the current state instead of re-running the turn (and without a stale turn 403).
+        if (action.getEventId() != null && sensorEventLogRepository.existsByEventId(action.getEventId())) {
+            log.warn("Game action {} already processed, returning current match state", action.getEventId());
+            return mapToDto(match);
+        }
+
         if (!"IN_PROGRESS".equals(match.getStatus())) {
             throw new BitpubException("La partita non e' in corso", HttpStatus.CONFLICT);
         }
@@ -563,7 +579,7 @@ public class MatchServiceImpl implements MatchService {
 
         switch (classify(match.getGameTypeId())) {
             case FOOSBALL: {
-                boolean goal = ThreadLocalRandom.current().nextDouble() < FOOSBALL_GOAL_CHANCE;
+                boolean goal = decideOutcome(FOOSBALL_GOAL_CHANCE);
                 if (goal) {
                     current.setScore(current.getScore() + 1);
                     eventMessage = "GOAL";
@@ -590,7 +606,7 @@ public class MatchServiceImpl implements MatchService {
                     // Un tiro mancato qui e' semplicemente un errore normale (passa il turno);
                     // imbucare la boccia nera prima di aver completato il gruppo non e' modellabile
                     // con l'azione generica "SHOOT" attuale, quindi si applica solo a gruppo completo.
-                    boolean pocketedEightBall = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    boolean pocketedEightBall = decideOutcome(BILLIARDS_POCKET_CHANCE);
                     if (pocketedEightBall) {
                         eventMessage = "BALL_POCKETED";
                         finished = true;
@@ -599,7 +615,7 @@ public class MatchServiceImpl implements MatchService {
                         match.setCurrentTurnUserId(firstPlayerId(opponent));
                     }
                 } else {
-                    boolean pocket = ThreadLocalRandom.current().nextDouble() < BILLIARDS_POCKET_CHANCE;
+                    boolean pocket = decideOutcome(BILLIARDS_POCKET_CHANCE);
                     if (pocket) {
                         current.setScore(current.getScore() + 1);
                         eventMessage = "BALL_POCKETED";
@@ -650,6 +666,19 @@ public class MatchServiceImpl implements MatchService {
 
         teamRepository.saveAll(teams);
         Match saved = matchRepository.save(match);
+
+        // Mark this action processed (idempotency key) in the same transaction as the state change,
+        // so a replay of the same eventId is recognized and skipped above.
+        if (action.getEventId() != null) {
+            sensorEventLogRepository.save(SensorEventLog.builder()
+                    .eventId(action.getEventId())
+                    .match(saved)
+                    .sensorType(eventMessage)
+                    .timestamp(Instant.now())
+                    .receivedAt(Instant.now())
+                    .payload("{}")
+                    .build());
+        }
 
         if (finished) {
             notifyStatisticsService(saved);

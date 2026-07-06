@@ -174,10 +174,12 @@ services:
     depends_on:
       - mosquitto
       - match-service
+      - tournament-service
     environment:
       - MQTT_LOCAL_BROKER_URL=tcp://mosquitto:1883
       - MQTT_LOCAL_CLIENT_ID=edge-node-docker
       - CLOUD_MATCH_SERVICE_URL=http://match-service:8085
+      - CLOUD_TOURNAMENT_SERVICE_URL=http://tournament-service:8086
     networks:
       - bitpub-network
 

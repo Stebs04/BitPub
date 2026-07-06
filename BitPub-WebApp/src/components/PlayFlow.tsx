@@ -236,6 +236,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
                 stripedPlayerName={gameState?.stripedPlayerName}
                 throwsRemaining={gameState?.throwsRemaining ?? 3}
                 myName={user?.username ?? teamA}
+                // Esito (goal/parata, imbuca/manca) tirato server-side dal match-service.
                 onShoot={() => sendAction({ actionType: 'SHOOT' })}
                 onBreak={() => sendAction({ actionType: 'BREAK' })}
                 onThrow={(sector, multiplier) => sendAction({ actionType: 'THROW', sector, multiplier })}

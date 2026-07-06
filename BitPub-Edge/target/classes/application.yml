@@ -22,6 +22,10 @@ bitpub:
   cloud:
     # Point directly to match-service (in Docker via container name, locally via localhost)
     match-service-url: ${CLOUD_MATCH_SERVICE_URL:http://localhost:8085}
+    tournament-service-url: ${CLOUD_TOURNAMENT_SERVICE_URL:http://localhost:8086}
+  # MUST match the secret the cloud (auth-service) signs tokens with, or JWT validation fails.
+  jwt:
+    secret: ${JWT_SECRET:1234567890123456789012345678901234567890123456789012345678901234}
   mqtt:
     local:
       broker-url: ${MQTT_LOCAL_BROKER_URL:tcp://localhost:1883}
