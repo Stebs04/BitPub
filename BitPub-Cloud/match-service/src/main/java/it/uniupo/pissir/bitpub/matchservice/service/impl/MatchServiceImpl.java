@@ -630,11 +630,15 @@ public class MatchServiceImpl implements MatchService {
      * negli altri giochi vince chi ha il punteggio piu' alto.
      */
     private Team winnerTeam(Match match) {
-        if (match.getTeams() == null || match.getTeams().isEmpty()) return null;
+        List<Team> teams = match.getTeams();
+        if (teams == null || teams.size() < 2) return null;
         Comparator<Team> byScore = Comparator.comparingInt(Team::getScore);
-        return classify(match.getGameTypeId()) == GameKind.DARTS
-                ? match.getTeams().stream().min(byScore).orElse(null)
-                : match.getTeams().stream().max(byScore).orElse(null);
+        Team best = classify(match.getGameTypeId()) == GameKind.DARTS
+                ? teams.stream().min(byScore).orElse(null)
+                : teams.stream().max(byScore).orElse(null);
+        int max = teams.stream().mapToInt(Team::getScore).max().orElse(0);
+        int min = teams.stream().mapToInt(Team::getScore).min().orElse(0);
+        return max == min ? null : best; // parita' di punteggio = pareggio, nessun vincitore
     }
 
     private void notifyStatisticsService(Match match) {
@@ -649,6 +653,8 @@ public class MatchServiceImpl implements MatchService {
             String loserName  = loser  != null ? loser.getName()  : "Unknown";
             int winnerScore   = winner != null ? winner.getScore() : 0;
             int loserScore    = loser  != null ? loser.getScore()  : 0;
+            String winnerId   = winner != null ? firstPlayerId(winner) : null;
+            String loserId    = loser  != null ? firstPlayerId(loser)  : null;
 
             Map<String, Object> resultEvent = new java.util.HashMap<>();
             resultEvent.put("gameTypeId", match.getGameTypeId());
@@ -656,6 +662,8 @@ public class MatchServiceImpl implements MatchService {
             resultEvent.put("loserName", loserName);
             resultEvent.put("winnerScore", winnerScore);
             resultEvent.put("loserScore", loserScore);
+            resultEvent.put("winnerId", winnerId);
+            resultEvent.put("loserId", loserId);
             resultEvent.put("matchId", match.getId());
             resultEvent.put("localeId", match.getLocaleId());
 
@@ -667,7 +675,8 @@ public class MatchServiceImpl implements MatchService {
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Notified statistics-service: winner={}, loser={}, gameType={}", winnerName, loserName, match.getGameTypeId());
+            log.info("Notified statistics-service: winner={} ({}), loser={} ({}), gameType={}",
+                    winnerName, winnerId, loserName, loserId, match.getGameTypeId());
         } catch (Exception e) {
             log.error("Failed to notify statistics-service", e);
         }
@@ -762,6 +771,10 @@ public class MatchServiceImpl implements MatchService {
                         .build())
                 .collect(Collectors.toList());
 
+        // Calcola il vincitore per esporlo nel DTO
+        Team winnerTeamObj = "COMPLETED".equals(match.getStatus()) ? winnerTeam(match) : null;
+        String winnerId = winnerTeamObj != null ? firstPlayerId(winnerTeamObj) : null;
+
         return MatchDto.builder()
                 .id(match.getId())
                 .gameInstanceId(match.getGameInstanceId())
@@ -772,6 +785,7 @@ public class MatchServiceImpl implements MatchService {
                 .endTime(match.getEndTime())
                 .teams(teamDtos)
                 .resultPayload(match.getResultPayload())
+                .winnerId(winnerId)
                 .currentTurnUserId(match.getCurrentTurnUserId())
                 .breakDone(match.isBreakDone())
                 .solidTeamId(match.getSolidTeamId())

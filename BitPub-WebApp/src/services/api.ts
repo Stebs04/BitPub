@@ -146,6 +146,7 @@ export interface MatchRecord {
   startTime: string | null;
   endTime: string | null;
   teams: TeamRecord[];
+  winnerId?: string | null; // userId del vincitore (null = pareggio o partita non terminata)
   currentTurnUserId?: string | null;
   breakDone?: boolean;
   solidTeamId?: string | null;

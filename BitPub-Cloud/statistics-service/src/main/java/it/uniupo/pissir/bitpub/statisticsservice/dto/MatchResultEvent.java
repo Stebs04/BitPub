@@ -11,6 +11,8 @@ public class MatchResultEvent {
     private String gameTypeId;
     private String winnerName;
     private String loserName;
+    private String winnerId;   // userId del vincitore (null se pareggio)
+    private String loserId;    // userId del perdente
     private int winnerScore;
     private int loserScore;
     private String matchId;

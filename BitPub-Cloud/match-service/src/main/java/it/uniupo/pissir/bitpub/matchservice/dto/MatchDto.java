@@ -22,6 +22,8 @@ public class MatchDto {
     private Instant endTime;
     private List<TeamResponseDto> teams;
     private String resultPayload;
+    /** ID utente del vincitore (null se pareggio o partita non terminata). */
+    private String winnerId;
 
     // Stato del gameplay a turni (esposto al frontend per abilitare/disabilitare i controlli).
     private String currentTurnUserId;

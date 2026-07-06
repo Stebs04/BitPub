@@ -135,14 +135,15 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     /**
      * Records the result of a completed match and upserts leaderboard entries for winner and loser.
+     * Also updates per-userId AggregateStatistic (WINS, LOSSES, MATCHES_PLAYED) when userId is known.
      */
     @Override
     @Transactional
     public void recordMatchResult(MatchResultEvent event) {
-        log.info("Recording match result: winner={}, loser={}, gameType={}",
-                event.getWinnerName(), event.getLoserName(), event.getGameTypeId());
+        log.info("Recording match result: winner={} ({}), loser={} ({}), gameType={}",
+                event.getWinnerName(), event.getWinnerId(), event.getLoserName(), event.getLoserId(), event.getGameTypeId());
 
-        // Upsert winner entry
+        // ── Leaderboard (by name) ──────────────────────────────────────────────
         Leaderboard winner = leaderboardRepository
                 .findByPlayerNameIgnoreCaseAndGameTypeId(event.getWinnerName(), event.getGameTypeId())
                 .orElseGet(() -> Leaderboard.builder()
@@ -156,8 +157,10 @@ public class StatisticsServiceImpl implements StatisticsService {
         winner.setLocaleId(event.getLocaleId());
         leaderboardRepository.save(winner);
 
-        // Upsert loser entry (only if the names are different, i.e. not a solo game)
-        if (event.getLoserName() != null && !event.getLoserName().equalsIgnoreCase(event.getWinnerName())) {
+        boolean hasLoser = event.getLoserName() != null
+                && !event.getLoserName().equalsIgnoreCase(event.getWinnerName());
+
+        if (hasLoser) {
             Leaderboard loser = leaderboardRepository
                     .findByPlayerNameIgnoreCaseAndGameTypeId(event.getLoserName(), event.getGameTypeId())
                     .orElseGet(() -> Leaderboard.builder()
@@ -171,6 +174,32 @@ public class StatisticsServiceImpl implements StatisticsService {
             loser.setLocaleId(event.getLocaleId());
             leaderboardRepository.save(loser);
         }
+
+        // ── AggregateStatistic (by userId) ────────────────────────────────────
+        // ponytail: aggiorna solo se winnerId/loserId sono valorizzati (partite dal matchmaking player)
+        if (event.getWinnerId() != null) {
+            incrementStat(event.getWinnerId(), "PLAYER", "WINS", 1);
+            incrementStat(event.getWinnerId(), "PLAYER", "MATCHES_PLAYED", 1);
+        }
+        if (hasLoser && event.getLoserId() != null) {
+            incrementStat(event.getLoserId(), "PLAYER", "LOSSES", 1);
+            incrementStat(event.getLoserId(), "PLAYER", "MATCHES_PLAYED", 1);
+        }
+    }
+
+    /** Increment-or-create an AggregateStatistic by 1. */
+    private void incrementStat(String entityId, String entityType, String metricName, double delta) {
+        AggregateStatistic stat = statisticRepository
+                .findByEntityIdAndEntityTypeAndMetricName(entityId, entityType, metricName)
+                .orElseGet(() -> AggregateStatistic.builder()
+                        .entityId(entityId)
+                        .entityType(entityType)
+                        .metricName(metricName)
+                        .metricValue(0)
+                        .build());
+        stat.setMetricValue(stat.getMetricValue() + delta);
+        stat.setLastComputedAt(Instant.now());
+        statisticRepository.save(stat);
     }
 
     @Override
