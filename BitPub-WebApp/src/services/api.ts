@@ -220,8 +220,18 @@ export interface TournamentRegistrationRecord {
   tournamentId: string;
   participantId: string;
   participantName: string;
+  team?: boolean;          // true = iscrizione a squadre
+  members?: string[];      // membri della squadra (o singolo giocatore)
   localeId: string;
   registeredAt: string;
+}
+
+export interface RegisterPayload {
+  participantId: string;
+  participantName: string;
+  localeId: string;
+  team?: boolean;
+  members?: string[];
 }
 
 export interface TournamentRecord {
@@ -258,7 +268,7 @@ export const getAllTournaments = () => api.get<TournamentRecord[]>('/tournaments
 export const getActiveTournaments = () => api.get<TournamentRecord[]>('/tournaments/active');
 export const getTournamentRegistrationsByPlayer = (playerId: string) =>
   api.get<TournamentRegistrationRecord[]>(`/tournaments/by-player/${playerId}`);
-export const registerToTournament = (tournamentId: string, payload: { participantId: string; participantName: string; localeId: string }) =>
+export const registerToTournament = (tournamentId: string, payload: RegisterPayload) =>
   api.post<TournamentRegistrationRecord>(`/tournaments/${tournamentId}/register`, payload);
 
 // Classifica del torneo (sincronizzata dai risultati dei match).
@@ -268,7 +278,14 @@ export const getTournamentRankings = (tournamentId: string) =>
 // Gestione tornei (PLATFORM_ADMIN / LOCALE_ADMIN)
 export const createTournament = (payload: CreateTournamentPayload) =>
   api.post<TournamentRecord>('/tournaments', payload);
+export const updateTournament = (id: string, payload: CreateTournamentPayload) =>
+  api.put<TournamentRecord>(`/tournaments/${id}`, payload);
+export const deleteTournament = (id: string) => api.delete(`/tournaments/${id}`);
 export const startTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/start`);
 export const endTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/end`);
+
+// Locali gestiti (per il form tornei del manager): il LOCALE_ADMIN vede i propri, il PLATFORM_ADMIN tutti.
+export const getLocalesByAdmin = (adminId: string) => api.get<LocaleRecord[]>(`/locales/by-admin/${adminId}`);
+export const getAllLocales = () => api.get<LocaleRecord[]>('/locales');
 
 export default api;

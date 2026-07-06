@@ -1,15 +1,18 @@
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
+import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.Tournament;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentRegistration;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRegistrationDto;
+import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRankingRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRegistrationRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +26,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final TournamentRegistrationRepository registrationRepository;
+    private final TournamentRankingRepository rankingRepository;
     private final TournamentRankingService rankingService;
 
     @Override
@@ -39,6 +43,36 @@ public class TournamentServiceImpl implements TournamentService {
                 .build();
         tournament = tournamentRepository.save(tournament);
         return mapToDto(tournament);
+    }
+
+    /**
+     * Modifica consentita solo finche' nessun giocatore/squadra e' iscritto: cambiare gioco,
+     * locali o modalita' dopo le iscrizioni invaliderebbe i partecipanti gia' registrati.
+     */
+    @Override
+    @Transactional
+    public TournamentDto updateTournament(String id, TournamentDto dto) {
+        Tournament tournament = tournamentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + id));
+        if (!registrationRepository.findByTournamentId(id).isEmpty()) {
+            throw new BitpubException("Impossibile modificare un torneo con iscritti", HttpStatus.CONFLICT);
+        }
+        tournament.setName(dto.getName());
+        tournament.setGameTypeId(dto.getGameTypeId());
+        tournament.setTeamBased(dto.isTeamBased());
+        tournament.setLocaleIds(dto.getLocaleIds());
+        return mapToDto(tournamentRepository.save(tournament));
+    }
+
+    @Override
+    @Transactional
+    public void deleteTournament(String id) {
+        Tournament tournament = tournamentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + id));
+        // Rimuove prima le classifiche (tabella separata, non in cascade), poi il torneo
+        // che cascata su registrazioni e locali coinvolti.
+        rankingRepository.deleteAll(rankingRepository.findByTournamentIdOrderByScoreDesc(id));
+        tournamentRepository.delete(tournament);
     }
 
     @Override
@@ -108,6 +142,8 @@ public class TournamentServiceImpl implements TournamentService {
                 .tournament(tournament)
                 .participantId(dto.getParticipantId())
                 .participantName(dto.getParticipantName())
+                .team(dto.isTeam())
+                .members(dto.getMembers())
                 .localeId(dto.getLocaleId())
                 .registeredAt(Instant.now())
                 .build();
@@ -141,6 +177,8 @@ public class TournamentServiceImpl implements TournamentService {
                 .tournamentId(reg.getTournament().getId())
                 .participantId(reg.getParticipantId())
                 .participantName(reg.getParticipantName())
+                .team(reg.isTeam())
+                .members(reg.getMembers())
                 .localeId(reg.getLocaleId())
                 .registeredAt(reg.getRegisteredAt())
                 .build();

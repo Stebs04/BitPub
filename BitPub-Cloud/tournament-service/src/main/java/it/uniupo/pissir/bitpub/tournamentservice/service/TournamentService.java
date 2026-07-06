@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface TournamentService {
     TournamentDto createTournament(TournamentDto tournamentDto);
+    TournamentDto updateTournament(String id, TournamentDto tournamentDto);
+    void deleteTournament(String id);
     TournamentDto getTournament(String id);
     List<TournamentDto> getAllTournaments();
     List<TournamentDto> getActiveTournaments();
