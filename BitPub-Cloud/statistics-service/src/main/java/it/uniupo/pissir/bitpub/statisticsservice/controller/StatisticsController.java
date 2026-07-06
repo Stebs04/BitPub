@@ -2,6 +2,7 @@ package it.uniupo.pissir.bitpub.statisticsservice.controller;
 
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.GameUsageDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.GlobalStatsDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.LeaderboardEntryDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.MatchResultEvent;
@@ -76,6 +77,25 @@ public class StatisticsController {
     @PostMapping("/leaderboard/rebuild")
     public ResponseEntity<Integer> rebuildLeaderboard(@RequestBody List<MatchResultEvent> events) {
         return ResponseEntity.ok(statisticsService.rebuildLeaderboard(events));
+    }
+
+    /**
+     * Metrica "Giochi piu' utilizzati in un locale". Aperta a tutti i ruoli in lettura;
+     * un LOCALE_ADMIN puo' consultare solo il proprio locale.
+     */
+    @GetMapping("/locale/{localeId}/games-usage")
+    public ResponseEntity<List<GameUsageDto>> getMostUsedGames(
+            @PathVariable String localeId,
+            @RequestHeader(value = "X-User-Id", required = false) String callerId,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
+        if ("LOCALE_ADMIN".equals(callerRole)) {
+            String ownLocaleId = callerLocaleId != null ? callerLocaleId : statisticsService.resolveAdminLocaleId(callerId);
+            if (ownLocaleId == null || !ownLocaleId.equals(localeId)) {
+                throw new BitpubException("LOCALE_ADMIN can only view statistics of their own locale", HttpStatus.FORBIDDEN);
+            }
+        }
+        return ResponseEntity.ok(statisticsService.getMostUsedGamesByLocale(localeId));
     }
 
     /**

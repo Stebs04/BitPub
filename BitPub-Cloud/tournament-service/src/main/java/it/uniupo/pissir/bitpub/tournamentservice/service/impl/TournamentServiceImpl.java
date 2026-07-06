@@ -7,6 +7,7 @@ import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRegistrationDto;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRegistrationRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository;
+import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final TournamentRegistrationRepository registrationRepository;
+    private final TournamentRankingService rankingService;
 
     @Override
     @Transactional
@@ -30,6 +32,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .name(tournamentDto.getName())
                 .gameTypeId(tournamentDto.getGameTypeId())
                 .teamBased(tournamentDto.isTeamBased())
+                .localeIds(tournamentDto.getLocaleIds())
                 .startDate(tournamentDto.getStartDate())
                 .endDate(tournamentDto.getEndDate())
                 .status("UPCOMING")
@@ -62,7 +65,11 @@ public class TournamentServiceImpl implements TournamentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + id));
         tournament.setStatus("ACTIVE");
         tournament.setStartDate(Instant.now());
-        return mapToDto(tournamentRepository.save(tournament));
+        TournamentDto dto = mapToDto(tournamentRepository.save(tournament));
+        // All'avvio crea una riga di classifica per ogni iscritto, cosi' la classifica esiste
+        // gia' a torneo iniziato (poi i punteggi si sincronizzano dai match via statistics-service).
+        rankingService.initializeRankingsForTournament(id);
+        return dto;
     }
 
     @Override
@@ -115,6 +122,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .name(tournament.getName())
                 .gameTypeId(tournament.getGameTypeId())
                 .teamBased(tournament.isTeamBased())
+                .localeIds(tournament.getLocaleIds())
                 .startDate(tournament.getStartDate())
                 .endDate(tournament.getEndDate())
                 .status(tournament.getStatus())

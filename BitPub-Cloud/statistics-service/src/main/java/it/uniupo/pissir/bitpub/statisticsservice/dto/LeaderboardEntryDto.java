@@ -14,6 +14,7 @@ public class LeaderboardEntryDto {
     private String playerName;
     private String gameTypeId;
     private String localeId;
+    private boolean teamBased;
     private int wins;
     private int losses;
     private int totalPoints;

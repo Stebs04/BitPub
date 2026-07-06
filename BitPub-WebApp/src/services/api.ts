@@ -143,6 +143,7 @@ export interface MatchRecord {
   localeId: string;
   gameTypeId: string;
   status: string; // WAITING_FOR_PLAYERS | IN_PROGRESS | COMPLETED | CANCELLED
+  teamBased?: boolean; // true = partita a squadre (si registra il Team, non i singoli)
   startTime: string | null;
   endTime: string | null;
   teams: TeamRecord[];
@@ -192,6 +193,7 @@ export interface LeaderboardEntryRecord {
   playerName: string;
   gameTypeId: string;
   localeId: string | null;
+  teamBased?: boolean;
   wins: number;
   losses: number;
   totalPoints: number;
@@ -201,6 +203,16 @@ export interface LeaderboardEntryRecord {
 
 export const getMyLeaderboardStats = (playerName: string) =>
   statsApi.get<LeaderboardEntryRecord[]>(`/leaderboard/me/${encodeURIComponent(playerName)}`);
+
+// ── Giochi piu' utilizzati in un locale ─────────────────────────────────────────
+export interface GameUsageRecord {
+  gameTypeId: string;
+  matchesPlayed: number;
+  players: number;
+}
+
+export const getLocaleGameUsage = (localeId: string) =>
+  statsApi.get<GameUsageRecord[]>(`/locale/${localeId}/games-usage`);
 
 // ── Tornei ───────────────────────────────────────────────────────────────────────
 export interface TournamentRegistrationRecord {
@@ -217,10 +229,29 @@ export interface TournamentRecord {
   name: string;
   gameTypeId: string;
   teamBased: boolean;
+  localeIds?: string[]; // locali coinvolti nel torneo
   startDate: string | null;
   endDate: string | null;
   status: string; // UPCOMING | ACTIVE | COMPLETED
   registrations?: TournamentRegistrationRecord[];
+}
+
+export interface TournamentRankingRecord {
+  id: string;
+  tournamentId: string;
+  participantId: string;
+  participantName: string;
+  score: number;
+  matchesPlayed: number;
+  matchesWon: number;
+  currentRank: number;
+}
+
+export interface CreateTournamentPayload {
+  name: string;
+  gameTypeId: string;
+  teamBased: boolean;
+  localeIds: string[];
 }
 
 export const getAllTournaments = () => api.get<TournamentRecord[]>('/tournaments');
@@ -229,5 +260,15 @@ export const getTournamentRegistrationsByPlayer = (playerId: string) =>
   api.get<TournamentRegistrationRecord[]>(`/tournaments/by-player/${playerId}`);
 export const registerToTournament = (tournamentId: string, payload: { participantId: string; participantName: string; localeId: string }) =>
   api.post<TournamentRegistrationRecord>(`/tournaments/${tournamentId}/register`, payload);
+
+// Classifica del torneo (sincronizzata dai risultati dei match).
+export const getTournamentRankings = (tournamentId: string) =>
+  api.get<TournamentRankingRecord[]>(`/tournaments/${tournamentId}/rankings`);
+
+// Gestione tornei (PLATFORM_ADMIN / LOCALE_ADMIN)
+export const createTournament = (payload: CreateTournamentPayload) =>
+  api.post<TournamentRecord>('/tournaments', payload);
+export const startTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/start`);
+export const endTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/end`);
 
 export default api;

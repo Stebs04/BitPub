@@ -200,6 +200,7 @@ public class MatchServiceImpl implements MatchService {
         match.setStatus("COMPLETED");
         match.setEndTime(Instant.now());
         match.setCurrentTurnUserId(null);
+        match.setTeamBased(isTeamBased(match));
         Match saved = matchRepository.save(match);
 
         // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
@@ -469,6 +470,12 @@ public class MatchServiceImpl implements MatchService {
         return GameKind.UNKNOWN;
     }
 
+    /** Partita a squadre se almeno un team ha piu' di un giocatore; altrimenti individuale. */
+    private boolean isTeamBased(Match match) {
+        return match.getTeams() != null && match.getTeams().stream()
+                .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().size() > 1);
+    }
+
     private String firstPlayerId(Team team) {
         return team != null && team.getPlayerIds() != null && !team.getPlayerIds().isEmpty()
                 ? team.getPlayerIds().get(0) : null;
@@ -606,6 +613,7 @@ public class MatchServiceImpl implements MatchService {
             match.setStatus("COMPLETED");
             match.setEndTime(Instant.now());
             match.setCurrentTurnUserId(null);
+            match.setTeamBased(isTeamBased(match));
         }
 
         teamRepository.saveAll(teams);
@@ -663,6 +671,7 @@ public class MatchServiceImpl implements MatchService {
         resultEvent.put("loserId", loser != null ? firstPlayerId(loser) : null);
         resultEvent.put("matchId", match.getId());
         resultEvent.put("localeId", match.getLocaleId());
+        resultEvent.put("teamBased", isTeamBased(match));
         return resultEvent;
     }
 
@@ -813,6 +822,7 @@ public class MatchServiceImpl implements MatchService {
                 .localeId(match.getLocaleId())
                 .gameTypeId(match.getGameTypeId())
                 .status(match.getStatus())
+                .teamBased(isTeamBased(match))
                 .startTime(match.getStartTime())
                 .endTime(match.getEndTime())
                 .teams(teamDtos)

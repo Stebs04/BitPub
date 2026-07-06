@@ -21,4 +21,7 @@ public interface LeaderboardRepository extends JpaRepository<Leaderboard, String
 
     /** Returns all entries for a game type within a single locale, ordered by wins DESC then totalPoints DESC. */
     List<Leaderboard> findByGameTypeIdAndLocaleIdOrderByWinsDescTotalPointsDesc(String gameTypeId, String localeId);
+
+    /** Tutte le entry registrate in un locale (per aggregare i giochi piu' usati). */
+    List<Leaderboard> findByLocaleId(String localeId);
 }

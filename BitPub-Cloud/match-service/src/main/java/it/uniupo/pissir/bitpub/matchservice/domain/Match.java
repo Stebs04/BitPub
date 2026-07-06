@@ -32,6 +32,13 @@ public class Match {
     @Column(nullable = false)
     private String status; // CREATED, IN_PROGRESS, COMPLETED, CANCELLED
 
+    // Individuale (un giocatore per team) vs a squadre (piu' giocatori per team).
+    // Derivato dalla composizione dei team (playerIds.size() > 1) e persistito qui per
+    // distinzione esplicita a livello entity e propagazione allo statistics-service.
+    // Nelle partite a squadre e' la SQUADRA (Team.name) a essere registrata, non i singoli.
+    @Column(columnDefinition = "boolean not null default false")
+    private boolean teamBased;
+
     private Instant startTime;
     private Instant endTime;
 
