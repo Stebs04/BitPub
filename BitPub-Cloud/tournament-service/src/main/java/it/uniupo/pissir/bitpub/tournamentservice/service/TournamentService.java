@@ -17,4 +17,5 @@ public interface TournamentService {
     TournamentRegistrationDto registerToTournament(String tournamentId, TournamentRegistrationDto registrationDto);
     TournamentDto generateBracket(String tournamentId);
     TournamentDto updateMatchResult(String matchId, String winnerId, String stats);
+    boolean isPlayerInBracketMatch(String matchId, String playerId);
 }

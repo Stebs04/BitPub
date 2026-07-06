@@ -61,6 +61,33 @@ public class MatchServiceImpl implements MatchService {
     @Value("${locale.service.url:http://localhost:8083}")
     private String localeServiceUrl;
 
+    @Value("${tournament.service.url:http://localhost:8086}")
+    private String tournamentServiceUrl;
+
+    /**
+     * Partita di torneo: solo i due giocatori abbinati nello scontro del tabellone possono
+     * connettersi. Chiede a tournament-service; fail-closed (403) se la verifica non riesce.
+     */
+    private void assertTournamentPairing(String tournamentMatchId, String playerId) {
+        if (tournamentMatchId == null) {
+            return; // partita libera, nessun abbinamento da rispettare
+        }
+        Boolean allowed;
+        try {
+            allowed = RestClient.create(tournamentServiceUrl)
+                    .get()
+                    .uri("/api/v1/tournaments/matches/{id}/authorize?playerId={pid}", tournamentMatchId, playerId)
+                    .retrieve()
+                    .body(Boolean.class);
+        } catch (Exception e) {
+            log.error("Tournament pairing check failed for match {} player {}", tournamentMatchId, playerId, e);
+            throw new BitpubException("Impossibile verificare l'abbinamento del torneo", HttpStatus.BAD_GATEWAY);
+        }
+        if (!Boolean.TRUE.equals(allowed)) {
+            throw new BitpubException("Non sei abbinato a questa partita del torneo", HttpStatus.FORBIDDEN);
+        }
+    }
+
     /**
      * Resolves the owning locale for a gameInstance by calling locale-service.
      * Needed to scope LOCALE_ADMIN access to matches of their own locale.
@@ -222,6 +249,9 @@ public class MatchServiceImpl implements MatchService {
     public MatchDto joinLobby(JoinLobbyRequestDto request, String playerId) {
         String gameInstanceId = request.getGameInstanceId();
         String username = request.getUsername();
+
+        // Torneo: verifica che il chiamante sia uno dei due giocatori abbinati nel tabellone.
+        assertTournamentPairing(request.getTournamentMatchId(), playerId);
 
         Optional<Match> waiting = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(gameInstanceId, "WAITING_FOR_PLAYERS");
 
