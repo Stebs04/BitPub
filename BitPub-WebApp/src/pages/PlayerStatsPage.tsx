@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { BarChart3, Trophy, Swords, Target, TrendingUp } from 'lucide-react';
+import { BarChart3, Trophy, Swords, Target } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { useAuthStore } from '../store/authStore';
-import { getMatchesByPlayer, getMyLeaderboardStats, getTournamentRegistrationsByPlayer } from '../services/api';
-import type { LeaderboardEntryRecord, MatchRecord, TournamentRegistrationRecord } from '../services/api';
+import { getMatchesByPlayer, getTournamentRegistrationsByPlayer } from '../services/api';
+import type { MatchRecord, TournamentRegistrationRecord } from '../services/api';
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   foosball: 'Calciobalilla',
@@ -21,7 +21,6 @@ const PlayerStatsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
 
   const [matches, setMatches] = useState<MatchRecord[]>([]);
-  const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardEntryRecord[]>([]);
   const [tournamentRegs, setTournamentRegs] = useState<TournamentRegistrationRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,13 +30,11 @@ const PlayerStatsPage: React.FC = () => {
 
     Promise.all([
       getMatchesByPlayer(user.id),
-      getMyLeaderboardStats(user.username),
       getTournamentRegistrationsByPlayer(user.id),
     ])
-      .then(([matchesRes, leaderboardRes, tournamentsRes]) => {
+      .then(([matchesRes, tournamentsRes]) => {
         if (cancelled) return;
         setMatches(matchesRes.data || []);
-        setLeaderboardRows(leaderboardRes.data || []);
         setTournamentRegs(tournamentsRes.data || []);
       })
       .catch((error) => console.error('Error fetching player stats:', error))
@@ -48,17 +45,43 @@ const PlayerStatsPage: React.FC = () => {
     };
   }, [user]);
 
-  const totals = leaderboardRows.reduce(
-    (acc, row) => ({
-      wins: acc.wins + row.wins,
-      losses: acc.losses + row.losses,
-      totalPoints: acc.totalPoints + row.totalPoints,
-      matchesPlayed: acc.matchesPlayed + row.matchesPlayed,
-    }),
-    { wins: 0, losses: 0, totalPoints: 0, matchesPlayed: 0 }
-  );
+  // Statistiche derivate dallo storico partite (unica fonte di verita': winnerId dal match-service).
+  // Evita la dipendenza dalla leaderboard, che e' un secondo sistema e puo' non essere popolato.
+  const outcome = (m: MatchRecord): 'win' | 'loss' | 'draw' | null => {
+    if (m.status !== 'COMPLETED') return null;
+    if (!m.winnerId) return 'draw';
+    return m.winnerId === user?.id ? 'win' : 'loss';
+  };
+  const myScore = (m: MatchRecord) => m.teams?.find((t) => t.playerIds?.includes(user?.id ?? ''))?.score ?? 0;
 
-  const winRate = totals.matchesPlayed > 0 ? Math.round((totals.wins / totals.matchesPlayed) * 100) : 0;
+  const totals = matches.reduce(
+    (acc, m) => {
+      const o = outcome(m);
+      if (o === 'win') acc.wins++;
+      else if (o === 'loss') acc.losses++;
+      return acc;
+    },
+    { wins: 0, losses: 0 }
+  );
+  const decided = totals.wins + totals.losses;
+  const winRate = decided > 0 ? Math.round((totals.wins / decided) * 100) : 0;
+
+  // Rendimento aggregato per tipo di gioco (solo partite concluse).
+  const perGame = Object.values(
+    matches.reduce<Record<string, { gameTypeId: string; wins: number; losses: number; totalPoints: number; matchesPlayed: number }>>(
+      (acc, m) => {
+        const o = outcome(m);
+        if (!o) return acc;
+        const g = (acc[m.gameTypeId] ||= { gameTypeId: m.gameTypeId, wins: 0, losses: 0, totalPoints: 0, matchesPlayed: 0 });
+        g.matchesPlayed++;
+        g.totalPoints += myScore(m);
+        if (o === 'win') g.wins++;
+        else if (o === 'loss') g.losses++;
+        return acc;
+      },
+      {}
+    )
+  );
 
   if (loading) {
     return (
@@ -113,7 +136,7 @@ const PlayerStatsPage: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {leaderboardRows.length === 0 ? (
+          {perGame.length === 0 ? (
             <p className="text-slate-500 text-sm">Non hai ancora dati in classifica. Gioca una partita per iniziare!</p>
           ) : (
             <div className="overflow-x-auto">
@@ -128,8 +151,8 @@ const PlayerStatsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {leaderboardRows.map((row) => (
-                    <tr key={row.id}>
+                  {perGame.map((row) => (
+                    <tr key={row.gameTypeId}>
                       <td className="py-3 px-3 font-semibold text-white">{GAME_TYPE_LABELS[row.gameTypeId] || row.gameTypeId}</td>
                       <td className="py-3 px-3 text-center text-emerald-400 font-bold">{row.wins}</td>
                       <td className="py-3 px-3 text-center text-red-400 font-bold">{row.losses}</td>
@@ -155,19 +178,39 @@ const PlayerStatsPage: React.FC = () => {
           {matches.length === 0 ? (
             <p className="text-slate-500 text-sm">Nessuna partita giocata finora.</p>
           ) : (
-            <div className="divide-y divide-white/5">
-              {matches.slice(0, 15).map((m) => (
-                <div key={m.id} className="py-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-300 font-medium">{GAME_TYPE_LABELS[m.gameTypeId] || m.gameTypeId}</span>
-                  <span className="text-slate-400">
-                    {m.teams?.map((t) => `${t.name} ${t.score}`).join(' vs ')}
-                  </span>
-                  <span className={`flex items-center gap-1 ${m.status === 'COMPLETED' ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                    {m.status === 'IN_PROGRESS' && <TrendingUp className="w-3.5 h-3.5" />}
-                    {m.status}
-                  </span>
-                </div>
-              ))}
+          <div className="divide-y divide-white/5">
+              {matches.slice(0, 15).map((m) => {
+                // Determina il team del giocatore corrente
+                const myTeam = m.teams?.find((t) => t.playerIds?.includes(user?.id ?? ''));
+                const oppTeam = m.teams?.find((t) => !t.playerIds?.includes(user?.id ?? ''));
+
+                let resultLabel = m.status === 'IN_PROGRESS' ? 'In corso' : m.status;
+                let resultClass = 'text-yellow-400';
+                if (m.status === 'COMPLETED') {
+                  if (!m.winnerId) {
+                    resultLabel = 'Pareggio';
+                    resultClass = 'text-slate-400';
+                  } else if (m.winnerId === user?.id) {
+                    resultLabel = '🏆 Vittoria';
+                    resultClass = 'text-emerald-400 font-bold';
+                  } else {
+                    resultLabel = '❌ Sconfitta';
+                    resultClass = 'text-red-400 font-bold';
+                  }
+                }
+
+                const scoreStr = myTeam && oppTeam
+                  ? `${myTeam.score} – ${oppTeam.score}`
+                  : m.teams?.map((t) => `${t.name} ${t.score}`).join(' vs ') ?? '—';
+
+                return (
+                  <div key={m.id} className="py-3 flex items-center justify-between text-sm gap-3">
+                    <span className="text-slate-300 font-medium min-w-[90px]">{GAME_TYPE_LABELS[m.gameTypeId] || m.gameTypeId}</span>
+                    <span className="text-slate-400 flex-1 text-center">{scoreStr}</span>
+                    <span className={`text-right ${resultClass}`}>{resultLabel}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
