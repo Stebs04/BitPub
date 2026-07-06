@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Swords, CalendarDays, CheckCircle2, MapPin, Plus, Play, StopCircle, Trophy, ChevronDown,
+  Swords, CalendarDays, CheckCircle2, MapPin, Plus, StopCircle, Trophy, ChevronDown,
   Pencil, Trash2, UserPlus, Users, X,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
@@ -17,7 +17,6 @@ import {
   createTournament,
   updateTournament,
   deleteTournament,
-  startTournament,
   endTournament,
   generateTournamentBracket,
   updateTournamentMatchResult,
@@ -208,10 +207,6 @@ const TournamentsPage: React.FC = () => {
     }
   };
 
-  const handleStart = async (id: string) => {
-    try { await startTournament(id); await loadTournaments(); }
-    catch (err: any) { setError(err?.response?.data?.message || 'Avvio non riuscito.'); }
-  };
   const handleEnd = async (id: string) => {
     try { await endTournament(id); await loadTournaments(); }
     catch (err: any) { setError(err?.response?.data?.message || 'Chiusura non riuscita.'); }
@@ -406,26 +401,25 @@ const TournamentsPage: React.FC = () => {
                   ) : (
                     isPlayer && (
                       <>
-                        <Button size="sm" disabled={!canRegister || registeringId === t.id} onClick={() => handleRegisterPlayer(t.id)}>
-                          <UserPlus className="w-4 h-4 mr-1" /> Iscrivi giocatore
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={!canRegister}
-                          onClick={() => { setTeamFormId(teamFormId === t.id ? null : t.id); setTeamName(''); setTeamMembers(''); }}
-                        >
-                          <Users className="w-4 h-4 mr-1" /> Iscrivi squadra
-                        </Button>
+                        {!t.teamBased && (
+                          <Button size="sm" disabled={!canRegister || registeringId === t.id} onClick={() => handleRegisterPlayer(t.id)}>
+                            <UserPlus className="w-4 h-4 mr-1" /> Iscrivi giocatore
+                          </Button>
+                        )}
+                        {t.teamBased && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            disabled={!canRegister}
+                            onClick={() => { setTeamFormId(teamFormId === t.id ? null : t.id); setTeamName(''); setTeamMembers(''); }}
+                          >
+                            <Users className="w-4 h-4 mr-1" /> Iscrivi squadra
+                          </Button>
+                        )}
                       </>
                     )
                   )}
 
-                  {isManager && t.status === 'UPCOMING' && (
-                    <Button size="sm" onClick={() => handleStart(t.id)}>
-                      <Play className="w-4 h-4 mr-1" /> Avvia
-                    </Button>
-                  )}
                   {canGenerate && (
                     <Button size="sm" onClick={() => handleGenerateBracket(t.id)}>
                       <Swords className="w-4 h-4 mr-1" /> Genera Tabellone

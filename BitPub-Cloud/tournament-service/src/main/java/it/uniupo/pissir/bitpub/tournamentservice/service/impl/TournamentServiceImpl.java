@@ -236,7 +236,13 @@ public class TournamentServiceImpl implements TournamentService {
 
         tournament.setStatus("ACTIVE");
         tournament.setStartDate(Instant.now());
-        tournament.setBracketMatches(all);
+        // Muta la collection gestita in-place: sostituirla con una nuova lista rompe
+        // orphan-removal (HibernateException "no longer referenced by the owning entity").
+        if (tournament.getBracketMatches() == null) {
+            tournament.setBracketMatches(new ArrayList<>());
+        }
+        tournament.getBracketMatches().clear();
+        tournament.getBracketMatches().addAll(all);
         tournamentRepository.save(tournament);
         // Classifica inizializzata all'attivazione (prima lo faceva startTournament, ora rimosso).
         rankingService.initializeRankingsForTournament(tournamentId);
