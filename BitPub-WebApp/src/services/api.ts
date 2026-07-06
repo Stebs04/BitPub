@@ -1,11 +1,21 @@
 import axios from 'axios';
 
 const authInterceptor = (config: any) => {
-  const token = localStorage.getItem('bitpub_token');
+  // ponytail: sessionStorage per isolamento tab / incognito
+  const token = sessionStorage.getItem('bitpub_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
+};
+
+const on401 = (error: any) => {
+  if (error?.response?.status === 401) {
+    sessionStorage.removeItem('bitpub_token');
+    // ponytail: redirect diretto, logout() è già implicito (sessionStorage svuotato sopra)
+    window.location.href = '/login';
+  }
+  return Promise.reject(error);
 };
 
 // Gateway (8080) — routes with /api/v1/** prefix: auth, users, locales, catalog, tournaments, statistics
@@ -13,18 +23,21 @@ const api = axios.create({
   baseURL: 'http://localhost:8080/api/v1',
 });
 api.interceptors.request.use(authInterceptor);
+api.interceptors.response.use(undefined, on401);
 
 // Gateway route for match-service is NOT under /api/v1 (see gateway-service application.yml: Path=/api/matches/**)
 export const matchApi = axios.create({
   baseURL: 'http://localhost:8080/api/matches',
 });
 matchApi.interceptors.request.use(authInterceptor);
+matchApi.interceptors.response.use(undefined, on401);
 
 // Statistics reads (leaderboard) through the gateway, same /api/v1 convention
 export const statsApi = axios.create({
   baseURL: 'http://localhost:8080/api/v1/statistics',
 });
 statsApi.interceptors.request.use(authInterceptor);
+statsApi.interceptors.response.use(undefined, on401);
 
 export interface CreateUserPayload {
   username: string;
