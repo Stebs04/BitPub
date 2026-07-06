@@ -150,7 +150,7 @@ public class MatchServiceImpl implements MatchService {
     @Transactional
     public MatchDto startMatch(StartMatchRequestDto request) {
         // Verifica se c'è già un match in corso per quella gameInstance
-        Optional<Match> existingMatch = matchRepository.findByGameInstanceIdAndStatus(request.getGameInstanceId(), "IN_PROGRESS");
+        Optional<Match> existingMatch = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(request.getGameInstanceId(), "IN_PROGRESS");
         if (existingMatch.isPresent()) {
             throw new IllegalStateException("A match is already in progress for game instance: " + request.getGameInstanceId());
         }
@@ -222,7 +222,7 @@ public class MatchServiceImpl implements MatchService {
         String gameInstanceId = request.getGameInstanceId();
         String username = request.getUsername();
 
-        Optional<Match> waiting = matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS");
+        Optional<Match> waiting = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(gameInstanceId, "WAITING_FOR_PLAYERS");
 
         if (waiting.isPresent()) {
             Match match = waiting.get();
@@ -288,7 +288,7 @@ public class MatchServiceImpl implements MatchService {
     @Override
     @Transactional(readOnly = true)
     public Optional<MatchDto> getWaitingLobby(String gameInstanceId) {
-        return matchRepository.findByGameInstanceIdAndStatus(gameInstanceId, "WAITING_FOR_PLAYERS")
+        return matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(gameInstanceId, "WAITING_FOR_PLAYERS")
                 .map(this::mapToDto);
     }
 
@@ -343,7 +343,7 @@ public class MatchServiceImpl implements MatchService {
 
         log.info("Processing event {} for gameInstanceId {}", eventId, event.getGameInstanceId());
 
-        Optional<Match> activeMatchOpt = matchRepository.findByGameInstanceIdAndStatus(event.getGameInstanceId(), "IN_PROGRESS");
+        Optional<Match> activeMatchOpt = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(event.getGameInstanceId(), "IN_PROGRESS");
 
         Match match = null;
         if (activeMatchOpt.isEmpty() && "MATCH_START".equals(event.getSensorType())) {
@@ -641,32 +641,35 @@ public class MatchServiceImpl implements MatchService {
         return max == min ? null : best; // parita' di punteggio = pareggio, nessun vincitore
     }
 
+    /**
+     * Costruisce l'evento-risultato per la leaderboard, o null se il match non ha un vincitore
+     * (meno di 2 team o pareggio di punteggio): un pareggio non muove la classifica.
+     */
+    private Map<String, Object> buildResultEvent(Match match) {
+        if (match.getTeams() == null || match.getTeams().size() < 2) return null;
+        Team winner = winnerTeam(match);
+        if (winner == null) return null; // pareggio: nessun aggiornamento leaderboard
+        Team loser = match.getTeams().stream()
+                .filter(t -> !t.getId().equals(winner.getId()))
+                .findFirst().orElse(null);
+
+        Map<String, Object> resultEvent = new java.util.HashMap<>();
+        resultEvent.put("gameTypeId", match.getGameTypeId());
+        resultEvent.put("winnerName", winner.getName());
+        resultEvent.put("loserName", loser != null ? loser.getName() : "Unknown");
+        resultEvent.put("winnerScore", winner.getScore());
+        resultEvent.put("loserScore", loser != null ? loser.getScore() : 0);
+        resultEvent.put("winnerId", firstPlayerId(winner));
+        resultEvent.put("loserId", loser != null ? firstPlayerId(loser) : null);
+        resultEvent.put("matchId", match.getId());
+        resultEvent.put("localeId", match.getLocaleId());
+        return resultEvent;
+    }
+
     private void notifyStatisticsService(Match match) {
-        if (match.getTeams() == null || match.getTeams().isEmpty()) return;
+        Map<String, Object> resultEvent = buildResultEvent(match);
+        if (resultEvent == null) return;
         try {
-            Team winner = winnerTeam(match);
-            Team loser = match.getTeams().stream()
-                    .filter(t -> winner == null || !t.getId().equals(winner.getId()))
-                    .findFirst().orElse(null);
-
-            String winnerName = winner != null ? winner.getName() : "Unknown";
-            String loserName  = loser  != null ? loser.getName()  : "Unknown";
-            int winnerScore   = winner != null ? winner.getScore() : 0;
-            int loserScore    = loser  != null ? loser.getScore()  : 0;
-            String winnerId   = winner != null ? firstPlayerId(winner) : null;
-            String loserId    = loser  != null ? firstPlayerId(loser)  : null;
-
-            Map<String, Object> resultEvent = new java.util.HashMap<>();
-            resultEvent.put("gameTypeId", match.getGameTypeId());
-            resultEvent.put("winnerName", winnerName);
-            resultEvent.put("loserName", loserName);
-            resultEvent.put("winnerScore", winnerScore);
-            resultEvent.put("loserScore", loserScore);
-            resultEvent.put("winnerId", winnerId);
-            resultEvent.put("loserId", loserId);
-            resultEvent.put("matchId", match.getId());
-            resultEvent.put("localeId", match.getLocaleId());
-
             String body = objectMapper.writeValueAsString(resultEvent);
             RestClient.create(statisticsServiceUrl)
                     .post()
@@ -675,11 +678,40 @@ public class MatchServiceImpl implements MatchService {
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
-            log.info("Notified statistics-service: winner={} ({}), loser={} ({}), gameType={}",
-                    winnerName, winnerId, loserName, loserId, match.getGameTypeId());
+            log.info("Notified statistics-service: winner={}, gameType={}",
+                    resultEvent.get("winnerName"), match.getGameTypeId());
         } catch (Exception e) {
             log.error("Failed to notify statistics-service", e);
         }
+    }
+
+    /**
+     * Backfill: ricostruisce la leaderboard dallo storico dei match gia' conclusi. Serve a
+     * recuperare i match terminati mentre lo statistics-service era irraggiungibile (l'invio
+     * live e' fire-and-forget). Invio in un'unica chiamata batch: lo statistics-service azzera
+     * e ricostruisce in transazione, quindi l'operazione e' ripetibile senza doppi conteggi.
+     */
+    @Transactional(readOnly = true)
+    public int backfillStatistics() {
+        List<Map<String, Object>> events = matchRepository.findByStatus("COMPLETED").stream()
+                .map(this::buildResultEvent)
+                .filter(e -> e != null)
+                .collect(Collectors.toList());
+        try {
+            String body = objectMapper.writeValueAsString(events);
+            RestClient.create(statisticsServiceUrl)
+                    .post()
+                    .uri("/api/v1/statistics/leaderboard/rebuild")
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.error("Backfill verso statistics-service fallito", e);
+            throw new BitpubException("Backfill verso statistics-service fallito", HttpStatus.BAD_GATEWAY);
+        }
+        log.info("Backfill leaderboard: {} match conclusi inviati", events.size());
+        return events.size();
     }
 
     private void publishGameState(Match match, SensorEvent event) {

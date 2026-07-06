@@ -143,7 +143,24 @@ public class StatisticsServiceImpl implements StatisticsService {
         log.info("Recording match result: winner={} ({}), loser={} ({}), gameType={}",
                 event.getWinnerName(), event.getWinnerId(), event.getLoserName(), event.getLoserId(), event.getGameTypeId());
 
-        // ── Leaderboard (by name) ──────────────────────────────────────────────
+        applyToLeaderboard(event);
+
+        // ── AggregateStatistic (by userId) ────────────────────────────────────
+        // ponytail: aggiorna solo se winnerId/loserId sono valorizzati (partite dal matchmaking player)
+        boolean hasLoser = event.getLoserName() != null
+                && !event.getLoserName().equalsIgnoreCase(event.getWinnerName());
+        if (event.getWinnerId() != null) {
+            incrementStat(event.getWinnerId(), "PLAYER", "WINS", 1);
+            incrementStat(event.getWinnerId(), "PLAYER", "MATCHES_PLAYED", 1);
+        }
+        if (hasLoser && event.getLoserId() != null) {
+            incrementStat(event.getLoserId(), "PLAYER", "LOSSES", 1);
+            incrementStat(event.getLoserId(), "PLAYER", "MATCHES_PLAYED", 1);
+        }
+    }
+
+    /** Upsert delle righe leaderboard (vincitore + eventuale perdente) per un singolo match. */
+    private void applyToLeaderboard(MatchResultEvent event) {
         Leaderboard winner = leaderboardRepository
                 .findByPlayerNameIgnoreCaseAndGameTypeId(event.getWinnerName(), event.getGameTypeId())
                 .orElseGet(() -> Leaderboard.builder()
@@ -159,7 +176,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         boolean hasLoser = event.getLoserName() != null
                 && !event.getLoserName().equalsIgnoreCase(event.getWinnerName());
-
         if (hasLoser) {
             Leaderboard loser = leaderboardRepository
                     .findByPlayerNameIgnoreCaseAndGameTypeId(event.getLoserName(), event.getGameTypeId())
@@ -174,17 +190,22 @@ public class StatisticsServiceImpl implements StatisticsService {
             loser.setLocaleId(event.getLocaleId());
             leaderboardRepository.save(loser);
         }
+    }
 
-        // ── AggregateStatistic (by userId) ────────────────────────────────────
-        // ponytail: aggiorna solo se winnerId/loserId sono valorizzati (partite dal matchmaking player)
-        if (event.getWinnerId() != null) {
-            incrementStat(event.getWinnerId(), "PLAYER", "WINS", 1);
-            incrementStat(event.getWinnerId(), "PLAYER", "MATCHES_PLAYED", 1);
+    /**
+     * Backfill: azzera la leaderboard e la ricostruisce dagli eventi dei match gia' conclusi
+     * (inviati dal match-service). ponytail: reset+rebuild = operazione ripetibile senza doppi
+     * conteggi. AggregateStatistic (per userId) non azzerata: la pagina statistiche personali e'
+     * derivata dallo storico match-service, non da questi contatori.
+     */
+    @Override
+    @Transactional
+    public int rebuildLeaderboard(List<MatchResultEvent> events) {
+        leaderboardRepository.deleteAll();
+        if (events != null) {
+            events.forEach(this::applyToLeaderboard);
         }
-        if (hasLoser && event.getLoserId() != null) {
-            incrementStat(event.getLoserId(), "PLAYER", "LOSSES", 1);
-            incrementStat(event.getLoserId(), "PLAYER", "MATCHES_PLAYED", 1);
-        }
+        return events != null ? events.size() : 0;
     }
 
     /** Increment-or-create an AggregateStatistic by 1. */

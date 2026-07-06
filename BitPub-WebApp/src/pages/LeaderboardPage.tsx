@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal } from 'lucide-react';
-import { statsApi } from '../services/api';
+import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
+import { statsApi, backfillStats } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 interface LeaderboardEntry {
@@ -65,6 +65,8 @@ const RANK_ICONS: Record<number, string> = {
 
 const LeaderboardPage: React.FC = () => {
   const currentUsername = useAuthStore((state) => state.user?.username);
+  const isPlatformAdmin = useAuthStore((state) => state.user?.role === 'PLATFORM_ADMIN');
+  const [backfilling, setBackfilling] = useState(false);
   const [activeTab, setActiveTab] = useState<GameTab>('calciobalilla');
   const [data, setData] = useState<Record<GameTab, LeaderboardEntry[]>>({
     biliardo: [],
@@ -94,6 +96,18 @@ const LeaderboardPage: React.FC = () => {
     fetchLeaderboard(activeTab);
   }, [activeTab, fetchLeaderboard]);
 
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    try {
+      await backfillStats();
+      await fetchLeaderboard(activeTab);
+    } catch {
+      // Errore gia' loggato dall'interceptor; mantiene i dati correnti
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const currentEntries = data[activeTab];
   const currentTab = TABS.find(t => t.id === activeTab)!;
 
@@ -116,6 +130,18 @@ const LeaderboardPage: React.FC = () => {
             <span className="text-xs text-slate-500">
               Aggiornato: {lastRefresh.toLocaleTimeString('it-IT')}
             </span>
+          )}
+          {isPlatformAdmin && (
+            <button
+              id="leaderboard-backfill"
+              onClick={handleBackfill}
+              disabled={backfilling}
+              title="Ricostruisce la classifica dai match gia' conclusi"
+              className="flex items-center gap-2 px-4 py-2 bg-brand/10 hover:bg-brand/20 border border-brand/40 rounded-xl text-sm font-medium text-brand-light transition-all disabled:opacity-50"
+            >
+              <DatabaseBackup className={`w-4 h-4 ${backfilling ? 'animate-pulse' : ''}`} />
+              Rigenera
+            </button>
           )}
           <button
             id="leaderboard-refresh"
