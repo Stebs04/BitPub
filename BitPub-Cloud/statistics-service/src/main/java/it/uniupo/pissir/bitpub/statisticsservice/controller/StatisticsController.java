@@ -69,6 +69,16 @@ public class StatisticsController {
     }
 
     /**
+     * Backfill invocato dal match-service: azzera e ricostruisce la leaderboard dai match conclusi.
+     * ponytail: endpoint interno trusted (stesso pattern di /match-result); l'autorizzazione
+     * PLATFORM_ADMIN e' applicata dal match-service che riceve il JWT dal gateway.
+     */
+    @PostMapping("/leaderboard/rebuild")
+    public ResponseEntity<Integer> rebuildLeaderboard(@RequestBody List<MatchResultEvent> events) {
+        return ResponseEntity.ok(statisticsService.rebuildLeaderboard(events));
+    }
+
+    /**
      * Statistiche personali del PLAYER: le sue righe di leaderboard su tutte le tipologie
      * di gioco della demo, in un'unica chiamata (riusa il servizio leaderboard esistente,
      * nessuna nuova query aggiunta al livello service/repository).

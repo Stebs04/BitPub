@@ -119,6 +119,19 @@ public class MatchController {
     }
 
     /**
+     * Backfill statistiche (PLATFORM_ADMIN): ricostruisce la leaderboard dallo storico dei match
+     * gia' conclusi, recuperando quelli terminati mentre lo statistics-service era irraggiungibile.
+     */
+    @PostMapping("/admin/backfill-stats")
+    public ResponseEntity<Integer> backfillStats(
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        if (!"PLATFORM_ADMIN".equals(callerRole)) {
+            throw new BitpubException("Solo un PLATFORM_ADMIN puo' rigenerare le statistiche", HttpStatus.FORBIDDEN);
+        }
+        return ResponseEntity.ok(matchService.backfillStatistics());
+    }
+
+    /**
      * Receives sensor events forwarded from the Edge app via REST.
      * Handles all game types: calciobalilla (GOAL), freccette (DART_HIT), biliardo (BALL_POCKETED).
      */

@@ -15,6 +15,9 @@ public interface StatisticsService {
     /** Records a match result and updates the leaderboard for winner and loser. */
     void recordMatchResult(MatchResultEvent event);
 
+    /** Reset e ricostruzione della leaderboard dagli eventi dei match gia' conclusi. Ritorna il numero applicato. */
+    int rebuildLeaderboard(List<MatchResultEvent> events);
+
     /** Returns leaderboard entries for a specific game type, ordered by wins then points. */
     List<LeaderboardEntryDto> getLeaderboard(String gameTypeId);
 

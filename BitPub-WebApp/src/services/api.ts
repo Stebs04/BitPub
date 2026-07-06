@@ -179,6 +179,9 @@ export const postGameAction = (matchId: string, action: GameActionPayload) =>
 
 export const getMatchesByPlayer = (playerId: string) => matchApi.get<MatchRecord[]>(`/by-player/${playerId}`);
 
+// Backfill statistiche (PLATFORM_ADMIN): ricostruisce la leaderboard dai match gia' conclusi.
+export const backfillStats = () => matchApi.post<number>('/admin/backfill-stats');
+
 // Termina subito una partita in corso: il backend calcola il vincitore in base al punteggio
 // piu' alto (piu' basso a freccette, dove si parte da 501 e si scende a 0) e aggiorna la leaderboard.
 export const endMatch = (matchId: string) => matchApi.post<MatchRecord>(`/${matchId}/end`);
