@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction } from '../services/api';
 import type { LocaleRecord, GameInstanceRecord, MatchRecord } from '../services/api';
 import { notificationService } from '../services/notificationService';
-import GameControlPanel, { classifyGame } from './GameControlPanel';
+import GameControlPanel from './GameControlPanel';
 
 // Stato di gioco pubblicato da match-service su MQTT (bitpub/match/{localeId}/{gameInstanceId}/state).
 interface GameState {
@@ -150,7 +150,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
 
   // Invia un'azione di gioco. Il backend valida il turno e pubblica il nuovo stato via MQTT,
   // sbloccando istantaneamente lo schermo dell'avversario; qui aspettiamo solo la conferma HTTP.
-  const sendAction = async (payload: { actionType: 'SHOOT' | 'BREAK' | 'THROW'; sector?: number; multiplier?: number; outcome?: 'SUCCESS' | 'FAIL' }) => {
+  const sendAction = async (payload: { actionType: 'SHOOT' | 'BREAK' | 'THROW'; sector?: number; multiplier?: number }) => {
     if (!activeMatch || sending) return;
     setSending(true);
     setActionError(null);
@@ -236,12 +236,8 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
                 stripedPlayerName={gameState?.stripedPlayerName}
                 throwsRemaining={gameState?.throwsRemaining ?? 3}
                 myName={user?.username ?? teamA}
-                onShoot={() => {
-                  // Esito generato dal client: goal 30% (calcio), imbuca 50% (biliardo).
-                  const kind = classifyGame(gameState?.gameTypeId ?? activeMatch.gameTypeId);
-                  const p = kind === 'FOOSBALL' ? 0.30 : 0.50;
-                  sendAction({ actionType: 'SHOOT', outcome: Math.random() < p ? 'SUCCESS' : 'FAIL' });
-                }}
+                // Esito (goal/parata, imbuca/manca) tirato server-side dal match-service.
+                onShoot={() => sendAction({ actionType: 'SHOOT' })}
                 onBreak={() => sendAction({ actionType: 'BREAK' })}
                 onThrow={(sector, multiplier) => sendAction({ actionType: 'THROW', sector, multiplier })}
               />
