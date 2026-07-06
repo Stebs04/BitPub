@@ -29,6 +29,10 @@ const Layout: React.FC = () => {
           { to: '/tournaments', icon: Swords, label: 'Tornei' },
         ]
       : [{ to: '/locales', icon: MapPin, label: 'Locali' }]),
+    // Gestione tornei: PLATFORM_ADMIN e LOCALE_ADMIN (il PLAYER ha gia' Tornei sopra).
+    ...(user?.role === 'PLATFORM_ADMIN' || user?.role === 'LOCALE_ADMIN'
+      ? [{ to: '/tournaments', icon: Swords, label: 'Tornei' }]
+      : []),
     ...(user?.role === 'GAME_ADMIN'
       ? [{ to: '/catalog', icon: Boxes, label: 'Catalogo' }]
       : []),

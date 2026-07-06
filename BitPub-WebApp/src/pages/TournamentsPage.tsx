@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Swords, CalendarDays, CheckCircle2, MapPin, Plus, Play, StopCircle, Trophy, ChevronDown } from 'lucide-react';
+import {
+  Swords, CalendarDays, CheckCircle2, MapPin, Plus, Play, StopCircle, Trophy, ChevronDown,
+  Pencil, Trash2, UserPlus, Users, X,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
@@ -11,6 +14,8 @@ import {
   getOnlineLocales,
   getTournamentRankings,
   createTournament,
+  updateTournament,
+  deleteTournament,
   startTournament,
   endTournament,
 } from '../services/api';
@@ -35,34 +40,42 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: 'Concluso', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
 };
 
+const EMPTY_FORM = { name: '', gameTypeId: 'foosball', teamBased: false };
+
 /**
- * Pagina Tornei: il PLAYER sfoglia e si iscrive; PLATFORM_ADMIN / LOCALE_ADMIN creano,
- * avviano e concludono i tornei. La classifica di ogni torneo e' espandibile e viene
- * sincronizzata dai risultati dei match (statistics-service) lato backend.
+ * Pagina Tornei. PLATFORM_ADMIN / LOCALE_ADMIN: CRUD tornei (il LOCALE_ADMIN solo sui propri
+ * locali; modifica bloccata se ci sono iscritti). PLAYER: iscrizione come giocatore o come
+ * squadra (nome squadra + membri). Classifica espandibile, sincronizzata dai match.
  */
 const TournamentsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const role = user?.role;
-  const isManager = role === 'PLATFORM_ADMIN' || role === 'LOCALE_ADMIN';
+  // I tornei sono gestiti solo dal LOCALE_ADMIN (per il proprio locale). Il PLATFORM_ADMIN
+  // vede solo elenco e classifiche. Il PLAYER si iscrive.
+  const isManager = role === 'LOCALE_ADMIN';
+  const isPlayer = role === 'PLAYER';
 
   const [tournaments, setTournaments] = useState<TournamentRecord[]>([]);
   const [myRegistrations, setMyRegistrations] = useState<TournamentRegistrationRecord[]>([]);
   const [onlineLocales, setOnlineLocales] = useState<LocaleRecord[]>([]);
   const [selectedLocaleId, setSelectedLocaleId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [registeringId, setRegisteringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Classifica espandibile per torneo
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rankings, setRankings] = useState<Record<string, TournamentRankingRecord[]>>({});
 
-  // Form creazione torneo (solo manager)
-  const [newName, setNewName] = useState('');
-  const [newGameTypeId, setNewGameTypeId] = useState('foosball');
-  const [newTeamBased, setNewTeamBased] = useState(false);
-  const [newLocaleIds, setNewLocaleIds] = useState<string[]>([]);
-  const [creating, setCreating] = useState(false);
+  // Form crea/modifica torneo (manager). editingId != null => modifica.
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Iscrizione a squadre: form inline per torneo
+  const [teamFormId, setTeamFormId] = useState<string | null>(null);
+  const [teamName, setTeamName] = useState('');
+  const [teamMembers, setTeamMembers] = useState('');
+  const [registeringId, setRegisteringId] = useState<string | null>(null);
 
   const loadTournaments = () => getAllTournaments().then((res) => setTournaments(res.data || []));
 
@@ -87,24 +100,7 @@ const TournamentsPage: React.FC = () => {
   }, [user]);
 
   const registeredTournamentIds = new Set(myRegistrations.map((r) => r.tournamentId));
-
-  const handleRegister = async (tournamentId: string) => {
-    if (!user || !selectedLocaleId) return;
-    setError(null);
-    setRegisteringId(tournamentId);
-    try {
-      const res = await registerToTournament(tournamentId, {
-        participantId: user.id,
-        participantName: user.username,
-        localeId: selectedLocaleId,
-      });
-      setMyRegistrations((prev) => [...prev, res.data]);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Iscrizione non riuscita.');
-    } finally {
-      setRegisteringId(null);
-    }
-  };
+  const hasEntrants = (t: TournamentRecord) => (t.registrations?.length ?? 0) > 0;
 
   const toggleRankings = async (tournamentId: string) => {
     if (expandedId === tournamentId) {
@@ -120,44 +116,101 @@ const TournamentsPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName || !newGameTypeId) return;
+  // ── Iscrizione singolo giocatore ──────────────────────────────────────────────
+  const handleRegisterPlayer = async (tournamentId: string) => {
+    if (!user || !selectedLocaleId) return;
     setError(null);
-    setCreating(true);
+    setRegisteringId(tournamentId);
     try {
-      await createTournament({ name: newName, gameTypeId: newGameTypeId, teamBased: newTeamBased, localeIds: newLocaleIds });
-      setNewName('');
-      setNewTeamBased(false);
-      setNewLocaleIds([]);
+      const res = await registerToTournament(tournamentId, {
+        participantId: user.id,
+        participantName: user.username,
+        localeId: selectedLocaleId,
+        team: false,
+        members: [user.username],
+      });
+      setMyRegistrations((prev) => [...prev, res.data]);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Iscrizione non riuscita.');
+    } finally {
+      setRegisteringId(null);
+    }
+  };
+
+  // ── Iscrizione squadra ────────────────────────────────────────────────────────
+  const handleRegisterTeam = async (tournamentId: string) => {
+    if (!user || !selectedLocaleId || !teamName.trim()) return;
+    setError(null);
+    setRegisteringId(tournamentId);
+    const members = Array.from(
+      new Set([user.username, ...teamMembers.split(',').map((s) => s.trim()).filter(Boolean)])
+    );
+    try {
+      const res = await registerToTournament(tournamentId, {
+        participantId: user.id,
+        participantName: teamName.trim(),
+        localeId: selectedLocaleId,
+        team: true,
+        members,
+      });
+      setMyRegistrations((prev) => [...prev, res.data]);
+      setTeamFormId(null);
+      setTeamName('');
+      setTeamMembers('');
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Iscrizione squadra non riuscita.');
+    } finally {
+      setRegisteringId(null);
+    }
+  };
+
+  // ── CRUD manager ────────────────────────────────────────────────────────────────
+  const startCreate = () => { setEditingId(null); setForm(EMPTY_FORM); };
+  const startEdit = (t: TournamentRecord) => {
+    setEditingId(t.id);
+    setForm({ name: t.name, gameTypeId: t.gameTypeId, teamBased: t.teamBased });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.gameTypeId) return;
+    setError(null);
+    setSaving(true);
+    try {
+      // Il locale del torneo lo assegna il backend (quello del LOCALE_ADMIN); non si sceglie qui.
+      const payload = { ...form, localeIds: [] as string[] };
+      if (editingId) await updateTournament(editingId, payload);
+      else await createTournament(payload);
+      startCreate();
       await loadTournaments();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Creazione torneo non riuscita.');
+      setError(err?.response?.data?.message || 'Salvataggio torneo non riuscito.');
     } finally {
-      setCreating(false);
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (t: TournamentRecord) => {
+    if (!window.confirm(`Eliminare il torneo "${t.name}"?`)) return;
+    setError(null);
+    try {
+      await deleteTournament(t.id);
+      if (editingId === t.id) startCreate();
+      await loadTournaments();
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Eliminazione non riuscita.');
     }
   };
 
   const handleStart = async (id: string) => {
-    try {
-      await startTournament(id);
-      await loadTournaments();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Avvio non riuscito.');
-    }
+    try { await startTournament(id); await loadTournaments(); }
+    catch (err: any) { setError(err?.response?.data?.message || 'Avvio non riuscito.'); }
   };
-
   const handleEnd = async (id: string) => {
-    try {
-      await endTournament(id);
-      await loadTournaments();
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Chiusura non riuscita.');
-    }
+    try { await endTournament(id); await loadTournaments(); }
+    catch (err: any) { setError(err?.response?.data?.message || 'Chiusura non riuscita.'); }
   };
-
-  const toggleLocaleInForm = (id: string) =>
-    setNewLocaleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   if (loading) {
     return (
@@ -177,7 +230,7 @@ const TournamentsPage: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-white">Tornei</h1>
           <p className="text-slate-400 text-sm">
-            {isManager ? 'Crea e gestisci i tornei della piattaforma' : 'Sfoglia i tornei disponibili e iscriviti'}
+            {isManager ? 'Crea e gestisci i tornei dei tuoi locali' : 'Sfoglia i tornei disponibili e iscriviti'}
           </p>
         </div>
       </div>
@@ -188,22 +241,29 @@ const TournamentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Form creazione torneo (manager) */}
+      {/* Form crea/modifica torneo (manager) */}
       {isManager && (
         <Card>
           <CardHeader>
-            <CardTitle>Nuovo Torneo</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>{editingId ? 'Modifica Torneo' : 'Nuovo Torneo'}</CardTitle>
+              {editingId && (
+                <button onClick={startCreate} className="text-slate-400 hover:text-white flex items-center gap-1 text-sm">
+                  <X className="w-4 h-4" /> Annulla
+                </button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div className="flex flex-col md:flex-row gap-4">
-                <Input label="Nome torneo" value={newName} onChange={(e) => setNewName(e.target.value)} required />
+                <Input label="Nome torneo" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} required />
                 <div className="w-full flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-slate-300">Tipo di gioco</label>
                   <select
                     className="flex h-11 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-white"
-                    value={newGameTypeId}
-                    onChange={(e) => setNewGameTypeId(e.target.value)}
+                    value={form.gameTypeId}
+                    onChange={(e) => setForm((p) => ({ ...p, gameTypeId: e.target.value }))}
                   >
                     {GAME_TYPE_OPTIONS.map(([id, label]) => (
                       <option key={id} value={id}>{label}</option>
@@ -211,35 +271,15 @@ const TournamentsPage: React.FC = () => {
                   </select>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-slate-300 shrink-0 md:pt-7">
-                  <input type="checkbox" checked={newTeamBased} onChange={(e) => setNewTeamBased(e.target.checked)} />
+                  <input type="checkbox" checked={form.teamBased} onChange={(e) => setForm((p) => ({ ...p, teamBased: e.target.checked }))} />
                   A squadre
                 </label>
               </div>
 
-              {onlineLocales.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-slate-300">Locali coinvolti</label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {onlineLocales.map((l) => (
-                      <button
-                        type="button"
-                        key={l.id}
-                        onClick={() => toggleLocaleInForm(l.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                          newLocaleIds.includes(l.id)
-                            ? 'bg-brand/20 text-brand-light border-brand/40'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                        }`}
-                      >
-                        {l.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <p className="text-sm text-slate-500">Il torneo sarà associato automaticamente al tuo locale.</p>
 
-              <Button type="submit" disabled={creating}>
-                <Plus className="w-4 h-4 mr-2" /> {creating ? 'Creazione...' : 'Crea Torneo'}
+              <Button type="submit" disabled={saving}>
+                <Plus className="w-4 h-4 mr-2" /> {saving ? 'Salvataggio...' : editingId ? 'Salva modifiche' : 'Crea Torneo'}
               </Button>
             </form>
           </CardContent>
@@ -247,7 +287,7 @@ const TournamentsPage: React.FC = () => {
       )}
 
       {/* Selettore locale iscrizione (player) */}
-      {!isManager && onlineLocales.length > 0 && (
+      {isPlayer && onlineLocales.length > 0 && (
         <Card>
           <CardContent className="flex flex-col md:flex-row md:items-center gap-3">
             <label className="text-sm font-medium text-slate-300 shrink-0">Iscriviti come giocatore del locale:</label>
@@ -276,15 +316,33 @@ const TournamentsPage: React.FC = () => {
           const status = STATUS_LABELS[t.status] || STATUS_LABELS.UPCOMING;
           const canRegister = t.status === 'UPCOMING' && !isRegistered && onlineLocales.length > 0;
           const board = rankings[t.id] || [];
+          const locked = hasEntrants(t);
 
           return (
             <Card key={t.id}>
               <CardHeader>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <CardTitle>{t.name}</CardTitle>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.className}`}>
-                    {status.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${status.className}`}>
+                      {status.label}
+                    </span>
+                    {isManager && (
+                      <>
+                        <button
+                          onClick={() => startEdit(t)}
+                          disabled={locked}
+                          title={locked ? 'Modifica non consentita: torneo con iscritti' : 'Modifica'}
+                          className="text-slate-400 hover:text-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(t)} title="Elimina" className="text-slate-400 hover:text-red-400">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -301,24 +359,29 @@ const TournamentsPage: React.FC = () => {
                 )}
 
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {/* Iscrizione (player o chiunque) */}
+                  {/* Iscrizione player: due tasti — giocatore o squadra */}
                   {isRegistered ? (
                     <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
                       <CheckCircle2 className="w-4 h-4" /> Sei iscritto
                     </div>
                   ) : (
-                    !isManager && (
-                      <Button
-                        size="sm"
-                        disabled={!canRegister || registeringId === t.id}
-                        onClick={() => handleRegister(t.id)}
-                      >
-                        {registeringId === t.id ? 'Iscrizione...' : 'Iscriviti'}
-                      </Button>
+                    isPlayer && (
+                      <>
+                        <Button size="sm" disabled={!canRegister || registeringId === t.id} onClick={() => handleRegisterPlayer(t.id)}>
+                          <UserPlus className="w-4 h-4 mr-1" /> Iscrivi giocatore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={!canRegister}
+                          onClick={() => { setTeamFormId(teamFormId === t.id ? null : t.id); setTeamName(''); setTeamMembers(''); }}
+                        >
+                          <Users className="w-4 h-4 mr-1" /> Iscrivi squadra
+                        </Button>
+                      </>
                     )
                   )}
 
-                  {/* Controlli manager */}
                   {isManager && t.status === 'UPCOMING' && (
                     <Button size="sm" onClick={() => handleStart(t.id)}>
                       <Play className="w-4 h-4 mr-1" /> Avvia
@@ -330,20 +393,36 @@ const TournamentsPage: React.FC = () => {
                     </Button>
                   )}
 
-                  {/* Classifica */}
                   <button
                     onClick={() => toggleRankings(t.id)}
-                    className="flex items-center gap-1 text-sm text-brand-light hover:text-white transition-colors"
+                    className="flex items-center gap-1 text-sm text-brand-light hover:text-white transition-colors ml-auto"
                   >
                     <Trophy className="w-4 h-4" /> Classifica
                     <ChevronDown className={`w-4 h-4 transition-transform ${expandedId === t.id ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
 
+                {/* Form iscrizione squadra */}
+                {teamFormId === t.id && (
+                  <div className="pt-3 border-t border-white/5 space-y-3">
+                    <Input label="Nome squadra" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="es. I Fulmini" />
+                    <Input
+                      label="Membri (username separati da virgola)"
+                      value={teamMembers}
+                      onChange={(e) => setTeamMembers(e.target.value)}
+                      placeholder="mario, luigi (tu sei già incluso)"
+                    />
+                    <Button size="sm" disabled={!teamName.trim() || registeringId === t.id} onClick={() => handleRegisterTeam(t.id)}>
+                      {registeringId === t.id ? 'Iscrizione...' : 'Conferma squadra'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Classifica */}
                 {expandedId === t.id && (
                   <div className="pt-2 border-t border-white/5">
                     {board.length === 0 ? (
-                      <p className="text-sm text-slate-500">Nessun dato in classifica. Iscrivi giocatori e avvia il torneo.</p>
+                      <p className="text-sm text-slate-500">Nessun dato in classifica. Iscrivi partecipanti e avvia il torneo.</p>
                     ) : (
                       <table className="w-full text-left text-sm mt-2">
                         <thead>
