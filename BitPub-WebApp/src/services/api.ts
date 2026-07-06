@@ -171,7 +171,6 @@ export interface GameActionPayload {
   actionType: 'SHOOT' | 'BREAK' | 'THROW';
   sector?: number;     // freccette: 1-20, 25 (Outer Bull), 50 (Bull)
   multiplier?: number; // freccette: 1, 2, 3
-  outcome?: 'SUCCESS' | 'FAIL'; // esito generato dal client per i tiri a RNG (calcio/biliardo)
 }
 
 // Locali ONLINE in tempo reale (almeno una macchina simulata attiva), non l'elenco statico completo.
