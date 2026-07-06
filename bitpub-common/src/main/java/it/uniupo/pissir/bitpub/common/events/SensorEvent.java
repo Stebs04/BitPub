@@ -45,4 +45,12 @@ public class SensorEvent {
      * E.g., for BALL_POCKETED: {"pocketId": 3, "ballNumber": 8, "ballColor": "BLACK"}
      */
     private Map<String, Object> payload;
+
+    /** Null-guard: generate an id lazily so an event without one is still deduplicatable. */
+    public UUID getEventId() {
+        if (eventId == null) {
+            eventId = UUID.randomUUID();
+        }
+        return eventId;
+    }
 }

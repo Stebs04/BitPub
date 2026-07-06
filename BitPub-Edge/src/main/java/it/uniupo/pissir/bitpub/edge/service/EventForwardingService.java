@@ -7,16 +7,19 @@ import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import it.uniupo.pissir.bitpub.edge.model.BufferedEvent;
 import it.uniupo.pissir.bitpub.edge.repository.BufferedEventRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -26,9 +29,6 @@ public class EventForwardingService {
     private final BufferedEventRepository repository;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
-
-    @Value("${bitpub.edge.locale-id}")
-    private String localeId;
 
     public EventForwardingService(RuleEngineService ruleEngineService, BufferedEventRepository repository, RestClient restClient) {
         this.ruleEngineService = ruleEngineService;
@@ -56,42 +56,91 @@ public class EventForwardingService {
             return;
         }
 
-        boolean success = forwardToCloud(event);
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(event);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize sensor event {}, dropping", event.getEventId(), e);
+            return;
+        }
+
+        // Sensor events are POSTed to the match-service ingest path (relative to the base RestClient).
+        boolean success = forwardCommand("POST", "/api/matches/events", json, null, null);
         if (!success) {
             log.warn("Cloud unreachable or error, buffering event {}", event.getEventId());
-            bufferEvent(event);
+            bufferCommand(event.getEventId(), event.getGameInstanceId(), "POST", "/api/matches/events", json, null, null);
         } else {
             log.info("Event {} successfully forwarded to Cloud.", event.getEventId());
         }
     }
 
-    public boolean forwardToCloud(SensorEvent event) {
+    /**
+     * Sends a command to the cloud. A relative targetEndpoint uses the match-service base
+     * RestClient; an absolute (http...) one is sent as-is, letting a single mechanism replay
+     * to any cloud service (e.g. tournament-service results). Captured identity is replayed
+     * as X-User-Id / X-User-Role (null for sensor events).
+     * <p>
+     * Return contract for the retry loop:
+     *   true  = done, delete from buffer (2xx, or a 4xx that will never succeed = poison pill dropped);
+     *   false = transient (cloud unreachable / 5xx) = keep buffered and retry later.
+     */
+    public boolean forwardCommand(String httpMethod, String targetEndpoint, String payloadJson,
+                                  String actorUserId, String actorRole) {
         try {
-            restClient.post()
-                    .uri("/api/matches/events") // POST to /api/matches/events on match-service
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(event)
-                    .retrieve()
-                    .toBodilessEntity();
+            RestClient client = targetEndpoint.startsWith("http") ? RestClient.create() : restClient;
+            RestClient.RequestBodySpec spec = client.method(HttpMethod.valueOf(httpMethod))
+                    .uri(targetEndpoint)
+                    .contentType(MediaType.APPLICATION_JSON);
+            if (actorUserId != null) spec = spec.header("X-User-Id", actorUserId);
+            if (actorRole != null) spec = spec.header("X-User-Role", actorRole);
+            if (payloadJson != null && !payloadJson.isBlank()) {
+                spec.body(payloadJson).retrieve().toBodilessEntity();
+            } else {
+                spec.retrieve().toBodilessEntity();
+            }
             return true;
-        } catch (RestClientException e) {
-            log.error("Failed to forward event to cloud: {}", e.getMessage());
+        } catch (ResourceAccessException e) {
+            // Cloud unreachable (connection refused / timeout) — the offline case. Retry later.
+            log.warn("Cloud unreachable for {} {}: {}", httpMethod, targetEndpoint, e.getMessage());
             return false;
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().is5xxServerError()) {
+                log.warn("Cloud 5xx for {} {}: retrying later", httpMethod, targetEndpoint);
+                return false;
+            }
+            // 4xx: a genuine rejection (e.g. 403 not-your-turn). Retrying never helps; drop it.
+            log.error("Cloud rejected {} {} with {} — dropping command: {}",
+                    httpMethod, targetEndpoint, e.getStatusCode(), e.getResponseBodyAsString());
+            return true;
         }
     }
 
-    private void bufferEvent(SensorEvent event) {
-        try {
-            String json = objectMapper.writeValueAsString(event);
-            BufferedEvent bufferedEvent = BufferedEvent.builder()
-                    .originalEventId(event.getEventId())
-                    .gameInstanceId(event.getGameInstanceId())
-                    .payloadJson(json)
-                    .createdAt(Instant.now())
-                    .build();
-            repository.save(bufferedEvent);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize event for buffering", e);
+    /** Convenience overload for the scheduler replaying a stored command. */
+    public boolean forwardCommand(BufferedEvent cmd) {
+        return forwardCommand(cmd.getHttpMethod(), cmd.getTargetEndpoint(), cmd.getPayloadJson(),
+                cmd.getActorUserId(), cmd.getActorRole());
+    }
+
+    /**
+     * Persists a command for deferred retry. Idempotent on the originalEventId so a local
+     * redelivery never double-buffers. gameInstanceId is a sensor-context tag; non-sensor
+     * commands pass a sentinel.
+     */
+    @Transactional
+    public void bufferCommand(UUID eventId, String gameInstanceId, String httpMethod, String targetEndpoint,
+                              String payloadJson, String actorUserId, String actorRole) {
+        if (repository.existsByOriginalEventId(eventId)) {
+            return;
         }
+        repository.save(BufferedEvent.builder()
+                .originalEventId(eventId)
+                .gameInstanceId(gameInstanceId != null ? gameInstanceId : "-")
+                .payloadJson(payloadJson)
+                .httpMethod(httpMethod)
+                .targetEndpoint(targetEndpoint)
+                .actorUserId(actorUserId)
+                .actorRole(actorRole)
+                .createdAt(Instant.now())
+                .build());
     }
 }

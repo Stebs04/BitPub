@@ -26,4 +26,14 @@ public class GameActionRequestDto {
     private String actionType;
     private Integer sector;
     private Integer multiplier;
+
+    // Idempotency key set by the Edge/WebApp. If this action was already processed (e.g. a
+    // buffered command replayed after the cloud came back), it is ignored and the current
+    // match state is returned instead of applying the action twice.
+    private String eventId;
+
+    // Esito generato dal client per i tiri a RNG (calciobalilla/biliardo): "SUCCESS" = goal/imbuca,
+    // "FAIL" = parata/mancato. Se null il cloud tira il dado (retrocompat: freccette e sensori).
+    // Scelta di prodotto: client autorevole sull'esito (accettato come cheatabile).
+    private String outcome;
 }

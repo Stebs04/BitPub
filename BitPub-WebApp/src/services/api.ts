@@ -32,6 +32,17 @@ export const matchApi = axios.create({
 matchApi.interceptors.request.use(authInterceptor);
 matchApi.interceptors.response.use(undefined, on401);
 
+// Edge node (per-locale, on the local network) — reachable even when the cloud is down.
+// In-match actions and tournament results are sent here so the Edge can buffer them during a
+// cloud outage and replay them (idempotently) when the cloud returns. Reads/auth/admin still
+// go through the gateway and are expected to fail during an outage.
+// ponytail: single configurable Edge URL for the demo; resolve the Edge per-locale for multi-locale.
+export const edgeApi = axios.create({
+  baseURL: (import.meta.env.VITE_EDGE_URL ?? 'http://localhost:8089') + '/edge',
+});
+edgeApi.interceptors.request.use(authInterceptor);
+edgeApi.interceptors.response.use(undefined, on401);
+
 // Statistics reads (leaderboard) through the gateway, same /api/v1 convention
 export const statsApi = axios.create({
   baseURL: 'http://localhost:8080/api/v1/statistics',
@@ -160,6 +171,7 @@ export interface GameActionPayload {
   actionType: 'SHOOT' | 'BREAK' | 'THROW';
   sector?: number;     // freccette: 1-20, 25 (Outer Bull), 50 (Bull)
   multiplier?: number; // freccette: 1, 2, 3
+  outcome?: 'SUCCESS' | 'FAIL'; // esito generato dal client per i tiri a RNG (calcio/biliardo)
 }
 
 // Locali ONLINE in tempo reale (almeno una macchina simulata attiva), non l'elenco statico completo.
@@ -176,9 +188,12 @@ export const getWaitingLobby = (gameInstanceId: string) =>
 
 export const getMatch = (matchId: string) => matchApi.get<MatchRecord>(`/${matchId}`);
 
-// Invia un'azione di gioco; il backend valida il turno e pubblica il nuovo stato via MQTT.
+// Invia un'azione di gioco tramite l'Edge (bufferizzata se il cloud e' irraggiungibile).
+// eventId = chiave di idempotenza: se l'azione bufferizzata viene rigiocata, il cloud la ignora.
+// Online -> 200 con lo stato aggiornato; cloud offline -> 202 (BUFFERED_OFFLINE), lo stato si
+// aggiorna comunque via MQTT/refetch quando il cloud torna e la coda viene svuotata.
 export const postGameAction = (matchId: string, action: GameActionPayload) =>
-  matchApi.post<MatchRecord>(`/${matchId}/action`, action);
+  edgeApi.post<MatchRecord>(`/matches/${matchId}/action`, { ...action, eventId: crypto.randomUUID() });
 
 export const getMatchesByPlayer = (playerId: string) => matchApi.get<MatchRecord[]>(`/by-player/${playerId}`);
 
@@ -307,8 +322,12 @@ export const endTournament = (id: string) => api.put<TournamentRecord>(`/tournam
 // Tabellone a eliminazione diretta: genera il bracket e registra l'esito di uno scontro (LOCALE_ADMIN).
 export const generateTournamentBracket = (id: string) =>
   api.post<TournamentRecord>(`/tournaments/${id}/bracket`);
+// Esito di uno scontro del tabellone via l'Edge (bufferizzato se il cloud e' offline).
+// L'operazione lato cloud e' gia' idempotente (imposta vincitore e slot successivo a valori
+// deterministici), quindi un replay ripete gli stessi valori senza doppie avanzate.
 export const updateTournamentMatchResult = (tournamentId: string, matchId: string, winnerId: string, stats?: string) =>
-  api.put<TournamentRecord>(`/tournaments/${tournamentId}/matches/${matchId}/result`, null, { params: { winnerId, stats } });
+  edgeApi.put<TournamentRecord>(`/tournaments/${tournamentId}/matches/${matchId}/result`, null,
+    { params: { winnerId, stats, eventId: crypto.randomUUID() } });
 
 // Locali gestiti (per il form tornei del manager): il LOCALE_ADMIN vede i propri, il PLATFORM_ADMIN tutti.
 export const getLocalesByAdmin = (adminId: string) => api.get<LocaleRecord[]>(`/locales/by-admin/${adminId}`);
