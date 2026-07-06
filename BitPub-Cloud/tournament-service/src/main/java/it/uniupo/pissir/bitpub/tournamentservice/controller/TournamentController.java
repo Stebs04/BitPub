@@ -119,4 +119,24 @@ public class TournamentController {
     public ResponseEntity<List<TournamentRegistrationDto>> getRegistrationsByPlayer(@PathVariable String playerId) {
         return ResponseEntity.ok(tournamentService.getRegistrationsByParticipant(playerId));
     }
+
+    /** Genera il tabellone a eliminazione diretta (iscritti == maxParticipants). Solo LOCALE_ADMIN proprietario. */
+    @PostMapping("/{id}/bracket")
+    public ResponseEntity<TournamentDto> generateBracket(@PathVariable String id,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
+        assertOwns(id, requireLocaleAdmin(callerRole, callerLocaleId));
+        return ResponseEntity.ok(tournamentService.generateBracket(id));
+    }
+
+    /** Registra il vincitore e le statistiche di uno scontro del tabellone. Solo LOCALE_ADMIN proprietario. */
+    @PutMapping("/{id}/matches/{matchId}/result")
+    public ResponseEntity<TournamentDto> updateMatchResult(@PathVariable String id, @PathVariable String matchId,
+            @RequestParam String winnerId,
+            @RequestParam(required = false) String stats,
+            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
+            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
+        assertOwns(id, requireLocaleAdmin(callerRole, callerLocaleId));
+        return ResponseEntity.ok(tournamentService.updateMatchResult(matchId, winnerId, stats));
+    }
 }

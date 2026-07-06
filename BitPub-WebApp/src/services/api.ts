@@ -234,6 +234,21 @@ export interface RegisterPayload {
   members?: string[];
 }
 
+// Singolo scontro del tabellone a eliminazione diretta.
+export interface TournamentMatchRecord {
+  id: string;
+  round: number;
+  matchIndex: number;
+  player1Id: string | null;
+  player1Name: string | null;
+  player2Id: string | null;
+  player2Name: string | null;
+  winnerId: string | null;
+  winnerName: string | null;
+  score: string | null;
+  nextMatchId: string | null;
+}
+
 export interface TournamentRecord {
   id: string;
   name: string;
@@ -243,7 +258,9 @@ export interface TournamentRecord {
   startDate: string | null;
   endDate: string | null;
   status: string; // UPCOMING | ACTIVE | COMPLETED
+  maxParticipants?: number | null;
   registrations?: TournamentRegistrationRecord[];
+  bracket?: TournamentMatchRecord[]; // tabellone (presente da ACTIVE in poi)
 }
 
 export interface TournamentRankingRecord {
@@ -262,6 +279,7 @@ export interface CreateTournamentPayload {
   gameTypeId: string;
   teamBased: boolean;
   localeIds: string[];
+  maxParticipants?: number;
 }
 
 export const getAllTournaments = () => api.get<TournamentRecord[]>('/tournaments');
@@ -283,6 +301,12 @@ export const updateTournament = (id: string, payload: CreateTournamentPayload) =
 export const deleteTournament = (id: string) => api.delete(`/tournaments/${id}`);
 export const startTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/start`);
 export const endTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/end`);
+
+// Tabellone a eliminazione diretta: genera il bracket e registra l'esito di uno scontro (LOCALE_ADMIN).
+export const generateTournamentBracket = (id: string) =>
+  api.post<TournamentRecord>(`/tournaments/${id}/bracket`);
+export const updateTournamentMatchResult = (tournamentId: string, matchId: string, winnerId: string, stats?: string) =>
+  api.put<TournamentRecord>(`/tournaments/${tournamentId}/matches/${matchId}/result`, null, { params: { winnerId, stats } });
 
 // Locali gestiti (per il form tornei del manager): il LOCALE_ADMIN vede i propri, il PLATFORM_ADMIN tutti.
 export const getLocalesByAdmin = (adminId: string) => api.get<LocaleRecord[]>(`/locales/by-admin/${adminId}`);

@@ -15,4 +15,6 @@ public interface TournamentService {
     TournamentDto startTournament(String id);
     TournamentDto endTournament(String id);
     TournamentRegistrationDto registerToTournament(String tournamentId, TournamentRegistrationDto registrationDto);
+    TournamentDto generateBracket(String tournamentId);
+    TournamentDto updateMatchResult(String matchId, String winnerId, String stats);
 }
