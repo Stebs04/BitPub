@@ -6,6 +6,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
+import TournamentBracket from '../components/TournamentBracket';
 import { useAuthStore } from '../store/authStore';
 import {
   getAllTournaments,
@@ -18,10 +19,13 @@ import {
   deleteTournament,
   startTournament,
   endTournament,
+  generateTournamentBracket,
+  updateTournamentMatchResult,
 } from '../services/api';
 import type {
   TournamentRecord,
   TournamentRegistrationRecord,
+  TournamentMatchRecord,
   LocaleRecord,
   TournamentRankingRecord,
 } from '../services/api';
@@ -40,7 +44,8 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: 'Concluso', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
 };
 
-const EMPTY_FORM = { name: '', gameTypeId: 'foosball', teamBased: false };
+const EMPTY_FORM = { name: '', gameTypeId: 'foosball', teamBased: false, maxParticipants: 8 };
+const MAX_PARTICIPANTS_OPTIONS = [4, 8, 16];
 
 /**
  * Pagina Tornei. PLATFORM_ADMIN / LOCALE_ADMIN: CRUD tornei (il LOCALE_ADMIN solo sui propri
@@ -168,7 +173,7 @@ const TournamentsPage: React.FC = () => {
   const startCreate = () => { setEditingId(null); setForm(EMPTY_FORM); };
   const startEdit = (t: TournamentRecord) => {
     setEditingId(t.id);
-    setForm({ name: t.name, gameTypeId: t.gameTypeId, teamBased: t.teamBased });
+    setForm({ name: t.name, gameTypeId: t.gameTypeId, teamBased: t.teamBased, maxParticipants: t.maxParticipants ?? 8 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -210,6 +215,18 @@ const TournamentsPage: React.FC = () => {
   const handleEnd = async (id: string) => {
     try { await endTournament(id); await loadTournaments(); }
     catch (err: any) { setError(err?.response?.data?.message || 'Chiusura non riuscita.'); }
+  };
+  const handleGenerateBracket = async (id: string) => {
+    setError(null);
+    try { await generateTournamentBracket(id); await loadTournaments(); }
+    catch (err: any) { setError(err?.response?.data?.message || 'Generazione tabellone non riuscita.'); }
+  };
+  // ponytail: window.prompt per le statistiche invece di una modale dedicata — sufficiente per l'esito.
+  const handleSetWinner = async (tournamentId: string, match: TournamentMatchRecord, winnerId: string) => {
+    const stats = window.prompt('Statistiche / punteggio dello scontro (opzionale):', match.score || '') ?? undefined;
+    setError(null);
+    try { await updateTournamentMatchResult(tournamentId, match.id, winnerId, stats); await loadTournaments(); }
+    catch (err: any) { setError(err?.response?.data?.message || 'Salvataggio esito non riuscito.'); }
   };
 
   if (loading) {
@@ -270,6 +287,18 @@ const TournamentsPage: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                <div className="w-full md:w-48 flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-slate-300">Max partecipanti</label>
+                  <select
+                    className="flex h-11 w-full rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-white"
+                    value={form.maxParticipants}
+                    onChange={(e) => setForm((p) => ({ ...p, maxParticipants: Number(e.target.value) }))}
+                  >
+                    {MAX_PARTICIPANTS_OPTIONS.map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
                 <label className="flex items-center gap-2 text-sm text-slate-300 shrink-0 md:pt-7">
                   <input type="checkbox" checked={form.teamBased} onChange={(e) => setForm((p) => ({ ...p, teamBased: e.target.checked }))} />
                   A squadre
@@ -317,6 +346,11 @@ const TournamentsPage: React.FC = () => {
           const canRegister = t.status === 'UPCOMING' && !isRegistered && onlineLocales.length > 0;
           const board = rankings[t.id] || [];
           const locked = hasEntrants(t);
+          const entrantsCount = t.registrations?.length ?? 0;
+          const hasBracket = (t.bracket?.length ?? 0) > 0;
+          const canGenerate =
+            isManager && t.status === 'UPCOMING' && !hasBracket &&
+            !!t.maxParticipants && entrantsCount >= t.maxParticipants;
 
           return (
             <Card key={t.id}>
@@ -347,6 +381,11 @@ const TournamentsPage: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-slate-400">{GAME_TYPE_LABELS[t.gameTypeId] || t.gameTypeId} · {t.teamBased ? 'A squadre' : 'Individuale'}</p>
+                {t.maxParticipants && (
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Iscritti: {entrantsCount} / {t.maxParticipants}
+                  </p>
+                )}
                 {(t.localeIds?.length ?? 0) > 0 && (
                   <p className="text-sm text-slate-500 flex items-center gap-2">
                     <MapPin className="w-4 h-4" /> {t.localeIds!.length} {t.localeIds!.length === 1 ? 'locale coinvolto' : 'locali coinvolti'}
@@ -387,6 +426,11 @@ const TournamentsPage: React.FC = () => {
                       <Play className="w-4 h-4 mr-1" /> Avvia
                     </Button>
                   )}
+                  {canGenerate && (
+                    <Button size="sm" onClick={() => handleGenerateBracket(t.id)}>
+                      <Swords className="w-4 h-4 mr-1" /> Genera Tabellone
+                    </Button>
+                  )}
                   {isManager && t.status === 'ACTIVE' && (
                     <Button size="sm" onClick={() => handleEnd(t.id)}>
                       <StopCircle className="w-4 h-4 mr-1" /> Concludi
@@ -416,6 +460,15 @@ const TournamentsPage: React.FC = () => {
                       {registeringId === t.id ? 'Iscrizione...' : 'Conferma squadra'}
                     </Button>
                   </div>
+                )}
+
+                {/* Tabellone a eliminazione diretta — resta visibile anche a torneo COMPLETED */}
+                {hasBracket && (
+                  <TournamentBracket
+                    matches={t.bracket!}
+                    canEdit={isManager && t.status === 'ACTIVE'}
+                    onSetWinner={(m, winnerId) => handleSetWinner(t.id, m, winnerId)}
+                  />
                 )}
 
                 {/* Classifica */}

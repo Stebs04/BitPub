@@ -36,10 +36,17 @@ public class Tournament {
 
     private Instant startDate;
     private Instant endDate;
-    
+
     @Column(nullable = false)
     private String status; // UPCOMING, ACTIVE, COMPLETED
-    
+
+    // Numero massimo di partecipanti; il tabellone si genera al raggiungimento. Potenza di 2 (4/8/16).
+    private Integer maxParticipants;
+
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TournamentRegistration> registrations;
+
+    // Tabellone a eliminazione diretta (persistente: resta consultabile a torneo COMPLETED).
+    @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TournamentMatch> bracketMatches;
 }

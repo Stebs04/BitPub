@@ -3,9 +3,12 @@ package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.Tournament;
+import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentMatch;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentRegistration;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
+import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentMatchDto;
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRegistrationDto;
+import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentMatchRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRankingRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRegistrationRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository;
@@ -17,6 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +32,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final TournamentRegistrationRepository registrationRepository;
+    private final TournamentMatchRepository matchRepository;
     private final TournamentRankingRepository rankingRepository;
     private final TournamentRankingService rankingService;
 
@@ -40,6 +47,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .startDate(tournamentDto.getStartDate())
                 .endDate(tournamentDto.getEndDate())
                 .status("UPCOMING")
+                .maxParticipants(tournamentDto.getMaxParticipants())
                 .build();
         tournament = tournamentRepository.save(tournament);
         return mapToDto(tournament);
@@ -61,6 +69,7 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.setGameTypeId(dto.getGameTypeId());
         tournament.setTeamBased(dto.isTeamBased());
         tournament.setLocaleIds(dto.getLocaleIds());
+        tournament.setMaxParticipants(dto.getMaxParticipants());
         return mapToDto(tournamentRepository.save(tournament));
     }
 
@@ -152,6 +161,114 @@ public class TournamentServiceImpl implements TournamentService {
         return mapRegistrationToDto(registration);
     }
 
+    /**
+     * Genera il tabellone a eliminazione diretta quando gli iscritti raggiungono maxParticipants.
+     * maxParticipants deve essere potenza di 2. Randomizza gli iscritti, crea i match di ogni round
+     * e li collega tramite nextMatchId. Il torneo passa ad ACTIVE.
+     */
+    @Override
+    @Transactional
+    public TournamentDto generateBracket(String tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + tournamentId));
+
+        Integer max = tournament.getMaxParticipants();
+        if (max == null || max < 2) {
+            throw new BitpubException("maxParticipants non impostato o minore di 2", HttpStatus.BAD_REQUEST);
+        }
+        if ((max & (max - 1)) != 0) {
+            throw new BitpubException("maxParticipants deve essere una potenza di 2 (4, 8, 16...)", HttpStatus.BAD_REQUEST);
+        }
+        if (tournament.getBracketMatches() != null && !tournament.getBracketMatches().isEmpty()) {
+            throw new BitpubException("Tabellone gia' generato per questo torneo", HttpStatus.CONFLICT);
+        }
+
+        List<TournamentRegistration> regs = new ArrayList<>(registrationRepository.findByTournamentId(tournamentId));
+        if (regs.size() < max) {
+            throw new BitpubException("Iscritti insufficienti: " + regs.size() + "/" + max, HttpStatus.CONFLICT);
+        }
+        Collections.shuffle(regs);
+        regs = regs.subList(0, max);
+
+        int rounds = Integer.numberOfTrailingZeros(max); // log2(max)
+        List<List<TournamentMatch>> byRound = new ArrayList<>();
+        for (int r = 0; r < rounds; r++) {
+            int count = max >> (r + 1);
+            List<TournamentMatch> list = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                TournamentMatch m = TournamentMatch.builder()
+                        .tournament(tournament).round(r).matchIndex(i).build();
+                if (r == 0) {
+                    TournamentRegistration p1 = regs.get(2 * i);
+                    TournamentRegistration p2 = regs.get(2 * i + 1);
+                    m.setPlayer1Id(p1.getParticipantId());
+                    m.setPlayer1Name(p1.getParticipantName());
+                    m.setPlayer2Id(p2.getParticipantId());
+                    m.setPlayer2Name(p2.getParticipantName());
+                }
+                list.add(m);
+            }
+            byRound.add(list);
+        }
+
+        List<TournamentMatch> all = byRound.stream().flatMap(List::stream).collect(Collectors.toList());
+        matchRepository.saveAll(all); // primo save: assegna gli id (UUID)
+        for (int r = 0; r < rounds - 1; r++) {
+            List<TournamentMatch> next = byRound.get(r + 1);
+            for (TournamentMatch m : byRound.get(r)) {
+                m.setNextMatchId(next.get(m.getMatchIndex() / 2).getId());
+            }
+        }
+        matchRepository.saveAll(all); // secondo save: persiste i collegamenti nextMatchId
+
+        tournament.setStatus("ACTIVE");
+        tournament.setStartDate(Instant.now());
+        tournament.setBracketMatches(all);
+        tournamentRepository.save(tournament);
+        return mapToDto(tournament);
+    }
+
+    /**
+     * Registra il vincitore (e le statistiche testuali) di uno scontro e lo fa avanzare nel match
+     * successivo. Se e' la finale, il torneo passa a COMPLETED. Il tabellone resta consultabile.
+     */
+    @Override
+    @Transactional
+    public TournamentDto updateMatchResult(String matchId, String winnerId, String stats) {
+        TournamentMatch match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
+
+        boolean p1won = winnerId != null && winnerId.equals(match.getPlayer1Id());
+        boolean p2won = winnerId != null && winnerId.equals(match.getPlayer2Id());
+        if (!p1won && !p2won) {
+            throw new BitpubException("winnerId non e' un giocatore di questo scontro", HttpStatus.BAD_REQUEST);
+        }
+
+        match.setWinnerId(winnerId);
+        match.setWinnerName(p1won ? match.getPlayer1Name() : match.getPlayer2Name());
+        match.setScore(stats);
+        matchRepository.save(match);
+
+        if (match.getNextMatchId() != null) {
+            TournamentMatch next = matchRepository.findById(match.getNextMatchId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Next match not found: " + match.getNextMatchId()));
+            if (match.getMatchIndex() % 2 == 0) {
+                next.setPlayer1Id(match.getWinnerId());
+                next.setPlayer1Name(match.getWinnerName());
+            } else {
+                next.setPlayer2Id(match.getWinnerId());
+                next.setPlayer2Name(match.getWinnerName());
+            }
+            matchRepository.save(next);
+        } else {
+            Tournament tournament = match.getTournament();
+            tournament.setStatus("COMPLETED");
+            tournament.setEndDate(Instant.now());
+            tournamentRepository.save(tournament);
+        }
+        return mapToDto(match.getTournament());
+    }
+
     private TournamentDto mapToDto(Tournament tournament) {
         TournamentDto dto = TournamentDto.builder()
                 .id(tournament.getId())
@@ -162,13 +279,37 @@ public class TournamentServiceImpl implements TournamentService {
                 .startDate(tournament.getStartDate())
                 .endDate(tournament.getEndDate())
                 .status(tournament.getStatus())
+                .maxParticipants(tournament.getMaxParticipants())
                 .build();
         if (tournament.getRegistrations() != null) {
             dto.setRegistrations(tournament.getRegistrations().stream()
                     .map(this::mapRegistrationToDto)
                     .collect(Collectors.toList()));
         }
+        if (tournament.getBracketMatches() != null) {
+            dto.setBracket(tournament.getBracketMatches().stream()
+                    .sorted(Comparator.comparingInt(TournamentMatch::getRound)
+                            .thenComparingInt(TournamentMatch::getMatchIndex))
+                    .map(this::mapMatchToDto)
+                    .collect(Collectors.toList()));
+        }
         return dto;
+    }
+
+    private TournamentMatchDto mapMatchToDto(TournamentMatch m) {
+        return TournamentMatchDto.builder()
+                .id(m.getId())
+                .round(m.getRound())
+                .matchIndex(m.getMatchIndex())
+                .player1Id(m.getPlayer1Id())
+                .player1Name(m.getPlayer1Name())
+                .player2Id(m.getPlayer2Id())
+                .player2Name(m.getPlayer2Name())
+                .winnerId(m.getWinnerId())
+                .winnerName(m.getWinnerName())
+                .score(m.getScore())
+                .nextMatchId(m.getNextMatchId())
+                .build();
     }
 
     private TournamentRegistrationDto mapRegistrationToDto(TournamentRegistration reg) {

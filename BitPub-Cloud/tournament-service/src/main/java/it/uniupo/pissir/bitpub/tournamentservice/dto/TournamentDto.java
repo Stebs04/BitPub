@@ -17,5 +17,7 @@ public class TournamentDto {
     private Instant startDate;
     private Instant endDate;
     private String status;
+    private Integer maxParticipants;
     private List<TournamentRegistrationDto> registrations;
+    private List<TournamentMatchDto> bracket;
 }
