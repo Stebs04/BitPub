@@ -166,8 +166,10 @@ export interface GameActionPayload {
 export const getOnlineLocales = () => api.get<LocaleRecord[]>('/locales/online');
 
 // Entra in lobby su una gameInstance: crea/aggiorna la partita (WAITING_FOR_PLAYERS -> IN_PROGRESS).
-export const joinMatchLobby = (gameInstanceId: string, username: string) =>
-  matchApi.post<MatchRecord>('/lobby', { gameInstanceId, username });
+// tournamentMatchId valorizzato = partita di torneo: il match-service ammette solo i due
+// giocatori abbinati nello scontro del tabellone (verifica avversario, 403 se non abbinato).
+export const joinMatchLobby = (gameInstanceId: string, username: string, tournamentMatchId?: string) =>
+  matchApi.post<MatchRecord>('/lobby', { gameInstanceId, username, tournamentMatchId });
 
 export const getWaitingLobby = (gameInstanceId: string) =>
   matchApi.get<MatchRecord>(`/lobby/${gameInstanceId}`);

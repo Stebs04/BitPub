@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import PlayFlow from '../components/PlayFlow';
 import {
   Swords, CalendarDays, CheckCircle2, MapPin, Plus, StopCircle, Trophy, ChevronDown,
   Pencil, Trash2, UserPlus, Users, X,
@@ -53,9 +53,12 @@ const MAX_PARTICIPANTS_OPTIONS = [4, 8, 16];
  * squadra (nome squadra + membri). Classifica espandibile, sincronizzata dai match.
  */
 const TournamentsPage: React.FC = () => {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const role = user?.role;
+
+  // Scontro che l'utente sta giocando dal tabellone: apre <PlayFlow> in overlay con verifica
+  // dell'avversario (tournamentMatchId). null = nessuna partita in corso dalla pagina tornei.
+  const [playCtx, setPlayCtx] = useState<{ matchId: string; gameTypeId: string } | null>(null);
   // I tornei sono gestiti solo dal LOCALE_ADMIN (per il proprio locale). Il PLATFORM_ADMIN
   // vede solo elenco e classifiche. Il PLAYER si iscrive.
   const isManager = role === 'LOCALE_ADMIN';
@@ -232,6 +235,17 @@ const TournamentsPage: React.FC = () => {
         <h1 className="text-3xl font-bold text-white mb-6">Tornei</h1>
         <div className="text-white">Caricamento dati...</div>
       </div>
+    );
+  }
+
+  // Overlay di gioco: prende tutto lo schermo, riusa <PlayFlow> con verifica avversario.
+  if (playCtx) {
+    return (
+      <PlayFlow
+        tournamentMatchId={playCtx.matchId}
+        gameTypeFilter={playCtx.gameTypeId}
+        onClose={() => { setPlayCtx(null); loadTournaments(); }}
+      />
     );
   }
 
@@ -465,7 +479,7 @@ const TournamentsPage: React.FC = () => {
                     canEdit={isManager && t.status === 'ACTIVE'}
                     onSetWinner={(m, winnerId) => handleSetWinner(t.id, m, winnerId)}
                     currentUserId={user?.id}
-                    onStartMatch={() => navigate('/games')}
+                    onStartMatch={(m) => setPlayCtx({ matchId: m.id, gameTypeId: GAME_TYPE_LABELS[t.gameTypeId] ?? t.gameTypeId })}
                   />
                 )}
 

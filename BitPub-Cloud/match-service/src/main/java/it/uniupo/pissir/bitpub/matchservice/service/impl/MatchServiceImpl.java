@@ -233,6 +233,7 @@ public class MatchServiceImpl implements MatchService {
         // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
         // (piu' basso a freccette, dove si parte da 501 e si scende a 0).
         notifyStatisticsService(saved);
+        notifyTournamentResult(saved);
         publishGameState(saved, "FINISHED", "MATCH_END");
 
         return mapToDto(saved);
@@ -298,6 +299,7 @@ public class MatchServiceImpl implements MatchService {
                 .localeId(localeId)
                 .gameTypeId(gameTypeId)
                 .status("WAITING_FOR_PLAYERS")
+                .tournamentMatchId(request.getTournamentMatchId()) // null = partita libera
                 .teams(new ArrayList<>())
                 .build();
         Match saved = matchRepository.save(match);
@@ -651,6 +653,7 @@ public class MatchServiceImpl implements MatchService {
 
         if (finished) {
             notifyStatisticsService(saved);
+            notifyTournamentResult(saved);
             publishGameState(saved, "FINISHED", "MATCH_END");
         } else {
             publishGameState(saved, "PLAYING", eventMessage);
@@ -703,6 +706,36 @@ public class MatchServiceImpl implements MatchService {
         resultEvent.put("localeId", match.getLocaleId());
         resultEvent.put("teamBased", isTeamBased(match));
         return resultEvent;
+    }
+
+    /**
+     * Partita di torneo conclusa: riporta vincitore e punteggio al tournament-service, che registra
+     * l'esito nel tabellone e fa avanzare il vincitore al match successivo. Fire-and-forget: un
+     * errore qui non deve far fallire la chiusura della partita (le stats restano recuperabili
+     * dal tournamentMatchId salvato sul match). Salta i pareggi (nessun avanzamento possibile).
+     */
+    private void notifyTournamentResult(Match match) {
+        if (match.getTournamentMatchId() == null) return;
+        Team winner = winnerTeam(match);
+        String winnerId = firstPlayerId(winner);
+        if (winnerId == null) {
+            log.warn("Match {} di torneo senza vincitore (pareggio): esito non riportato", match.getId());
+            return;
+        }
+        String stats = match.getTeams().stream()
+                .map(t -> t.getName() + " " + t.getScore())
+                .collect(Collectors.joining(" - "));
+        try {
+            RestClient.create(tournamentServiceUrl)
+                    .post()
+                    .uri("/api/v1/tournaments/matches/{id}/result?winnerId={w}&stats={s}",
+                            match.getTournamentMatchId(), winnerId, stats)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Esito torneo riportato: bracketMatch={}, winnerId={}", match.getTournamentMatchId(), winnerId);
+        } catch (Exception e) {
+            log.error("Riporto esito al tournament-service fallito per bracketMatch {}", match.getTournamentMatchId(), e);
+        }
     }
 
     private void notifyStatisticsService(Match match) {

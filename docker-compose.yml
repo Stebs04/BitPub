@@ -116,6 +116,7 @@ services:
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
       - USER_SERVICE_URL=http://user-service:8082
       - LOCALE_SERVICE_URL=http://locale-service:8083
+      - TOURNAMENT_SERVICE_URL=http://tournament-service:8086
     networks:
       - bitpub-network
 
