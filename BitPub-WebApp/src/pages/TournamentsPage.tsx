@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Swords, CalendarDays, CheckCircle2, MapPin, Plus, StopCircle, Trophy, ChevronDown,
   Pencil, Trash2, UserPlus, Users, X,
@@ -52,6 +53,7 @@ const MAX_PARTICIPANTS_OPTIONS = [4, 8, 16];
  * squadra (nome squadra + membri). Classifica espandibile, sincronizzata dai match.
  */
 const TournamentsPage: React.FC = () => {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const role = user?.role;
   // I tornei sono gestiti solo dal LOCALE_ADMIN (per il proprio locale). Il PLATFORM_ADMIN
@@ -462,6 +464,8 @@ const TournamentsPage: React.FC = () => {
                     matches={t.bracket!}
                     canEdit={isManager && t.status === 'ACTIVE'}
                     onSetWinner={(m, winnerId) => handleSetWinner(t.id, m, winnerId)}
+                    currentUserId={user?.id}
+                    onStartMatch={() => navigate('/games')}
                   />
                 )}
 
