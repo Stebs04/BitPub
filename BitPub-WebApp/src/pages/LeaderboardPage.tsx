@@ -207,6 +207,7 @@ const LeaderboardPage: React.FC = () => {
                   <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Vittorie</th>
                   <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Sconfitte</th>
                   <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Punti Totali</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Media</th>
                   <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Partite</th>
                   <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Win Rate</th>
                 </tr>
@@ -257,6 +258,11 @@ const LeaderboardPage: React.FC = () => {
                         <span className="font-bold text-brand-light text-lg">
                           {entry.totalPoints.toLocaleString('it-IT')}
                         </span>
+                      </td>
+
+                      {/* Average points */}
+                      <td className="py-4 px-4 text-center text-slate-400 font-medium">
+                        {entry.matchesPlayed > 0 ? Math.round(entry.totalPoints / entry.matchesPlayed) : 0}
                       </td>
 
                       {/* Matches played */}

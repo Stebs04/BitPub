@@ -147,6 +147,7 @@ const PlayerStatsPage: React.FC = () => {
                     <th className="py-2 px-3 text-xs font-semibold text-slate-500 uppercase text-center">Vittorie</th>
                     <th className="py-2 px-3 text-xs font-semibold text-slate-500 uppercase text-center">Sconfitte</th>
                     <th className="py-2 px-3 text-xs font-semibold text-slate-500 uppercase text-center">Punti</th>
+                    <th className="py-2 px-3 text-xs font-semibold text-slate-500 uppercase text-center">Media</th>
                     <th className="py-2 px-3 text-xs font-semibold text-slate-500 uppercase text-center">Partite</th>
                   </tr>
                 </thead>
@@ -157,6 +158,7 @@ const PlayerStatsPage: React.FC = () => {
                       <td className="py-3 px-3 text-center text-emerald-400 font-bold">{row.wins}</td>
                       <td className="py-3 px-3 text-center text-red-400 font-bold">{row.losses}</td>
                       <td className="py-3 px-3 text-center text-brand-light font-bold">{row.totalPoints}</td>
+                      <td className="py-3 px-3 text-center text-slate-400">{row.matchesPlayed > 0 ? Math.round(row.totalPoints / row.matchesPlayed) : 0}</td>
                       <td className="py-3 px-3 text-center text-slate-400">{row.matchesPlayed}</td>
                     </tr>
                   ))}

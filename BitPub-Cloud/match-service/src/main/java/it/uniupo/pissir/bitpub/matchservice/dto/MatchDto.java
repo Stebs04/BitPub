@@ -18,6 +18,8 @@ public class MatchDto {
     private String localeId;
     private String gameTypeId;
     private String status;
+    /** true = partita a squadre (registra il Team), false = individuale. */
+    private boolean teamBased;
     private Instant startTime;
     private Instant endTime;
     private List<TeamResponseDto> teams;

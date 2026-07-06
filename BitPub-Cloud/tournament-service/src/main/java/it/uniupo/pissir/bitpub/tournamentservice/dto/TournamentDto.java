@@ -13,6 +13,7 @@ public class TournamentDto {
     private String name;
     private String gameTypeId;
     private boolean teamBased;
+    private List<String> localeIds; // locali coinvolti nel torneo
     private Instant startDate;
     private Instant endDate;
     private String status;

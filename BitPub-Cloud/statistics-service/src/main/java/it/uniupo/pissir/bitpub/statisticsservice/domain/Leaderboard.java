@@ -36,6 +36,11 @@ public class Leaderboard {
     /** Locale in cui e' stato registrato l'ultimo match, per il filtro leaderboard-per-locale del LOCALE_ADMIN. */
     private String localeId;
 
+    /** true se l'entry rappresenta una squadra (partita a squadre), false se un singolo giocatore. */
+    @Builder.Default
+    @Column(columnDefinition = "boolean not null default false")
+    private boolean teamBased = false;
+
     @Builder.Default
     private int wins = 0;
 

@@ -17,4 +17,5 @@ public class MatchResultEvent {
     private int loserScore;
     private String matchId;
     private String localeId;
+    private boolean teamBased; // true = risultato di una partita a squadre (winnerName = nome squadra)
 }

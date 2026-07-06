@@ -3,6 +3,7 @@ package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
 import it.uniupo.pissir.bitpub.statisticsservice.domain.AggregateStatistic;
 import it.uniupo.pissir.bitpub.statisticsservice.domain.Leaderboard;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
+import it.uniupo.pissir.bitpub.statisticsservice.dto.GameUsageDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.GlobalStatsDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.LeaderboardEntryDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.MatchResultEvent;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -172,6 +174,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         winner.setMatchesPlayed(winner.getMatchesPlayed() + 1);
         winner.setLastUpdated(Instant.now());
         winner.setLocaleId(event.getLocaleId());
+        winner.setTeamBased(event.isTeamBased());
         leaderboardRepository.save(winner);
 
         boolean hasLoser = event.getLoserName() != null
@@ -188,6 +191,7 @@ public class StatisticsServiceImpl implements StatisticsService {
             loser.setMatchesPlayed(loser.getMatchesPlayed() + 1);
             loser.setLastUpdated(Instant.now());
             loser.setLocaleId(event.getLocaleId());
+            loser.setTeamBased(event.isTeamBased());
             leaderboardRepository.save(loser);
         }
     }
@@ -237,6 +241,26 @@ public class StatisticsServiceImpl implements StatisticsService {
         return entries.stream().map(this::mapToLeaderboardDto).collect(Collectors.toList());
     }
 
+    /**
+     * Metrica "Giochi piu' utilizzati in un locale": aggrega le entry di leaderboard del locale
+     * per gameTypeId, sommando le partite giocate e contando i giocatori/squadre distinti.
+     * ponytail: matchesPlayed e' la somma delle partecipazioni (vincitore+perdente contano 1 ciascuno),
+     * quindi ~2x le partite reali; per il RANKING dei giochi piu' usati l'ordine relativo e' corretto.
+     */
+    @Override
+    public List<GameUsageDto> getMostUsedGamesByLocale(String localeId) {
+        Map<String, List<Leaderboard>> byGame = leaderboardRepository.findByLocaleId(localeId).stream()
+                .collect(Collectors.groupingBy(Leaderboard::getGameTypeId));
+        return byGame.entrySet().stream()
+                .map(e -> GameUsageDto.builder()
+                        .gameTypeId(e.getKey())
+                        .matchesPlayed(e.getValue().stream().mapToInt(Leaderboard::getMatchesPlayed).sum())
+                        .players(e.getValue().size())
+                        .build())
+                .sorted(Comparator.comparingInt(GameUsageDto::getMatchesPlayed).reversed())
+                .collect(Collectors.toList());
+    }
+
     // -------------------------------------------------------------------------
     // Mappers
     // -------------------------------------------------------------------------
@@ -258,6 +282,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .playerName(entry.getPlayerName())
                 .gameTypeId(entry.getGameTypeId())
                 .localeId(entry.getLocaleId())
+                .teamBased(entry.isTeamBased())
                 .wins(entry.getWins())
                 .losses(entry.getLosses())
                 .totalPoints(entry.getTotalPoints())

@@ -10,25 +10,79 @@ import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRegistrati
 import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository;
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TournamentRankingServiceImpl implements TournamentRankingService {
 
     private final TournamentRankingRepository rankingRepository;
     private final TournamentRegistrationRepository registrationRepository;
     private final TournamentRepository tournamentRepository;
 
+    @Value("${statistics.service.url:http://localhost:8087}")
+    private String statisticsServiceUrl;
+
+    /**
+     * La classifica del torneo si ricava dai match gia' registrati nello statistics-service:
+     * per ogni iscritto si prende la sua riga di leaderboard nel gioco del torneo (per nome),
+     * si aggiornano punteggio/vittorie/partite e si ricalcolano le posizioni. Nessun collegamento
+     * diretto match-torneo necessario: la pipeline match -> leaderboard e' gia' attiva.
+     */
     @Override
+    @Transactional
     public List<TournamentRankingDto> getTournamentRankings(String tournamentId) {
+        syncFromStatistics(tournamentId);
         return rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId).stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
+    }
+
+    private void syncFromStatistics(String tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
+        if (tournament == null) return;
+        List<TournamentRanking> rankings = rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId);
+        if (rankings.isEmpty()) return;
+
+        List<Map<String, Object>> board;
+        try {
+            board = RestClient.create(statisticsServiceUrl)
+                    .get()
+                    .uri("/api/v1/statistics/leaderboard/{gameTypeId}", tournament.getGameTypeId())
+                    .retrieve()
+                    .body(List.class);
+        } catch (Exception e) {
+            log.error("Sync classifica torneo {} da statistics-service fallito", tournamentId, e);
+            return;
+        }
+        if (board == null) return;
+
+        for (TournamentRanking r : rankings) {
+            board.stream()
+                    .filter(m -> r.getParticipantName() != null
+                            && r.getParticipantName().equalsIgnoreCase(String.valueOf(m.get("playerName"))))
+                    .findFirst()
+                    .ifPresent(m -> {
+                        r.setScore(asInt(m.get("totalPoints")));
+                        r.setMatchesWon(asInt(m.get("wins")));
+                        r.setMatchesPlayed(asInt(m.get("matchesPlayed")));
+                    });
+        }
+        rankingRepository.saveAll(rankings);
+        recalculateRankings(tournamentId);
+    }
+
+    private int asInt(Object o) {
+        return o instanceof Number ? ((Number) o).intValue() : 0;
     }
 
     @Override

@@ -23,10 +23,16 @@ public class Tournament {
     private String name;
 
     @Column(nullable = false)
-    private String gameTypeId; // Es. ID di Calciobalilla
+    private String gameTypeId; // Es. ID di Calciobalilla (un torneo = un solo tipo di gioco)
 
     @Column(nullable = false)
     private boolean teamBased; // Se le partite sono a squadre o individuali
+
+    // Insieme dei locali coinvolti nel torneo. I giocatori si iscrivono da uno di questi locali.
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "tournament_locales", joinColumns = @JoinColumn(name = "tournament_id"))
+    @Column(name = "locale_id")
+    private List<String> localeIds;
 
     private Instant startDate;
     private Instant endDate;

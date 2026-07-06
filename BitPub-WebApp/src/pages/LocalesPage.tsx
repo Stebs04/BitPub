@@ -2,12 +2,19 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { MapPin, Server, Plus, Power, Trash2 } from 'lucide-react';
-import api, { deleteLocale } from '../services/api';
+import { MapPin, Server, Plus, Power, Trash2, BarChart3 } from 'lucide-react';
+import api, { deleteLocale, getLocaleGameUsage } from '../services/api';
+import type { GameUsageRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
+
+const GAME_TYPE_LABELS: Record<string, string> = {
+  foosball: 'Calciobalilla',
+  darts: 'Freccette',
+  billiards: 'Biliardo',
+};
 
 interface GameInstance {
   id: string;
@@ -43,6 +50,7 @@ const LocalesPage: React.FC = () => {
   const [locales, setLocales] = useState<Locale[]>([]);
   const [gameTypes, setGameTypes] = useState<GameType[]>([]);
   const [localeAdmins, setLocaleAdmins] = useState<UserOption[]>([]);
+  const [gameUsage, setGameUsage] = useState<Record<string, GameUsageRecord[]>>({});
   const [loading, setLoading] = useState(true);
 
   const [newLocaleName, setNewLocaleName] = useState('');
@@ -73,6 +81,15 @@ const LocalesPage: React.FC = () => {
       api.get<UserOption[]>(`/users/by-role/${LOCALE_ADMIN}`).then(res => setLocaleAdmins(res.data || [])).catch(() => {});
     }
   }, [fetchLocales, isLocaleAdmin, isPlatformAdmin]);
+
+  // Metrica "Giochi piu' utilizzati in un locale": una chiamata per locale allo statistics-service.
+  useEffect(() => {
+    locales.forEach((l) => {
+      getLocaleGameUsage(l.id)
+        .then((res) => setGameUsage((prev) => ({ ...prev, [l.id]: res.data || [] })))
+        .catch(() => {});
+    });
+  }, [locales]);
 
   const handleCreateLocale = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,6 +240,26 @@ const LocalesPage: React.FC = () => {
                   <p className="text-sm text-slate-500 px-1">Nessuna macchina installata.</p>
                 )}
               </div>
+
+              {/* Metrica: Giochi piu' utilizzati in questo locale */}
+              {(gameUsage[locale.id]?.length ?? 0) > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2 mb-3 text-slate-300">
+                    <BarChart3 className="w-4 h-4 text-brand" />
+                    <span className="text-sm font-semibold">Giochi più utilizzati</span>
+                  </div>
+                  <div className="space-y-2">
+                    {gameUsage[locale.id].map((g) => (
+                      <div key={g.gameTypeId} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-300">{GAME_TYPE_LABELS[g.gameTypeId] || g.gameTypeId}</span>
+                        <span className="text-slate-500 text-xs">
+                          {g.matchesPlayed} partite · {g.players} giocatori
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {isLocaleAdmin && (
                 <div className="mt-4 pt-4 border-t border-white/5 flex flex-col md:flex-row gap-3 items-end">
