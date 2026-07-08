@@ -58,7 +58,7 @@ public class EdgeCommandController {
 
         // Gate del turno sullo stato live locale (autoritativo sull'Edge): se non e' il turno del
         // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore/Cloud.
-        if (!ruleEngine.isPlayersTurn(matchId, actor.userId())) {
+        if (!ruleEngine.isPlayersTurn(matchId, actor.userId(), authHeader)) {
             log.info("Blocked out-of-turn action for match {} by actor {}", matchId, actor.userId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non e' il tuo turno");
         }

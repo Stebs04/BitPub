@@ -31,8 +31,8 @@ public class RuleEngineService {
     private final ObjectMapper objectMapper;
     private final RestClient matchClient;
 
-    // Stato live per matchId. computeIfAbsent NON memorizza i null (roster non caricabile),
-    // quindi un load fallito viene ritentato al prossimo evento.
+    // Stato live per matchId. getOrLoad NON memorizza i null (roster non caricabile),
+    // quindi un load fallito viene ritentato alla prossima azione con header valido.
     private final Map<String, LocalMatchState> states = new ConcurrentHashMap<>();
 
     public RuleEngineService(@Value("${bitpub.cloud.match-service-url}") String matchServiceUrl) {
@@ -79,8 +79,8 @@ public class RuleEngineService {
      * (Cloud irraggiungibile o partita non live): meglio non applicare il turno che deadlockare
      * la partita bloccando entrambi i giocatori.
      */
-    public boolean isPlayersTurn(String matchId, String userId) {
-        LocalMatchState s = getOrLoad(matchId);
+    public boolean isPlayersTurn(String matchId, String userId, String authHeader) {
+        LocalMatchState s = getOrLoad(matchId, authHeader);
         if (s == null || s.currentTurnUserId == null) {
             return true;
         }
@@ -100,7 +100,7 @@ public class RuleEngineService {
         if (matchId == null || matchId.isBlank()) {
             return Optional.empty(); // eventi non interattivi (es. autoplay senza matchId): nessuno stato live
         }
-        LocalMatchState s = getOrLoad(matchId);
+        LocalMatchState s = getOrLoad(matchId, null);
         if (s == null || s.finished) {
             return Optional.empty();
         }
@@ -208,14 +208,23 @@ public class RuleEngineService {
         return a.equals(current) ? b : a;
     }
 
-    private LocalMatchState getOrLoad(String matchId) {
-        return states.computeIfAbsent(matchId, this::loadRoster);
+    private LocalMatchState getOrLoad(String matchId, String authHeader) {
+        LocalMatchState s = states.get(matchId);
+        if (s == null && authHeader != null) {
+            s = loadRoster(matchId, authHeader);
+            if (s != null) {
+                states.put(matchId, s);
+            }
+        }
+        return s;
     }
 
     /** Carica una volta il roster della partita live dal Cloud e ne inizializza lo stato locale. */
-    private LocalMatchState loadRoster(String matchId) {
+    private LocalMatchState loadRoster(String matchId, String authHeader) {
         try {
-            JsonNode m = matchClient.get().uri("/api/matches/{id}", matchId).retrieve().body(JsonNode.class);
+            JsonNode m = matchClient.get().uri("/api/matches/{id}", matchId)
+                    .header("Authorization", authHeader)
+                    .retrieve().body(JsonNode.class);
             if (m == null || !"IN_PROGRESS".equals(text(m, "status"))) {
                 return null; // tracciamo solo partite live
             }
