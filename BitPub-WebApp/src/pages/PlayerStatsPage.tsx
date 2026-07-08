@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BarChart3, Trophy, Swords, Target } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { useAuthStore } from '../store/authStore';
-import { getMatchesByPlayer, getTournamentRegistrationsByPlayer } from '../services/api';
-import type { MatchRecord, TournamentRegistrationRecord } from '../services/api';
+import { getMatchesByPlayer, getTournamentRegistrationsByPlayer, getMyLeaderboardStats } from '../services/api';
+import type { MatchRecord, TournamentRegistrationRecord, LeaderboardEntryRecord } from '../services/api';
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   foosball: 'Calciobalilla',
@@ -22,6 +22,10 @@ const PlayerStatsPage: React.FC = () => {
 
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [tournamentRegs, setTournamentRegs] = useState<TournamentRegistrationRecord[]>([]);
+  // Rendimento per gioco: preso dalla leaderboard globale (stessa logica della classifica),
+  // filtrata sul giocatore loggato. La leaderboard e' indicizzata per (playerName, gameTypeId),
+  // quindi una sola riga per gioco: niente duplicati lato client.
+  const [perGame, setPerGame] = useState<LeaderboardEntryRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,11 +35,13 @@ const PlayerStatsPage: React.FC = () => {
     Promise.all([
       getMatchesByPlayer(user.id),
       getTournamentRegistrationsByPlayer(user.id),
+      getMyLeaderboardStats(user.username),
     ])
-      .then(([matchesRes, tournamentsRes]) => {
+      .then(([matchesRes, tournamentsRes, leaderboardRes]) => {
         if (cancelled) return;
         setMatches(matchesRes.data || []);
         setTournamentRegs(tournamentsRes.data || []);
+        setPerGame(leaderboardRes.data || []);
       })
       .catch((error) => console.error('Error fetching player stats:', error))
       .finally(() => !cancelled && setLoading(false));
@@ -52,8 +58,6 @@ const PlayerStatsPage: React.FC = () => {
     if (!m.winnerId) return 'draw';
     return m.winnerId === user?.id ? 'win' : 'loss';
   };
-  const myScore = (m: MatchRecord) => m.teams?.find((t) => t.playerIds?.includes(user?.id ?? ''))?.score ?? 0;
-
   const totals = matches.reduce(
     (acc, m) => {
       const o = outcome(m);
@@ -65,23 +69,6 @@ const PlayerStatsPage: React.FC = () => {
   );
   const decided = totals.wins + totals.losses;
   const winRate = decided > 0 ? Math.round((totals.wins / decided) * 100) : 0;
-
-  // Rendimento aggregato per tipo di gioco (solo partite concluse).
-  const perGame = Object.values(
-    matches.reduce<Record<string, { gameTypeId: string; wins: number; losses: number; totalPoints: number; matchesPlayed: number }>>(
-      (acc, m) => {
-        const o = outcome(m);
-        if (!o) return acc;
-        const g = (acc[m.gameTypeId] ||= { gameTypeId: m.gameTypeId, wins: 0, losses: 0, totalPoints: 0, matchesPlayed: 0 });
-        g.matchesPlayed++;
-        g.totalPoints += myScore(m);
-        if (o === 'win') g.wins++;
-        else if (o === 'loss') g.losses++;
-        return acc;
-      },
-      {}
-    )
-  );
 
   if (loading) {
     return (

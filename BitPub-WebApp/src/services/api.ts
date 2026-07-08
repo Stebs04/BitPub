@@ -284,7 +284,7 @@ export interface TournamentRankingRecord {
   tournamentId: string;
   participantId: string;
   participantName: string;
-  score: number;
+  goalsScored: number;
   matchesPlayed: number;
   matchesWon: number;
   currentRank: number;

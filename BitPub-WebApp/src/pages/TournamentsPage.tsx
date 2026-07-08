@@ -523,8 +523,8 @@ const TournamentsPage: React.FC = () => {
                           <tr className="text-xs text-slate-500 uppercase">
                             <th className="py-1 px-2 w-10">#</th>
                             <th className="py-1 px-2">Partecipante</th>
-                            <th className="py-1 px-2 text-center">Punti</th>
                             <th className="py-1 px-2 text-center">V</th>
+                            <th className="py-1 px-2 text-center">Gol</th>
                             <th className="py-1 px-2 text-center">Partite</th>
                           </tr>
                         </thead>
@@ -533,8 +533,8 @@ const TournamentsPage: React.FC = () => {
                             <tr key={r.id}>
                               <td className="py-2 px-2 font-bold text-brand-light">{r.currentRank}</td>
                               <td className="py-2 px-2 text-white">{r.participantName}</td>
-                              <td className="py-2 px-2 text-center text-brand-light font-semibold">{r.score}</td>
-                              <td className="py-2 px-2 text-center text-emerald-400">{r.matchesWon}</td>
+                              <td className="py-2 px-2 text-center text-emerald-400 font-semibold">{r.matchesWon}</td>
+                              <td className="py-2 px-2 text-center text-brand-light">{r.goalsScored}</td>
                               <td className="py-2 px-2 text-center text-slate-400">{r.matchesPlayed}</td>
                             </tr>
                           ))}
