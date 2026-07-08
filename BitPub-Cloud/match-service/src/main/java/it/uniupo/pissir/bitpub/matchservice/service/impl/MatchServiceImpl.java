@@ -238,6 +238,40 @@ public class MatchServiceImpl implements MatchService {
         return mapToDto(saved);
     }
 
+    @Override
+    @Transactional
+    public MatchDto applyFinalResult(String matchId, Map<String, Integer> scoresByTeamName) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
+
+        // Idempotente: l'Edge fa un POST best-effort e puo' ritentare; una partita gia' chiusa non
+        // va ri-notificata (l'ingest stats e' comunque idempotente sul matchId).
+        if ("COMPLETED".equals(match.getStatus())) {
+            return mapToDto(match);
+        }
+
+        if (match.getTeams() != null && scoresByTeamName != null) {
+            for (Team t : match.getTeams()) {
+                Integer s = scoresByTeamName.get(t.getName());
+                if (s != null) {
+                    t.setScore(s);
+                }
+            }
+        }
+
+        match.setStatus("COMPLETED");
+        match.setEndTime(Instant.now());
+        match.setCurrentTurnUserId(null);
+        match.setTeamBased(isTeamBased(match));
+        Match saved = matchRepository.save(match);
+
+        notifyStatisticsService(saved);
+        notifyTournamentResult(saved);
+        // Nessun broadcast di stato: la FINISHED live la pubblica l'Edge sul topic match-state.
+
+        return mapToDto(saved);
+    }
+
     /**
      * PLAYER matchmaking: se esiste gia' una lobby WAITING_FOR_PLAYERS su questa gameInstance,
      * vi aggiunge il chiamante come secondo giocatore e la porta IN_PROGRESS (match "STARTED"),
@@ -276,6 +310,9 @@ public class MatchServiceImpl implements MatchService {
 
             match.setStatus("IN_PROGRESS");
             match.setStartTime(Instant.now());
+            // Semina il turno iniziale sul primo giocatore (team A, chi ha creato la lobby). L'Edge
+            // legge questo valore alla prima azione e da qui in poi e' lui a farlo avanzare live.
+            match.setCurrentTurnUserId(firstPlayerId(match.getTeams().get(0)));
             Match saved = matchRepository.save(match);
 
             publishLobbyState(saved, "MATCH_START");
@@ -421,47 +458,27 @@ public class MatchServiceImpl implements MatchService {
                 .build());
 
             teamRepository.saveAll(match.getTeams());
+            match.setCurrentTurnUserId(firstPlayerId(match.getTeams().get(0)));
+            match = matchRepository.save(match);
             activeMatchOpt = Optional.of(match);
             log.info("Auto-created match {} for gameInstanceId {}", match.getId(), match.getGameInstanceId());
         }
 
         if (activeMatchOpt.isPresent()) {
             match = activeMatchOpt.get();
-
-            Map<String, Object> payload = event.getPayload();
             String type = event.getSensorType();
 
-            if ("MATCH_END".equals(type)) {
+            // Solo persistenza: la logica live (turno, punteggio, broadcast stato) e' passata all'Edge.
+            // Il punteggio finale e la chiusura interattiva arrivano dall'Edge via applyFinalResult
+            // (POST /result). Qui resta solo la chiusura da MATCH_END esplicito (autoplay/simulatore),
+            // guardata su COMPLETED cosi' che un MATCH_END successivo al report dell'Edge non ri-notifichi.
+            if ("MATCH_END".equals(type) && !"COMPLETED".equals(match.getStatus())) {
                 match.setStatus("COMPLETED");
                 match.setEndTime(Instant.now());
                 match.setTeamBased(isTeamBased(match));
                 matchRepository.save(match);
                 notifyStatisticsService(match);
                 notifyTournamentResult(match);
-            } else if (!"MATCH_START".equals(type)) {
-                // Sensore di gioco generico e data-driven: il simulatore ha gia' deciso l'esito e
-                // stampato scoreIncrement (0 = MISS) e winScoreTarget nel payload. Qui accreditiamo
-                // i punti al team indicato e chiudiamo la partita al raggiungimento del traguardo.
-                int scoreIncrement = payload != null && payload.get("scoreIncrement") != null
-                        ? Integer.parseInt(payload.get("scoreIncrement").toString()) : 0;
-                if (scoreIncrement != 0) {
-                    Team scored = resolveTeam(match, payload);
-                    if (scored != null) {
-                        scored.setScore(scored.getScore() + scoreIncrement);
-                        matchRepository.save(match);
-
-                        int winTarget = payload != null && payload.get("winScoreTarget") != null
-                                ? Integer.parseInt(payload.get("winScoreTarget").toString()) : Integer.MAX_VALUE;
-                        if (scored.getScore() >= winTarget) {
-                            match.setStatus("COMPLETED");
-                            match.setEndTime(Instant.now());
-                            match.setTeamBased(isTeamBased(match));
-                            matchRepository.save(match);
-                            notifyStatisticsService(match);
-                            notifyTournamentResult(match);
-                        }
-                    }
-                }
             }
         } else {
             log.info("No active match found for gameInstanceId {}. Event will just be logged.", event.getGameInstanceId());
@@ -484,11 +501,7 @@ public class MatchServiceImpl implements MatchService {
                 .build();
 
         sensorEventLogRepository.save(logEntry);
-
-        // Publish updated game state to MQTT so the Kiosk gets it in real-time
-        if (match != null) {
-            publishGameState(match, event);
-        }
+        // Nessun broadcast di stato qui: lo pubblica l'Edge sul topic match-state (autoritativo live).
     }
 
     // ── Azioni di gioco (RNG delegato al GenericSimulator) ───────────────────────
@@ -502,19 +515,6 @@ public class MatchServiceImpl implements MatchService {
     private String firstPlayerId(Team team) {
         return team != null && team.getPlayerIds() != null && !team.getPlayerIds().isEmpty()
                 ? team.getPlayerIds().get(0) : null;
-    }
-
-    /** Team accreditato da un sensor event: quello nominato nel payload ("team"), o il primo. */
-    private Team resolveTeam(Match match, Map<String, Object> payload) {
-        if (match.getTeams() == null || match.getTeams().isEmpty()) return null;
-        if (payload != null && payload.get("team") != null) {
-            String name = payload.get("team").toString();
-            return match.getTeams().stream()
-                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(name))
-                    .findFirst()
-                    .orElse(match.getTeams().get(0));
-        }
-        return match.getTeams().get(0);
     }
 
     /**
@@ -539,10 +539,13 @@ public class MatchServiceImpl implements MatchService {
             throw new BitpubException("Partita senza giocatori", HttpStatus.CONFLICT);
         }
 
+        // Il turno e' gia' validato dall'Edge (403 la'). Qui risolviamo solo la squadra di chi agisce
+        // per etichettare il sensor event inoltrato al simulatore; se non la troviamo, ripieghiamo
+        // sulla prima squadra (nessun gate di ownership nel Cloud, ora solo orchestrazione).
         Team current = teams.stream()
                 .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
                 .findFirst()
-                .orElseThrow(() -> new BitpubException("Giocatore non nel match", HttpStatus.FORBIDDEN));
+                .orElse(teams.get(0));
 
         String sensorType = action.getSensorType();
         if (sensorType == null || sensorType.isBlank()) {
@@ -700,11 +703,6 @@ public class MatchServiceImpl implements MatchService {
         return events.size();
     }
 
-    private void publishGameState(Match match, SensorEvent event) {
-        String status = "IN_PROGRESS".equals(match.getStatus()) ? "PLAYING" : "FINISHED";
-        publishGameState(match, status, event.getSensorType());
-    }
-
     /**
      * Publishes lobby transitions (WAITING_FOR_PLAYERS / MATCH_START) triggered by the
      * PLAYER matchmaking flow, reusing the same GameStateDto/topic the Kiosk view already
@@ -746,6 +744,7 @@ public class MatchServiceImpl implements MatchService {
                 .timeRemainingSeconds(0)
                 .currentEventMessage(eventMessage)
                 .winnerName(winnerName)
+                .currentTurnUserId("FINISHED".equals(status) ? null : match.getCurrentTurnUserId())
                 .build();
 
         try {

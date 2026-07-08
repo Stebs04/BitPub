@@ -20,4 +20,5 @@ public class GameStateDto {
     private int timeRemainingSeconds;
     private String currentEventMessage; // e.g. "GOAL!", "MATCH STARTED"
     private String winnerName;          // Populated on MATCH_END
+    private String currentTurnUserId;   // Seeded by Cloud at MATCH_START; kept live by the Edge
 }

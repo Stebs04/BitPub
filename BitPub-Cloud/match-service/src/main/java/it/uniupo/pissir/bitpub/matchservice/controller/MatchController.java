@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/matches")
@@ -99,6 +100,17 @@ public class MatchController {
         MatchDto match = matchService.getMatch(id);
         matchService.assertMatchLocaleAccess(match.getLocaleId(), callerId, callerRole, callerLocaleId);
         return ResponseEntity.ok(matchService.endMatch(id));
+    }
+
+    /**
+     * Esito finale riportato dall'Edge (autoritativo sul punteggio live). Body = { "TeamName": score }.
+     * Applica i punteggi, chiude la partita e notifica statistiche/torneo. Idempotente sul matchId.
+     * Chiamata interna Edge -> Cloud (non passa dal gateway): nessun ruolo richiesto.
+     */
+    @PostMapping("/{id}/result")
+    public ResponseEntity<MatchDto> reportResult(@PathVariable String id,
+            @RequestBody Map<String, Integer> scoresByTeamName) {
+        return ResponseEntity.ok(matchService.applyFinalResult(id, scoresByTeamName));
     }
 
     /**

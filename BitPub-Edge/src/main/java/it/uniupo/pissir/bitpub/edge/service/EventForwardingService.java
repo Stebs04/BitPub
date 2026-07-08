@@ -50,6 +50,16 @@ public class EventForwardingService {
 
         SensorEvent event = optionalEvent.get();
 
+        // Stato live autoritativo sull'Edge: aggiorna turno + punteggio e pubblica SUBITO il nuovo
+        // stato sul broker locale (topic match-state) cosi' il frontend dell'altro giocatore sblocca
+        // il turno all'istante. A fine partita riporta i punteggi finali al Cloud per la persistenza.
+        ruleEngineService.applyEvent(event).ifPresent(state -> {
+            publishLocalState(state, event.getSensorType());
+            if (state.finished) {
+                ruleEngineService.reportResultToCloud(state);
+            }
+        });
+
         String json;
         try {
             json = objectMapper.writeValueAsString(event);
@@ -63,5 +73,27 @@ public class EventForwardingService {
                 .setHeader(MqttHeaders.TOPIC, topic)
                 .build());
         log.info("Event {} forwarded to Cloud via MQTT topic {}", event.getEventId(), topic);
+    }
+
+    /**
+     * Pubblica lo stato live sul broker locale (topic match-state), con RETAINED cosi' un subscriber
+     * tardivo/riconnesso riceve subito l'ultimo stato. ponytail: qui il broker locale e quello cloud
+     * sono la stessa mosquitto, quindi si riusa cloudMqttOutboundChannel; separarli solo se le due
+     * istanze verranno davvero divise.
+     */
+    private void publishLocalState(RuleEngineService.LocalMatchState state, String eventMessage) {
+        try {
+            String payload = objectMapper.writeValueAsString(ruleEngineService.buildStatePayload(state, eventMessage));
+            String topic = MqttTopics.getGameStateTopic(
+                    state.localeId != null ? state.localeId : "unknown", state.gameInstanceId);
+            cloudMqttOutboundChannel.send(MessageBuilder.withPayload(payload)
+                    .setHeader(MqttHeaders.TOPIC, topic)
+                    .setHeader(MqttHeaders.RETAINED, true)
+                    .build());
+            log.info("Edge published live state for match {} (turn={}) to {}",
+                    state.matchId, state.currentTurnUserId, topic);
+        } catch (Exception e) {
+            log.error("Edge failed to publish live state for match {}", state.matchId, e);
+        }
     }
 }

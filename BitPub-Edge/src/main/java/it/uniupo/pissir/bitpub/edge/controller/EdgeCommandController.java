@@ -6,6 +6,7 @@ import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
 import it.uniupo.pissir.bitpub.common.mqtt.TournamentResultCommand;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
+import it.uniupo.pissir.bitpub.edge.service.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -33,12 +34,15 @@ public class EdgeCommandController {
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
     private final MessageChannel cloudMqttOutboundChannel;
+    private final RuleEngineService ruleEngine;
 
     public EdgeCommandController(JwtUtils jwtUtils, ObjectMapper objectMapper,
-                                @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel) {
+                                @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel,
+                                RuleEngineService ruleEngine) {
         this.jwtUtils = jwtUtils;
         this.objectMapper = objectMapper;
         this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
+        this.ruleEngine = ruleEngine;
     }
 
     /**
@@ -51,6 +55,14 @@ public class EdgeCommandController {
                                              @RequestBody String actionJson,
                                              @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Actor actor = authenticate(authHeader);
+
+        // Gate del turno sullo stato live locale (autoritativo sull'Edge): se non e' il turno del
+        // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore/Cloud.
+        if (!ruleEngine.isPlayersTurn(matchId, actor.userId())) {
+            log.info("Blocked out-of-turn action for match {} by actor {}", matchId, actor.userId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non e' il tuo turno");
+        }
+
         String topic = MqttTopics.getCloudMatchActionTopic(matchId);
         publishCommand(topic, matchId, actor, actionJson);
         log.info("Game action for match {} published to cloud via MQTT {} (actor {})", matchId, topic, actor.userId());

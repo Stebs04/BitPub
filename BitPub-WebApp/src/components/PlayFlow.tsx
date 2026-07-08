@@ -19,6 +19,7 @@ interface GameState {
   scoreTeamB: number;
   currentEventMessage: string;
   winnerName?: string;
+  currentTurnUserId?: string; // giocatore di turno, tenuto live dall'Edge
 }
 
 const eventLabel = (type: string, s: GameState): string => {
@@ -86,8 +87,9 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
     fetchLocales();
   }, [fetchLocales]);
 
-  // Sottoscrizione MQTT allo stato della partita corrente: aggiorna punteggi e fa scattare
-  // la transizione dalla sala d'attesa alla partita live appena il secondo giocatore entra.
+  // Sottoscrizione MQTT allo stato della partita corrente sul topic match-state locale dell'Edge
+  // (bitpub/match/{localeId}/{gameInstanceId}/state): l'Edge e' ora autoritativo sullo stato live e
+  // pubblica qui punteggio + turno (currentTurnUserId) ad ogni evento, sbloccando il turno all'istante.
   useEffect(() => {
     if (!activeMatch || !activeMatch.localeId) return;
     const topic = `bitpub/match/${activeMatch.localeId}/${activeMatch.gameInstanceId}/state`;
@@ -182,6 +184,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
     const teamA = gameState?.teamAName || activeMatch.teams?.[0]?.name || 'Tu';
     const teamB = gameState?.teamBName || activeMatch.teams?.[1]?.name || 'Avversario';
     const isFinished = gameState?.status === 'FINISHED';
+    const isMyTurn = gameState?.currentTurnUserId === user?.id;
 
     return (
       <div className="p-6 md:p-8 animate-slide-up space-y-6">
@@ -207,9 +210,16 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
                   <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{gameState?.gameTypeId ?? activeMatch.gameTypeId}</p>
                   <p className="text-sm text-slate-400 font-mono">{activeMatch.gameInstanceId}</p>
                 </div>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
-                  {isFinished ? '✔ Finita' : '🔴 LIVE'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {!isFinished && (
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${isMyTurn ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700/40 text-slate-400 border-slate-600/40'}`}>
+                      {isMyTurn ? '🎯 Il tuo turno' : '⏳ Turno avversario'}
+                    </span>
+                  )}
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${isFinished ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+                    {isFinished ? '✔ Finita' : '🔴 LIVE'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-4">
@@ -241,7 +251,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
               <GameControlPanel
                 sensors={sensors}
                 finished={isFinished}
-                sending={sending}
+                sending={!isMyTurn}
                 onAction={(sensorType) => sendAction(sensorType)}
               />
 

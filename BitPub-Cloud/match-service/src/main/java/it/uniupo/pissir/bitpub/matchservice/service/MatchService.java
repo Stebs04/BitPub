@@ -6,11 +6,19 @@ import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface MatchService {
     MatchDto startMatch(StartMatchRequestDto request);
     MatchDto endMatch(String matchId);
+
+    /**
+     * Esito finale riportato dall'Edge (autoritativo sul punteggio live): applica i punteggi
+     * finali per nome squadra, chiude la partita e notifica statistiche/torneo. Idempotente
+     * (no-op se la partita e' gia' COMPLETED). Il Cloud non calcola piu' il punteggio live.
+     */
+    MatchDto applyFinalResult(String matchId, Map<String, Integer> scoresByTeamName);
     MatchDto getMatch(String matchId);
     List<MatchDto> getActiveMatches();
     List<MatchDto> getActiveMatchesByLocale(String localeId);
