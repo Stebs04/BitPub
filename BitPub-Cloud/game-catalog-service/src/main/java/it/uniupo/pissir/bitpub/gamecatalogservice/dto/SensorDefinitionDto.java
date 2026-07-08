@@ -14,4 +14,6 @@ public class SensorDefinitionDto {
     private String type; // es. DIGITAL, ANALOG, RFID
     private String description;
     private boolean isActuator;
+    private int scoreIncrement;
+    private double successProbability;
 }

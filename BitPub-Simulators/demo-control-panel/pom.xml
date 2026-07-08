@@ -12,20 +12,10 @@
     <artifactId>demo-control-panel</artifactId>
 
     <dependencies>
-        <!-- BitPub Simulator Modules -->
+        <!-- Modelli/costanti condivisi (SensorEvent, MqttTopics) -->
         <dependency>
             <groupId>it.uniupo.pissir.bitpub</groupId>
-            <artifactId>calciobalilla-simulator</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>it.uniupo.pissir.bitpub</groupId>
-            <artifactId>freccette-simulator</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>it.uniupo.pissir.bitpub</groupId>
-            <artifactId>biliardo-simulator</artifactId>
+            <artifactId>bitpub-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 

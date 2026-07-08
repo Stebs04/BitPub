@@ -27,6 +27,10 @@ public class GameType {
     @Column(nullable = false)
     private String rulesEngineId; // Identificativo della logica (Strategy) da applicare nel match-service
 
+    @Column(nullable = false)
+    @Builder.Default
+    private int winScoreTarget = 10; // Punti necessari per vincere. Letto dinamicamente dal match-service.
+
     @OneToMany(mappedBy = "gameType", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SensorDefinition> sensors;
 }

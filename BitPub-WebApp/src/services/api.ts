@@ -94,24 +94,30 @@ export interface SensorDefinitionRecord {
   type: string;
   description: string;
   actuator: boolean;
+  scoreIncrement: number;      // punti guadagnati quando il sensore va a segno
+  successProbability: number;  // 0.0-1.0: probabilità RNG di successo
 }
 
 export interface GameTypeRecord {
   id: string;
   name: string;
   description: string;
+  winScoreTarget: number;      // punti necessari per vincere
   sensors: SensorDefinitionRecord[];
 }
 
 export interface CreateGameTypePayload {
   name: string;
   description: string;
+  winScoreTarget: number;
 }
 
 export interface AddSensorPayload {
   type: string;
   description: string;
   actuator: boolean;
+  scoreIncrement: number;
+  successProbability: number;
 }
 
 export const getGameTypes = () => api.get<GameTypeRecord[]>('/catalog/games');
@@ -165,12 +171,10 @@ export interface MatchRecord {
   stripedTeamId?: string | null;
 }
 
-// Azione di gioco interattiva inviata dal giocatore di turno.
-// actionType: 'SHOOT' (calciobalilla / biliardo), 'BREAK' (spaccata biliardo), 'THROW' (freccette).
+// Azione di gioco data-driven: il giocatore preme il sensore `sensorType`; l'esito (RNG) lo
+// decide il GenericSimulator lato backend in base alla successProbability configurata nel catalogo.
 export interface GameActionPayload {
-  actionType: 'SHOOT' | 'BREAK' | 'THROW';
-  sector?: number;     // freccette: 1-20, 25 (Outer Bull), 50 (Bull)
-  multiplier?: number; // freccette: 1, 2, 3
+  sensorType: string;
 }
 
 // Locali ONLINE in tempo reale (almeno una macchina simulata attiva), non l'elenco statico completo.

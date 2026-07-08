@@ -4,6 +4,7 @@ import it.uniupo.pissir.bitpub.gamecatalogservice.domain.GameType;
 import it.uniupo.pissir.bitpub.gamecatalogservice.domain.SensorDefinition;
 import it.uniupo.pissir.bitpub.gamecatalogservice.repository.GameTypeRepository;
 import it.uniupo.pissir.bitpub.gamecatalogservice.repository.SensorDefinitionRepository;
+import it.uniupo.pissir.bitpub.gamecatalogservice.service.GameCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -21,33 +22,38 @@ public class GameCatalogDataSeeder implements CommandLineRunner {
 
     private final GameTypeRepository gameTypeRepository;
     private final SensorDefinitionRepository sensorDefinitionRepository;
+    private final GameCatalogService gameCatalogService;
+
+    // Sensori di controllo: non segnano punti, si attivano sempre.
+    private static final SensorSeed START = new SensorSeed("MATCH_START", "Inizio partita", false, 0, 1.0);
+    private static final SensorSeed END = new SensorSeed("MATCH_END", "Fine partita", false, 0, 1.0);
 
     @Override
     public void run(String... args) {
-        seedGameType("Calciobalilla", "Calciobalilla simulato con sensori di goal per squadra",
+        seedGameType("Calciobalilla", "Calciobalilla simulato con sensori di goal per squadra", 10,
                 List.of(
-                        new SensorSeed("MATCH_START", "Inizio partita", false),
-                        new SensorSeed("GOAL", "Goal segnato", false),
-                        new SensorSeed("MATCH_END", "Fine partita", false)
+                        START,
+                        new SensorSeed("GOAL", "Goal segnato", false, 1, 0.5),
+                        END
                 ));
 
-        seedGameType("Biliardo", "Biliardo simulato con sensori di imbucata e fallo",
+        seedGameType("Biliardo", "Biliardo simulato con sensori di imbucata e fallo", 7,
                 List.of(
-                        new SensorSeed("MATCH_START", "Inizio partita", false),
-                        new SensorSeed("BALL_POCKETED", "Palla imbucata", false),
-                        new SensorSeed("FOUL", "Fallo commesso", false),
-                        new SensorSeed("MATCH_END", "Fine partita", false)
+                        START,
+                        new SensorSeed("BALL_POCKETED", "Palla imbucata", false, 1, 0.5),
+                        new SensorSeed("FOUL", "Fallo commesso", false, 0, 1.0),
+                        END
                 ));
 
-        seedGameType("Freccette", "Freccette simulate con sensore di punteggio per lancio",
+        seedGameType("Freccette", "Freccette simulate con sensore di punteggio per lancio", 100,
                 List.of(
-                        new SensorSeed("MATCH_START", "Inizio partita", false),
-                        new SensorSeed("DART_HIT", "Freccia lanciata", false),
-                        new SensorSeed("MATCH_END", "Fine partita", false)
+                        START,
+                        new SensorSeed("DART_HIT", "Freccia lanciata", false, 20, 0.7),
+                        END
                 ));
     }
 
-    private void seedGameType(String name, String description, List<SensorSeed> sensors) {
+    private void seedGameType(String name, String description, int winScoreTarget, List<SensorSeed> sensors) {
         if (gameTypeRepository.findByName(name).isPresent()) {
             return;
         }
@@ -56,6 +62,7 @@ public class GameCatalogDataSeeder implements CommandLineRunner {
                 .name(name)
                 .description(description)
                 .rulesEngineId(name.trim().toLowerCase().replaceAll("\\s+", "_"))
+                .winScoreTarget(winScoreTarget)
                 .sensors(new java.util.ArrayList<>())
                 .build();
         GameType saved = gameTypeRepository.save(gameType);
@@ -65,10 +72,16 @@ public class GameCatalogDataSeeder implements CommandLineRunner {
                     .type(s.type())
                     .description(s.description())
                     .isActuator(s.isActuator())
+                    .scoreIncrement(s.scoreIncrement())
+                    .successProbability(s.successProbability())
                     .gameType(saved)
                     .build());
         }
+
+        // Pubblica lo snapshot retained cosi' i simulatori hanno le regole anche per i giochi seminati.
+        gameCatalogService.publishConfig(saved.getId());
     }
 
-    private record SensorSeed(String type, String description, boolean isActuator) {}
+    private record SensorSeed(String type, String description, boolean isActuator, int scoreIncrement,
+                              double successProbability) {}
 }

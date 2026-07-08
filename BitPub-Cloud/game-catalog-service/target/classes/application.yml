@@ -16,6 +16,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:game-catalog-service-${random.uuid}}
+
 bitpub:
   jwt:
     secret: 1234567890123456789012345678901234567890123456789012345678901234

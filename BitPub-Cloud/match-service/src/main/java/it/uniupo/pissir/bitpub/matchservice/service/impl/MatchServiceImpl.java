@@ -35,7 +35,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -185,7 +184,7 @@ public class MatchServiceImpl implements MatchService {
         Match match = Match.builder()
                 .gameInstanceId(request.getGameInstanceId())
                 .localeId(resolveLocaleId(request.getGameInstanceId()))
-                .gameTypeId(canonicalGameType(request.getGameTypeId(), request.getGameInstanceId()))
+                .gameTypeId(request.getGameTypeId() != null ? request.getGameTypeId() : request.getGameInstanceId())
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
                 .build();
@@ -277,7 +276,6 @@ public class MatchServiceImpl implements MatchService {
 
             match.setStatus("IN_PROGRESS");
             match.setStartTime(Instant.now());
-            initializeGameStart(match);
             Match saved = matchRepository.save(match);
 
             publishLobbyState(saved, "MATCH_START");
@@ -296,7 +294,7 @@ public class MatchServiceImpl implements MatchService {
         // stabile del frontend, ripiegando sul localInstanceId (es. "calciobalilla-1") se serve.
         String rawGameType = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : null;
         String localInstanceId = info.get("localInstanceId") != null ? info.get("localInstanceId").toString() : null;
-        String gameTypeId = canonicalGameType(rawGameType, localInstanceId);
+        String gameTypeId = rawGameType != null ? rawGameType : localInstanceId;
 
         Match match = Match.builder()
                 .gameInstanceId(gameInstanceId)
@@ -384,10 +382,14 @@ public class MatchServiceImpl implements MatchService {
 
         Match match = null;
         if (activeMatchOpt.isEmpty() && "MATCH_START".equals(event.getSensorType())) {
+            Map giInfo = fetchGameInstanceInfo(event.getGameInstanceId());
+            String autoLocaleId = giInfo != null && giInfo.get("localeId") != null ? giInfo.get("localeId").toString() : null;
+            String autoGameTypeId = giInfo != null && giInfo.get("gameTypeId") != null
+                    ? giInfo.get("gameTypeId").toString() : event.getGameInstanceId();
             match = Match.builder()
                 .gameInstanceId(event.getGameInstanceId())
-                .localeId(resolveLocaleId(event.getGameInstanceId()))
-                .gameTypeId(canonicalGameType(event.getGameInstanceId()))
+                .localeId(autoLocaleId)
+                .gameTypeId(autoGameTypeId)
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
                 .teams(new ArrayList<>())
@@ -426,37 +428,40 @@ public class MatchServiceImpl implements MatchService {
         if (activeMatchOpt.isPresent()) {
             match = activeMatchOpt.get();
 
-            // Apply scoring logic per game type
-            if ("GOAL".equals(event.getSensorType()) && event.getPayload() != null && event.getPayload().containsKey("team")) {
-                String teamName = event.getPayload().get("team").toString();
-                match.getTeams().stream()
-                        .filter(t -> t.getName().equalsIgnoreCase(teamName))
-                        .findFirst()
-                        .ifPresent(t -> t.setScore(t.getScore() + 1));
-                matchRepository.save(match);
-            }
-            if ("DART_HIT".equals(event.getSensorType()) && event.getPayload() != null && event.getPayload().containsKey("score")) {
-                int score = Integer.parseInt(event.getPayload().get("score").toString());
-                int multiplier = event.getPayload().containsKey("multiplier") ? Integer.parseInt(event.getPayload().get("multiplier").toString()) : 1;
-                // Add to the active player / team A for darts
-                match.getTeams().stream().findFirst().ifPresent(t -> t.setScore(t.getScore() + (score * multiplier)));
-                matchRepository.save(match);
-            }
-            if ("BALL_POCKETED".equals(event.getSensorType())) {
-                match.getTeams().stream().findFirst().ifPresent(t -> t.setScore(t.getScore() + 1));
-                matchRepository.save(match);
-            }
-            if ("FOUL".equals(event.getSensorType())) {
-                // A foul costs 1 point from team A / current player
-                match.getTeams().stream().findFirst().ifPresent(t -> t.setScore(Math.max(0, t.getScore() - 1)));
-                matchRepository.save(match);
-            }
-            if ("MATCH_END".equals(event.getSensorType())) {
+            Map<String, Object> payload = event.getPayload();
+            String type = event.getSensorType();
+
+            if ("MATCH_END".equals(type)) {
                 match.setStatus("COMPLETED");
                 match.setEndTime(Instant.now());
+                match.setTeamBased(isTeamBased(match));
                 matchRepository.save(match);
-                // Notify statistics service about match result to update leaderboard
                 notifyStatisticsService(match);
+                notifyTournamentResult(match);
+            } else if (!"MATCH_START".equals(type)) {
+                // Sensore di gioco generico e data-driven: il simulatore ha gia' deciso l'esito e
+                // stampato scoreIncrement (0 = MISS) e winScoreTarget nel payload. Qui accreditiamo
+                // i punti al team indicato e chiudiamo la partita al raggiungimento del traguardo.
+                int scoreIncrement = payload != null && payload.get("scoreIncrement") != null
+                        ? Integer.parseInt(payload.get("scoreIncrement").toString()) : 0;
+                if (scoreIncrement != 0) {
+                    Team scored = resolveTeam(match, payload);
+                    if (scored != null) {
+                        scored.setScore(scored.getScore() + scoreIncrement);
+                        matchRepository.save(match);
+
+                        int winTarget = payload != null && payload.get("winScoreTarget") != null
+                                ? Integer.parseInt(payload.get("winScoreTarget").toString()) : Integer.MAX_VALUE;
+                        if (scored.getScore() >= winTarget) {
+                            match.setStatus("COMPLETED");
+                            match.setEndTime(Instant.now());
+                            match.setTeamBased(isTeamBased(match));
+                            matchRepository.save(match);
+                            notifyStatisticsService(match);
+                            notifyTournamentResult(match);
+                        }
+                    }
+                }
             }
         } else {
             log.info("No active match found for gameInstanceId {}. Event will just be logged.", event.getGameInstanceId());
@@ -486,57 +491,7 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
-    // ── Gameplay interattivo a turni ────────────────────────────────────────────
-
-    private enum GameKind { FOOSBALL, BILLIARDS, DARTS, UNKNOWN }
-
-    private static final int FOOSBALL_TARGET = 10;  // goal necessari per vincere a calciobalilla
-    private static final int BILLIARDS_TARGET = 7;   // palle del proprio gruppo da imbucare prima della boccia degli 8
-    private static final int DARTS_START = 501;      // punteggio iniziale a freccette (regola ufficiale "501 double-out")
-    private static final int DARTS_THROWS_PER_TURN = 3;
-
-    private static final double FOOSBALL_GOAL_CHANCE = 0.30;   // 30% goal, 70% parata/fuori
-    private static final double BILLIARDS_POCKET_CHANCE = 0.50; // 50% imbuca
-
-    private GameKind classify(String gameTypeId) {
-        String g = gameTypeId == null ? "" : gameTypeId.toLowerCase();
-        if (g.contains("calcio") || g.contains("foosball") || g.contains("balilla")) return GameKind.FOOSBALL;
-        if (g.contains("biliard") || g.contains("billiard") || g.contains("pool")) return GameKind.BILLIARDS;
-        if (g.contains("frecc") || g.contains("dart")) return GameKind.DARTS;
-        return GameKind.UNKNOWN;
-    }
-
-    /**
-     * Normalizza il gameTypeId in uno dei tre token stabili che il frontend interroga
-     * ("foosball" / "billiards" / "darts"), gli stessi con cui la leaderboard e' indicizzata.
-     * Prima causava classifiche vuote e classify()==UNKNOWN: il locale-service passava a volte
-     * l'UUID del catalogo, a volte il nome ("Calciobalilla"), mai il token del frontend.
-     * Prova i candidati in ordine (es. gameTypeId poi localInstanceId) e ritorna il primo
-     * riconoscibile; se nessuno lo e', ritorna il primo candidato non nullo invariato.
-     */
-    private String canonicalGameType(String... candidates) {
-        for (String c : candidates) {
-            switch (classify(c)) {
-                case FOOSBALL: return "foosball";
-                case BILLIARDS: return "billiards";
-                case DARTS: return "darts";
-                default: // UNKNOWN: prova il candidato successivo
-            }
-        }
-        for (String c : candidates) {
-            if (c != null) return c;
-        }
-        return "unknown";
-    }
-
-    /**
-     * Esito di un tiro a RNG (calciobalilla goal/parata, biliardo imbuca/manca): tirato
-     * server-side. Autorevole il cloud, non il client (non manomettibile). Elaborato una sola
-     * volta grazie all'idempotenza su eventId, quindi il replay offline resta corretto.
-     */
-    private boolean decideOutcome(double chance) {
-        return ThreadLocalRandom.current().nextDouble() < chance;
-    }
+    // ── Azioni di gioco (RNG delegato al GenericSimulator) ───────────────────────
 
     /** Partita a squadre se almeno un team ha piu' di un giocatore; altrimenti individuale. */
     private boolean isTeamBased(Match match) {
@@ -549,173 +504,73 @@ public class MatchServiceImpl implements MatchService {
                 ? team.getPlayerIds().get(0) : null;
     }
 
-    /**
-     * Allo START del match assegna casualmente il primo turno e inizializza lo stato specifico
-     * del gioco (punteggio 501 a freccette, spaccata non ancora avvenuta a biliardo).
-     */
-    private void initializeGameStart(Match match) {
-        List<Team> teams = match.getTeams();
-        if (teams == null || teams.size() < 2) return;
-
-        Team starter = ThreadLocalRandom.current().nextBoolean() ? teams.get(0) : teams.get(1);
-        match.setCurrentTurnUserId(firstPlayerId(starter));
-        match.setBreakDone(false);
-        match.setSolidTeamId(null);
-        match.setStripedTeamId(null);
-        match.setThrowsInTurn(0);
-
-        if (classify(match.getGameTypeId()) == GameKind.DARTS) {
-            teams.forEach(t -> t.setScore(DARTS_START));
-            teamRepository.saveAll(teams);
+    /** Team accreditato da un sensor event: quello nominato nel payload ("team"), o il primo. */
+    private Team resolveTeam(Match match, Map<String, Object> payload) {
+        if (match.getTeams() == null || match.getTeams().isEmpty()) return null;
+        if (payload != null && payload.get("team") != null) {
+            String name = payload.get("team").toString();
+            return match.getTeams().stream()
+                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(name))
+                    .findFirst()
+                    .orElse(match.getTeams().get(0));
         }
+        return match.getTeams().get(0);
     }
 
+    /**
+     * Azione interattiva del giocatore. Il match-service NON calcola piu' l'esito: individua la
+     * squadra di chi agisce e inoltra la richiesta al GenericSimulator via MQTT
+     * (bitpub/simulators/{gameInstanceId}/action). Il simulatore tira l'RNG sulla successProbability
+     * del sensore e ripubblica il sensor event risultante (con scoreIncrement) o un MISS, che rientra
+     * da processSensorEvent e aggiorna il punteggio. Ritorna lo stato corrente (aggiornato in async).
+     */
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public MatchDto processGameAction(String matchId, String playerId, GameActionRequestDto action) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
 
-        // Idempotency: a buffered action replayed after the cloud came back must not apply twice.
-        // Return the current state instead of re-running the turn (and without a stale turn 403).
-        if (action.getEventId() != null && sensorEventLogRepository.existsByEventId(action.getEventId())) {
-            log.warn("Game action {} already processed, returning current match state", action.getEventId());
-            return mapToDto(match);
-        }
-
         if (!"IN_PROGRESS".equals(match.getStatus())) {
             throw new BitpubException("La partita non e' in corso", HttpStatus.CONFLICT);
         }
-        if (match.getCurrentTurnUserId() == null || !match.getCurrentTurnUserId().equals(playerId)) {
-            throw new BitpubException("Non e' il tuo turno", HttpStatus.FORBIDDEN);
-        }
 
         List<Team> teams = match.getTeams();
-        if (teams == null || teams.size() < 2) {
-            throw new BitpubException("Partita senza due giocatori", HttpStatus.CONFLICT);
+        if (teams == null || teams.isEmpty()) {
+            throw new BitpubException("Partita senza giocatori", HttpStatus.CONFLICT);
         }
 
         Team current = teams.stream()
                 .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
                 .findFirst()
                 .orElseThrow(() -> new BitpubException("Giocatore non nel match", HttpStatus.FORBIDDEN));
-        Team opponent = teams.stream().filter(t -> !t.getId().equals(current.getId())).findFirst().orElse(null);
 
-        String eventMessage;
-        boolean finished = false;
-
-        switch (classify(match.getGameTypeId())) {
-            case FOOSBALL: {
-                boolean goal = decideOutcome(FOOSBALL_GOAL_CHANCE);
-                if (goal) {
-                    current.setScore(current.getScore() + 1);
-                    eventMessage = "GOAL";
-                    if (current.getScore() >= FOOSBALL_TARGET) finished = true;
-                } else {
-                    eventMessage = "SAVE";
-                }
-                // Il turno passa sempre all'avversario dopo il tiro.
-                if (!finished) match.setCurrentTurnUserId(firstPlayerId(opponent));
-                break;
-            }
-            case BILLIARDS: {
-                if (!match.isBreakDone()) {
-                    // Spaccata: assegna casualmente Piene/Spezzate ai due team.
-                    boolean currentGetsSolid = ThreadLocalRandom.current().nextBoolean();
-                    match.setSolidTeamId(currentGetsSolid ? current.getId() : opponent.getId());
-                    match.setStripedTeamId(currentGetsSolid ? opponent.getId() : current.getId());
-                    match.setBreakDone(true);
-                    eventMessage = "BREAK";
-                    // Dopo la spaccata il turno resta a chi ha spaccato.
-                } else if (current.getScore() >= BILLIARDS_TARGET) {
-                    // Regola 8-ball: dopo aver imbucato tutte le palle del proprio gruppo (7),
-                    // il colpo successivo deve imbucare la boccia nera (8) per vincere la partita.
-                    // Un tiro mancato qui e' semplicemente un errore normale (passa il turno);
-                    // imbucare la boccia nera prima di aver completato il gruppo non e' modellabile
-                    // con l'azione generica "SHOOT" attuale, quindi si applica solo a gruppo completo.
-                    boolean pocketedEightBall = decideOutcome(BILLIARDS_POCKET_CHANCE);
-                    if (pocketedEightBall) {
-                        eventMessage = "BALL_POCKETED";
-                        finished = true;
-                    } else {
-                        eventMessage = "MISS";
-                        match.setCurrentTurnUserId(firstPlayerId(opponent));
-                    }
-                } else {
-                    boolean pocket = decideOutcome(BILLIARDS_POCKET_CHANCE);
-                    if (pocket) {
-                        current.setScore(current.getScore() + 1);
-                        eventMessage = "BALL_POCKETED";
-                        // Imbuca: mantiene il turno. Il gruppo si completa a BILLIARDS_TARGET,
-                        // ma la vittoria arriva solo imbucando poi la boccia nera (ramo sopra).
-                    } else {
-                        eventMessage = "MISS";
-                        match.setCurrentTurnUserId(firstPlayerId(opponent));
-                    }
-                }
-                break;
-            }
-            case DARTS: {
-                // Regola ufficiale "501 double-out": si chiude solo con un doppio (o il Bull, 50).
-                // Bust (tiro annullato, punteggio invariato) se si va sotto 0, si resta a 1
-                // (impossibile chiudere da 1 con un doppio), o si arriva a 0 senza un doppio.
-                int sector = action.getSector() != null ? action.getSector() : 0;
-                int multiplier = action.getMultiplier() != null ? action.getMultiplier() : 1;
-                int points = sector * multiplier;
-                int remaining = current.getScore() - points;
-                boolean isDoubleFinish = multiplier == 2 || sector == 50;
-                if (remaining < 0 || remaining == 1 || (remaining == 0 && !isDoubleFinish)) {
-                    eventMessage = "FOUL";
-                } else {
-                    current.setScore(remaining);
-                    eventMessage = "DART_HIT";
-                    if (remaining == 0) finished = true;
-                }
-                if (!finished) {
-                    match.setThrowsInTurn(match.getThrowsInTurn() + 1);
-                    if (match.getThrowsInTurn() >= DARTS_THROWS_PER_TURN) {
-                        match.setThrowsInTurn(0);
-                        match.setCurrentTurnUserId(firstPlayerId(opponent));
-                    }
-                }
-                break;
-            }
-            default:
-                throw new BitpubException("Tipo di gioco non supportato per le azioni interattive", HttpStatus.BAD_REQUEST);
+        String sensorType = action.getSensorType();
+        if (sensorType == null || sensorType.isBlank()) {
+            throw new BitpubException("sensorType mancante nell'azione", HttpStatus.BAD_REQUEST);
         }
 
-        if (finished) {
-            match.setStatus("COMPLETED");
-            match.setEndTime(Instant.now());
-            match.setCurrentTurnUserId(null);
-            match.setTeamBased(isTeamBased(match));
-        }
+        Map<String, Object> request = new java.util.HashMap<>();
+        request.put("gameInstanceId", match.getGameInstanceId());
+        request.put("localeId", match.getLocaleId());
+        request.put("gameTypeId", match.getGameTypeId());
+        request.put("matchId", match.getId());
+        request.put("sensorType", sensorType);
+        request.put("team", current.getName());
+        request.put("eventId", action.getEventId()); // idempotenza propagata al sensor event
 
-        teamRepository.saveAll(teams);
-        Match saved = matchRepository.save(match);
-
-        // Mark this action processed (idempotency key) in the same transaction as the state change,
-        // so a replay of the same eventId is recognized and skipped above.
-        if (action.getEventId() != null) {
-            sensorEventLogRepository.save(SensorEventLog.builder()
-                    .eventId(action.getEventId())
-                    .match(saved)
-                    .sensorType(eventMessage)
-                    .timestamp(Instant.now())
-                    .receivedAt(Instant.now())
-                    .payload("{}")
+        try {
+            String body = objectMapper.writeValueAsString(request);
+            mqttOutboundChannel.send(MessageBuilder.withPayload(body)
+                    .setHeader(MqttHeaders.TOPIC,
+                            it.uniupo.pissir.bitpub.common.constants.MqttTopics.getSimulatorActionTopic(match.getGameInstanceId()))
                     .build());
+            log.info("Routed action {} to simulator for match {} (team {})", sensorType, matchId, current.getName());
+        } catch (Exception e) {
+            log.error("Failed to route game action to simulator", e);
+            throw new BitpubException("Impossibile inoltrare l'azione al simulatore", HttpStatus.BAD_GATEWAY);
         }
 
-        if (finished) {
-            notifyStatisticsService(saved);
-            notifyTournamentResult(saved);
-            publishGameState(saved, "FINISHED", "MATCH_END");
-        } else {
-            publishGameState(saved, "PLAYING", eventMessage);
-        }
-
-        return mapToDto(saved);
+        return mapToDto(match);
     }
 
     /**
@@ -723,19 +578,16 @@ public class MatchServiceImpl implements MatchService {
      * to update the leaderboard for both players.
      */
     /**
-     * Team vincitore: a freccette vince chi ha il punteggio piu' basso (parte da 501 e scala a 0),
-     * negli altri giochi vince chi ha il punteggio piu' alto.
+     * Team vincitore: nel modello data-driven ogni gioco somma punti verso winScoreTarget, quindi
+     * vince sempre chi ha il punteggio piu' alto. Parita' di punteggio = pareggio (nessun vincitore).
      */
     private Team winnerTeam(Match match) {
         List<Team> teams = match.getTeams();
         if (teams == null || teams.size() < 2) return null;
-        Comparator<Team> byScore = Comparator.comparingInt(Team::getScore);
-        Team best = classify(match.getGameTypeId()) == GameKind.DARTS
-                ? teams.stream().min(byScore).orElse(null)
-                : teams.stream().max(byScore).orElse(null);
+        Team best = teams.stream().max(Comparator.comparingInt(Team::getScore)).orElse(null);
         int max = teams.stream().mapToInt(Team::getScore).max().orElse(0);
         int min = teams.stream().mapToInt(Team::getScore).min().orElse(0);
-        return max == min ? null : best; // parita' di punteggio = pareggio, nessun vincitore
+        return max == min ? null : best;
     }
 
     /**
@@ -877,17 +729,11 @@ public class MatchServiceImpl implements MatchService {
             }
         }
 
-        // Determine winner name on match end (game-aware: darts = lowest score)
         String winnerName = null;
         if ("FINISHED".equals(status)) {
             Team w = winnerTeam(match);
             winnerName = w != null ? w.getName() : null;
         }
-
-        // Nomi dei giocatori con Piene/Spezzate (biliardo), risolti dagli id di team assegnati.
-        String solidPlayerName = teamNameById(match, match.getSolidTeamId());
-        String stripedPlayerName = teamNameById(match, match.getStripedTeamId());
-        int throwsRemaining = Math.max(0, DARTS_THROWS_PER_TURN - match.getThrowsInTurn());
 
         GameStateDto stateDto = GameStateDto.builder()
                 .matchId(match.getId())
@@ -900,11 +746,6 @@ public class MatchServiceImpl implements MatchService {
                 .timeRemainingSeconds(0)
                 .currentEventMessage(eventMessage)
                 .winnerName(winnerName)
-                .currentTurnUserId(match.getCurrentTurnUserId())
-                .breakDone(match.isBreakDone())
-                .solidPlayerName(solidPlayerName)
-                .stripedPlayerName(stripedPlayerName)
-                .throwsRemaining(throwsRemaining)
                 .build();
 
         try {
@@ -918,13 +759,6 @@ public class MatchServiceImpl implements MatchService {
         } catch (Exception e) {
             log.error("Failed to publish GameStateDto", e);
         }
-    }
-
-    private String teamNameById(Match match, String teamId) {
-        if (teamId == null || match.getTeams() == null) return null;
-        return match.getTeams().stream()
-                .filter(t -> teamId.equals(t.getId()))
-                .map(Team::getName).findFirst().orElse(null);
     }
 
     private MatchDto mapToDto(Match match) {

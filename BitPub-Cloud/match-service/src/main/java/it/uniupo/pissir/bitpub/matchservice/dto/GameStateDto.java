@@ -20,15 +20,4 @@ public class GameStateDto {
     private int timeRemainingSeconds;
     private String currentEventMessage; // e.g. "GOAL!", "MATCH STARTED"
     private String winnerName;          // Populated on MATCH_END
-
-    // Gameplay interattivo a turni: chi deve muovere ora (client confronta col proprio userId).
-    private String currentTurnUserId;
-
-    // Biliardo: stato assegnazione gruppi dopo la spaccata.
-    private boolean breakDone;
-    private String solidPlayerName;   // giocatore con le Piene
-    private String stripedPlayerName; // giocatore con le Spezzate
-
-    // Freccette: tiri rimanenti nel turno corrente (3 -> 0).
-    private int throwsRemaining;
 }

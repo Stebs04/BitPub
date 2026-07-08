@@ -50,6 +50,14 @@ public final class MqttTopics {
     // bitpub/cloud/matches/result — match-service -> statistics-service completed-match results (single shared topic).
     public static final String CLOUD_MATCH_RESULT_TOPIC = "bitpub/cloud/matches/result";
 
+    // bitpub/config/games/{gameTypeId} — game-catalog-service -> simulators: full GameType+Sensors config
+    // (retained) so a simulator caches the win target / score increments / RNG probabilities in memory.
+    public static final String GAME_CONFIG_FORMAT = "bitpub/config/games/%s";
+
+    // bitpub/simulators/{gameInstanceId}/action — match-service -> GenericSimulator: resolve an action's
+    // RNG. The simulator rolls successProbability and emits the resulting sensor event (hit) or MISS.
+    public static final String SIMULATOR_ACTION_FORMAT = "bitpub/simulators/%s/action";
+
     public static String getSensorEventTopic(String localeId, String gameInstanceId) {
         return String.format(SENSOR_EVENT_FORMAT, localeId, gameInstanceId);
     }
@@ -84,5 +92,13 @@ public final class MqttTopics {
 
     public static String getTournamentEndedTopic(String tournamentId) {
         return String.format(TOURNAMENT_ENDED_FORMAT, tournamentId);
+    }
+
+    public static String getGameConfigTopic(String gameTypeId) {
+        return String.format(GAME_CONFIG_FORMAT, gameTypeId);
+    }
+
+    public static String getSimulatorActionTopic(String gameInstanceId) {
+        return String.format(SIMULATOR_ACTION_FORMAT, gameInstanceId);
     }
 }

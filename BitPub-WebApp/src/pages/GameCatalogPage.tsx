@@ -24,7 +24,7 @@ const EVENT_PRESETS: { type: string; description: string }[] = [
   { type: 'FOUL', description: 'Fallo commesso' },
 ];
 
-const emptySensorForm = { type: '', description: '', actuator: false };
+const emptySensorForm = { type: '', description: '', actuator: false, scoreIncrement: 1, successProbability: 1 };
 
 const GameCatalogPage: React.FC = () => {
   const [gameTypes, setGameTypes] = useState<GameTypeRecord[]>([]);
@@ -35,6 +35,7 @@ const GameCatalogPage: React.FC = () => {
   // Form nuovo tipo di gioco
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newWinScoreTarget, setNewWinScoreTarget] = useState(10);
   const [creating, setCreating] = useState(false);
 
   // Form nuovo evento simulato (sensore) per il tipo selezionato
@@ -45,6 +46,7 @@ const GameCatalogPage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editWinScoreTarget, setEditWinScoreTarget] = useState(10);
   const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchGameTypes = useCallback(async (preserveSelection = true) => {
@@ -76,9 +78,10 @@ const GameCatalogPage: React.FC = () => {
     if (!newName.trim() || !newDescription.trim()) return;
     setCreating(true);
     try {
-      const res = await createGameType({ name: newName.trim(), description: newDescription.trim() });
+      const res = await createGameType({ name: newName.trim(), description: newDescription.trim(), winScoreTarget: newWinScoreTarget });
       setNewName('');
       setNewDescription('');
+      setNewWinScoreTarget(10);
       await fetchGameTypes();
       if (res.data?.id) setSelectedId(res.data.id);
     } catch (err: any) {
@@ -100,6 +103,8 @@ const GameCatalogPage: React.FC = () => {
         type: sensorForm.type.trim().toUpperCase().replace(/\s+/g, '_'),
         description: sensorForm.description.trim(),
         actuator: sensorForm.actuator,
+        scoreIncrement: sensorForm.scoreIncrement,
+        successProbability: sensorForm.successProbability,
       });
       setSensorForm(emptySensorForm);
       await fetchGameTypes();
@@ -119,6 +124,7 @@ const GameCatalogPage: React.FC = () => {
     if (!selected) return;
     setEditName(selected.name);
     setEditDescription(selected.description);
+    setEditWinScoreTarget(selected.winScoreTarget ?? 10);
     setEditing(true);
   };
 
@@ -129,7 +135,7 @@ const GameCatalogPage: React.FC = () => {
     if (!selected || !editName.trim() || !editDescription.trim()) return;
     setSavingEdit(true);
     try {
-      await updateGameType(selected.id, { name: editName.trim(), description: editDescription.trim() });
+      await updateGameType(selected.id, { name: editName.trim(), description: editDescription.trim(), winScoreTarget: editWinScoreTarget });
       setEditing(false);
       await fetchGameTypes();
     } catch (err: any) {
@@ -203,6 +209,14 @@ const GameCatalogPage: React.FC = () => {
                   onChange={(e) => setNewDescription(e.target.value)}
                   required
                 />
+                <Input
+                  label="Punti per vincere (winScoreTarget)"
+                  type="number"
+                  min={1}
+                  value={newWinScoreTarget}
+                  onChange={(e) => setNewWinScoreTarget(Number(e.target.value))}
+                  required
+                />
                 <Button type="submit" disabled={creating}>
                   <Plus className="w-4 h-4 mr-2" /> {creating ? 'Creazione...' : 'Crea Gioco'}
                 </Button>
@@ -272,6 +286,14 @@ const GameCatalogPage: React.FC = () => {
                       onChange={(e) => setEditDescription(e.target.value)}
                       required
                     />
+                    <Input
+                      label="Punti per vincere (winScoreTarget)"
+                      type="number"
+                      min={1}
+                      value={editWinScoreTarget}
+                      onChange={(e) => setEditWinScoreTarget(Number(e.target.value))}
+                      required
+                    />
                     <div className="flex gap-2">
                       <Button type="submit" size="sm" disabled={savingEdit}>
                         <Save className="w-4 h-4 mr-2" /> {savingEdit ? 'Salvataggio...' : 'Salva'}
@@ -286,6 +308,7 @@ const GameCatalogPage: React.FC = () => {
                     <div className="min-w-0">
                       <CardTitle>{selected.name}</CardTitle>
                       <p className="text-slate-400 text-sm mt-1">{selected.description}</p>
+                      <p className="text-xs text-brand-light mt-1">🏆 Vittoria a {selected.winScoreTarget} punti</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="px-3 py-1 bg-brand/20 text-brand-light rounded-full text-xs font-semibold">
@@ -318,6 +341,11 @@ const GameCatalogPage: React.FC = () => {
                         <div className="min-w-0">
                           <p className="font-mono text-sm text-white truncate">{s.type}</p>
                           <p className="text-xs text-slate-500 truncate">{s.description}</p>
+                          {!s.actuator && (
+                            <p className="text-xs text-emerald-400/80">
+                              +{s.scoreIncrement} pt · {Math.round((s.successProbability ?? 0) * 100)}% successo
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
@@ -368,6 +396,24 @@ const GameCatalogPage: React.FC = () => {
                         value={sensorForm.description}
                         onChange={(e) => setSensorForm((prev) => ({ ...prev, description: e.target.value }))}
                         required
+                      />
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <Input
+                        label="Punti guadagnati (scoreIncrement)"
+                        type="number"
+                        min={0}
+                        value={sensorForm.scoreIncrement}
+                        onChange={(e) => setSensorForm((prev) => ({ ...prev, scoreIncrement: Number(e.target.value) }))}
+                      />
+                      <Input
+                        label="Probabilità successo (0.0 - 1.0)"
+                        type="number"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={sensorForm.successProbability}
+                        onChange={(e) => setSensorForm((prev) => ({ ...prev, successProbability: Number(e.target.value) }))}
                       />
                     </div>
                     <div className="flex items-center justify-between gap-4">

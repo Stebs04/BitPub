@@ -1,7 +1,10 @@
 package it.uniupo.pissir.bitpub.gamecatalogservice.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
+import it.uniupo.pissir.bitpub.gamecatalogservice.config.MqttConfig.ConfigPublisher;
 import it.uniupo.pissir.bitpub.gamecatalogservice.domain.GameType;
 import it.uniupo.pissir.bitpub.gamecatalogservice.domain.SensorDefinition;
 import it.uniupo.pissir.bitpub.gamecatalogservice.dto.AddSensorRequest;
@@ -11,6 +14,7 @@ import it.uniupo.pissir.bitpub.gamecatalogservice.dto.SensorDefinitionDto;
 import it.uniupo.pissir.bitpub.gamecatalogservice.repository.GameTypeRepository;
 import it.uniupo.pissir.bitpub.gamecatalogservice.repository.SensorDefinitionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +25,29 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GameCatalogService {
 
     private final GameTypeRepository gameTypeRepository;
     private final SensorDefinitionRepository sensorDefinitionRepository;
+    private final ConfigPublisher configPublisher;
+    private final ObjectMapper objectMapper;
+
+    /**
+     * Pubblica lo snapshot completo (GameType + Sensori) su bitpub/config/games/{id} (retained),
+     * cosi' i simulatori aggiornano le regole in cache. Fire-and-forget: un errore MQTT non deve
+     * far fallire la mutazione del catalogo.
+     */
+    public void publishConfig(String gameTypeId) {
+        try {
+            GameTypeDto dto = getGameTypeById(gameTypeId);
+            configPublisher.publish(objectMapper.writeValueAsString(dto), MqttTopics.getGameConfigTopic(gameTypeId));
+            log.info("Published game config for gameTypeId={} ({} sensors)", gameTypeId,
+                    dto.getSensors() != null ? dto.getSensors().size() : 0);
+        } catch (Exception e) {
+            log.error("Failed to publish game config for gameTypeId={}", gameTypeId, e);
+        }
+    }
 
     @Transactional
     public GameTypeDto createGameType(CreateGameTypeRequest request) {
@@ -38,10 +61,12 @@ public class GameCatalogService {
                 // Derived from name since rulesEngineId is not part of the create request;
                 // match-service's Strategy lookup uses this key (e.g. "Calciobalilla" -> "calciobalilla").
                 .rulesEngineId(request.getName().trim().toLowerCase().replaceAll("\\s+", "_"))
+                .winScoreTarget(request.getWinScoreTarget() > 0 ? request.getWinScoreTarget() : 10)
                 .sensors(new ArrayList<>())
                 .build();
 
         GameType saved = gameTypeRepository.save(gameType);
+        publishConfig(saved.getId());
         return mapToDto(saved);
     }
 
@@ -62,8 +87,12 @@ public class GameCatalogService {
 
         gameType.setName(request.getName());
         gameType.setDescription(request.getDescription());
+        if (request.getWinScoreTarget() > 0) {
+            gameType.setWinScoreTarget(request.getWinScoreTarget());
+        }
 
         GameType saved = gameTypeRepository.save(gameType);
+        publishConfig(saved.getId());
         return mapToDto(saved);
     }
 
@@ -81,6 +110,7 @@ public class GameCatalogService {
         }
 
         sensorDefinitionRepository.delete(sensor);
+        publishConfig(gameTypeId);
     }
 
     public GameTypeDto getGameTypeById(String id) {
@@ -104,10 +134,13 @@ public class GameCatalogService {
                 .type(request.getType())
                 .description(request.getDescription())
                 .isActuator(request.isActuator())
+                .scoreIncrement(request.getScoreIncrement() != 0 ? request.getScoreIncrement() : 1)
+                .successProbability(request.getSuccessProbability() > 0 ? request.getSuccessProbability() : 1.0)
                 .gameType(gameType)
                 .build();
 
         SensorDefinition saved = sensorDefinitionRepository.save(sensor);
+        publishConfig(gameTypeId);
         return mapSensorToDto(saved);
     }
 
@@ -122,6 +155,7 @@ public class GameCatalogService {
                 .id(gameType.getId())
                 .name(gameType.getName())
                 .description(gameType.getDescription())
+                .winScoreTarget(gameType.getWinScoreTarget())
                 .sensors(gameType.getSensors() != null ? 
                         gameType.getSensors().stream().map(this::mapSensorToDto).collect(Collectors.toList()) : 
                         new ArrayList<>())
@@ -134,6 +168,8 @@ public class GameCatalogService {
                 .type(sensor.getType())
                 .description(sensor.getDescription())
                 .isActuator(sensor.isActuator())
+                .scoreIncrement(sensor.getScoreIncrement())
+                .successProbability(sensor.getSuccessProbability())
                 .build();
     }
 }

@@ -25,6 +25,14 @@ public class SensorDefinition {
     @Column(nullable = false)
     private boolean isActuator; // True se è un attuatore (es. DISPLAY)
 
+    @Column(nullable = false)
+    @Builder.Default
+    private int scoreIncrement = 1; // Punti guadagnati quando il sensore si attiva con successo
+
+    @Column(nullable = false)
+    @Builder.Default
+    private double successProbability = 1.0; // 0.0-1.0: probabilità RNG che l'azione vada a segno
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "game_type_id", nullable = false)
     private GameType gameType;

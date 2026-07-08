@@ -10,4 +10,7 @@ public class CreateGameTypeRequest {
     
     @NotBlank
     private String description;
+
+    // Punti necessari per vincere. Default 10 se non specificato dal client.
+    private int winScoreTarget = 10;
 }

@@ -3,8 +3,8 @@ import { Gamepad2, Server, Play, Loader2, Users, Trophy, ArrowLeft, RefreshCw } 
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import Button from './Button';
 import { useAuthStore } from '../store/authStore';
-import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction } from '../services/api';
-import type { LocaleRecord, GameInstanceRecord, MatchRecord } from '../services/api';
+import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction, getGameTypeById } from '../services/api';
+import type { LocaleRecord, GameInstanceRecord, MatchRecord, SensorDefinitionRecord } from '../services/api';
 import { notificationService } from '../services/notificationService';
 import GameControlPanel from './GameControlPanel';
 
@@ -19,11 +19,6 @@ interface GameState {
   scoreTeamB: number;
   currentEventMessage: string;
   winnerName?: string;
-  currentTurnUserId?: string | null;
-  breakDone?: boolean;
-  solidPlayerName?: string | null;
-  stripedPlayerName?: string | null;
-  throwsRemaining?: number;
 }
 
 const eventLabel = (type: string, s: GameState): string => {
@@ -70,6 +65,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
   // Partita corrente del giocatore (dalla creazione lobby in poi) e relativo stato live via MQTT.
   const [activeMatch, setActiveMatch] = useState<MatchRecord | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
+  const [sensors, setSensors] = useState<SensorDefinitionRecord[]>([]);
   const [sending, setSending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -103,6 +99,17 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
     });
     return unsubscribe;
   }, [activeMatch]);
+
+  // Carica dinamicamente i sensori del gioco (dal catalogo) per generare i pulsanti del joypad.
+  const gameTypeId = gameState?.gameTypeId ?? activeMatch?.gameTypeId;
+  useEffect(() => {
+    if (!gameTypeId) { setSensors([]); return; }
+    let cancelled = false;
+    getGameTypeById(gameTypeId)
+      .then((res) => { if (!cancelled) setSensors(res.data?.sensors || []); })
+      .catch(() => { if (!cancelled) setSensors([]); });
+    return () => { cancelled = true; };
+  }, [gameTypeId]);
 
   // Fallback: finche' la lobby resta in attesa, ripolla la partita nel caso il messaggio MQTT
   // di transizione vada perso (il broker e' QoS 0).
@@ -150,12 +157,12 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
 
   // Invia un'azione di gioco. Il backend valida il turno e pubblica il nuovo stato via MQTT,
   // sbloccando istantaneamente lo schermo dell'avversario; qui aspettiamo solo la conferma HTTP.
-  const sendAction = async (payload: { actionType: 'SHOOT' | 'BREAK' | 'THROW'; sector?: number; multiplier?: number }) => {
+  const sendAction = async (sensorType: string) => {
     if (!activeMatch || sending) return;
     setSending(true);
     setActionError(null);
     try {
-      await postGameAction(activeMatch.id, payload);
+      await postGameAction(activeMatch.id, { sensorType });
     } catch (err: any) {
       setActionError(err?.response?.data?.message || "Azione non consentita in questo momento.");
     } finally {
@@ -169,7 +176,6 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
     const teamA = gameState?.teamAName || activeMatch.teams?.[0]?.name || 'Tu';
     const teamB = gameState?.teamBName || activeMatch.teams?.[1]?.name || 'Avversario';
     const isFinished = gameState?.status === 'FINISHED';
-    const isMyTurn = !!gameState && gameState.currentTurnUserId === user?.id;
 
     return (
       <div className="p-6 md:p-8 animate-slide-up space-y-6">
@@ -225,21 +231,12 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
                 </div>
               )}
 
-              {/* Joypad interattivo: pannello di controllo specifico per tipo di gioco */}
+              {/* Joypad 100% data-driven: un pulsante per ogni sensore del gioco (dal catalogo). */}
               <GameControlPanel
-                gameTypeId={gameState?.gameTypeId ?? activeMatch.gameTypeId}
-                isMyTurn={isMyTurn}
+                sensors={sensors}
                 finished={isFinished}
                 sending={sending}
-                breakDone={gameState?.breakDone ?? false}
-                solidPlayerName={gameState?.solidPlayerName}
-                stripedPlayerName={gameState?.stripedPlayerName}
-                throwsRemaining={gameState?.throwsRemaining ?? 3}
-                myName={user?.username ?? teamA}
-                // Esito (goal/parata, imbuca/manca) tirato server-side dal match-service.
-                onShoot={() => sendAction({ actionType: 'SHOOT' })}
-                onBreak={() => sendAction({ actionType: 'BREAK' })}
-                onThrow={(sector, multiplier) => sendAction({ actionType: 'THROW', sector, multiplier })}
+                onAction={(sensorType) => sendAction(sensorType)}
               />
 
               {actionError && (

@@ -15,5 +15,6 @@ public class GameTypeDto {
     private String id;
     private String name;
     private String description;
+    private int winScoreTarget;
     private List<SensorDefinitionDto> sensors;
 }

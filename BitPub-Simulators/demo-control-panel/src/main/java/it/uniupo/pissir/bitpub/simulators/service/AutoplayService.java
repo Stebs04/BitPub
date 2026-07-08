@@ -1,40 +1,48 @@
 package it.uniupo.pissir.bitpub.simulators.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import it.uniupo.pissir.bitpub.common.events.SensorEvent;
+import it.uniupo.pissir.bitpub.simulators.service.GenericSimulator.GameConfig;
+import it.uniupo.pissir.bitpub.simulators.service.GenericSimulator.SensorRule;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Autoplay generico e data-driven: nessun ramo per-gioco. Ad ogni tick sceglie un sensore di
+ * punteggio dalle regole in cache (via {@link GenericSimulator}), tira l'RNG configurato ed emette
+ * il sensor event (o un MISS) come farebbe un tavolo fisico. Il match-service accredita il punteggio
+ * e chiude la partita al winScoreTarget; l'autoplay riavvia periodicamente una nuova partita.
+ * ponytail: riavvio a intervallo fisso (RESTART_EVERY_TICKS), non alla fine reale del match — evita
+ * di dover interrogare il match-service; alzare la cadenza se le partite durano di piu'.
+ */
 @Service
+@Slf4j
 public class AutoplayService {
 
-    // Win conditions
-    private static final int FOOSBALL_WIN_SCORE  = 10; // first to 10 goals wins
-    private static final int DARTS_WIN_SCORE     = 301; // first team to reach 301+ points wins
-    private static final int BILLIARDS_TOTAL_BALLS = 15; // 8-ball pocketed after all others
+    private static final int RESTART_EVERY_TICKS = 6; // ~30s a 5s/tick: avvia una nuova partita
 
-    @Value("${server.port:8080}")
-    private String serverPort;
-
-    // Map: gameInstanceId -> AutoplayState
+    private final GenericSimulator simulator;
     private final Map<String, AutoplayState> activeAutoplays = new ConcurrentHashMap<>();
-    private final RestTemplate restTemplate = new RestTemplate();
 
-    public void toggleAutoplay(String gameType, String localeId, String gameInstanceId, boolean enabled) {
+    public AutoplayService(GenericSimulator simulator) {
+        this.simulator = simulator;
+    }
+
+    public void toggleAutoplay(String gameTypeId, String localeId, String gameInstanceId, boolean enabled) {
         if (enabled) {
-            activeAutoplays.put(gameInstanceId, new AutoplayState(gameType, localeId, gameInstanceId));
-            // Start the first match with recognizable autoplay team names
-            triggerRestEvent(gameType, localeId, gameInstanceId, "MATCH_START",
-                    Map.of("teamAName", "Auto-Red", "teamBName", "Auto-Blue"));
+            activeAutoplays.put(gameInstanceId, new AutoplayState(gameTypeId, localeId, gameInstanceId));
+            emitMatchStart(gameTypeId, localeId, gameInstanceId);
         } else {
-            AutoplayState state = activeAutoplays.remove(gameInstanceId);
-            if (state != null) {
-                // End the current match cleanly
-                triggerRestEvent(gameType, localeId, gameInstanceId, "MATCH_END", Map.of());
+            if (activeAutoplays.remove(gameInstanceId) != null) {
+                emit(gameInstanceId, localeId, "MATCH_END", new HashMap<>());
             }
         }
     }
@@ -45,124 +53,62 @@ public class AutoplayService {
 
     @Scheduled(fixedRate = 5000)
     public void runAutoplayTick() {
-        activeAutoplays.values().forEach(state -> {
-            switch (state.gameType.toLowerCase()) {
-                case "calciobalilla":
-                    simulateFoosballTick(state);
-                    break;
-                case "freccette":
-                    simulateDartTick(state);
-                    break;
-                case "biliardo":
-                    simulateBilliardsTick(state);
-                    break;
-            }
-        });
+        activeAutoplays.values().forEach(this::tick);
     }
 
-    // -------------------------------------------------------------------------
-    // Foosball: first team to reach FOOSBALL_WIN_SCORE goals wins
-    // -------------------------------------------------------------------------
-    private void simulateFoosballTick(AutoplayState state) {
-        String team = Math.random() > 0.5 ? "RED" : "BLUE";
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "GOAL", Map.of("team", team));
-
-        // Update in-memory score
-        if ("RED".equals(team)) {
-            state.scoreA.incrementAndGet();
-        } else {
-            state.scoreB.incrementAndGet();
+    private void tick(AutoplayState state) {
+        // Riavvia periodicamente: se la partita precedente e' finita, MATCH_START ne crea una nuova
+        // (ignorato dal match-service se ce n'e' gia' una in corso).
+        if (++state.tickCount % RESTART_EVERY_TICKS == 0) {
+            emitMatchStart(state.gameTypeId, state.localeId, state.gameInstanceId);
         }
 
-        // Check win condition
-        if (state.scoreA.get() >= FOOSBALL_WIN_SCORE || state.scoreB.get() >= FOOSBALL_WIN_SCORE) {
-            endAndRestartMatch(state);
+        GameConfig config = simulator.config(state.gameTypeId).orElse(null);
+        if (config == null) {
+            log.debug("Autoplay: no cached config for {} yet", state.gameTypeId);
+            return;
         }
+        List<SensorRule> scoring = config.scoringSensors();
+        if (scoring.isEmpty()) return;
+
+        SensorRule sensor = scoring.get(ThreadLocalRandom.current().nextInt(scoring.size()));
+        String team = ThreadLocalRandom.current().nextBoolean() ? "Auto-Red" : "Auto-Blue";
+        boolean hit = ThreadLocalRandom.current().nextDouble() < sensor.successProbability;
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("team", team);
+        payload.put("winScoreTarget", config.winScoreTarget);
+        payload.put("scoreIncrement", hit ? sensor.scoreIncrement : 0);
+        emit(state.gameInstanceId, state.localeId, hit ? sensor.type : "MISS", payload);
     }
 
-    // -------------------------------------------------------------------------
-    // Darts: first team (active player) to reach DARTS_WIN_SCORE points wins
-    // -------------------------------------------------------------------------
-    private void simulateDartTick(AutoplayState state) {
-        int score = (int) (Math.random() * 20) + 1;
-        int multiplier = Math.random() > 0.8 ? 2 : (Math.random() > 0.9 ? 3 : 1);
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "DART_HIT",
-                Map.of("score", score, "multiplier", multiplier));
-
-        // Update in-memory score for team A (the active player in darts)
-        state.scoreA.addAndGet(score * multiplier);
-
-        // Check win condition
-        if (state.scoreA.get() >= DARTS_WIN_SCORE) {
-            endAndRestartMatch(state);
-        }
+    private void emitMatchStart(String gameTypeId, String localeId, String gameInstanceId) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("teamAName", "Auto-Red");
+        payload.put("teamBName", "Auto-Blue");
+        emit(gameInstanceId, localeId, "MATCH_START", payload);
     }
 
-    // -------------------------------------------------------------------------
-    // Billiards (8-ball): match ends when the 8-ball is pocketed (ball #8).
-    // We cycle through balls 1-7 and 9-15, then pocket the 8-ball last.
-    // -------------------------------------------------------------------------
-    private void simulateBilliardsTick(AutoplayState state) {
-        int pocketId   = (int) (Math.random() * 6) + 1;
-        int ballNumber = state.counter.incrementAndGet();
-
-        if (ballNumber > BILLIARDS_TOTAL_BALLS) {
-            // All balls pocketed — should not reach here normally, reset
-            state.counter.set(1);
-            ballNumber = 1;
-        }
-
-        String color = ballNumber <= 8 ? "SOLID" : "STRIPED";
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "BALL_POCKETED",
-                Map.of("pocketId", pocketId, "ballNumber", ballNumber, "ballColor", color));
-
-        state.scoreA.incrementAndGet();
-
-        // The 8-ball (black ball) being pocketed ends the match
-        if (ballNumber == BILLIARDS_TOTAL_BALLS) {
-            endAndRestartMatch(state);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Helper: sends MATCH_END, resets state, then sends MATCH_START for next round
-    // -------------------------------------------------------------------------
-    private void endAndRestartMatch(AutoplayState state) {
-        System.out.printf("[Autoplay] Match ended for %s (scoreA=%d, scoreB=%d). Restarting...%n",
-                state.gameInstanceId, state.scoreA.get(), state.scoreB.get());
-
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "MATCH_END", Map.of());
-
-        // Reset score counters for the new match
-        state.scoreA.set(0);
-        state.scoreB.set(0);
-        state.counter.set(0);
-
-        triggerRestEvent(state.gameType, state.localeId, state.gameInstanceId, "MATCH_START",
-                Map.of("teamAName", "Auto-Red", "teamBName", "Auto-Blue"));
-    }
-
-    private void triggerRestEvent(String gameType, String localeId, String gameInstanceId, String eventType, Map<String, Object> payload) {
-        String url = String.format("http://localhost:%s/api/simulators/%s/%s/%s/event?eventType=%s&matchId=autoplay-match",
-                serverPort, gameType, localeId, gameInstanceId, eventType);
-        try {
-            restTemplate.postForEntity(url, payload, String.class);
-        } catch (Exception e) {
-            System.err.println("Autoplay error: " + e.getMessage());
-        }
+    private void emit(String gameInstanceId, String localeId, String type, Map<String, Object> payload) {
+        SensorEvent event = SensorEvent.builder()
+                .eventId(UUID.randomUUID())
+                .gameInstanceId(gameInstanceId)
+                .sensorType(type)
+                .timestamp(Instant.now())
+                .payload(payload)
+                .build();
+        simulator.publish(event, localeId, gameInstanceId);
     }
 
     private static class AutoplayState {
-        String gameType;
-        String localeId;
-        String gameInstanceId;
-        AtomicInteger counter = new AtomicInteger(0); // balls pocketed (billiards)
-        AtomicInteger scoreA  = new AtomicInteger(0); // RED / Player A score
-        AtomicInteger scoreB  = new AtomicInteger(0); // BLUE / Player B score
+        final String gameTypeId;
+        final String localeId;
+        final String gameInstanceId;
+        int tickCount = 0;
 
-        public AutoplayState(String gameType, String localeId, String gameInstanceId) {
-            this.gameType       = gameType;
-            this.localeId       = localeId;
+        AutoplayState(String gameTypeId, String localeId, String gameInstanceId) {
+            this.gameTypeId = gameTypeId;
+            this.localeId = localeId;
             this.gameInstanceId = gameInstanceId;
         }
     }

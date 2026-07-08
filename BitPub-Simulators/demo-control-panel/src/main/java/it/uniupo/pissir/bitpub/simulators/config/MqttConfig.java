@@ -7,9 +7,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.MessagingGateway;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
+import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
+import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -34,6 +37,8 @@ public class MqttConfig {
         return factory;
     }
 
+    // ── Outbound: publish simulated sensor events ───────────────────────────────────
+
     @Bean
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound() {
@@ -51,5 +56,25 @@ public class MqttConfig {
     @MessagingGateway(defaultRequestChannel = "mqttOutboundChannel")
     public interface MqttPublisher {
         void sendToMqtt(String data, @Header(MqttHeaders.TOPIC) String topic);
+    }
+
+    // ── Inbound: game-config snapshots (retained) + action requests from match-service ──
+    // Il GenericSimulator distingue i due flussi dal topic ricevuto (header mqtt_receivedTopic).
+
+    @Bean
+    public MessageChannel mqttInboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer mqttInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                mqttClientId + "-inbound", mqttClientFactory(),
+                "bitpub/config/games/#", "bitpub/simulators/+/action");
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttInboundChannel());
+        return adapter;
     }
 }
