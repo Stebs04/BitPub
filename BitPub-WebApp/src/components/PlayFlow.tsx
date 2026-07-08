@@ -3,7 +3,7 @@ import { Gamepad2, Server, Play, Loader2, Users, Trophy, ArrowLeft, RefreshCw } 
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
 import Button from './Button';
 import { useAuthStore } from '../store/authStore';
-import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction, getGameTypeById } from '../services/api';
+import { getOnlineLocales, joinMatchLobby, getMatch, postGameAction, getGameTypes } from '../services/api';
 import type { LocaleRecord, GameInstanceRecord, MatchRecord, SensorDefinitionRecord } from '../services/api';
 import { notificationService } from '../services/notificationService';
 import GameControlPanel from './GameControlPanel';
@@ -105,8 +105,14 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
   useEffect(() => {
     if (!gameTypeId) { setSensors([]); return; }
     let cancelled = false;
-    getGameTypeById(gameTypeId)
-      .then((res) => { if (!cancelled) setSensors(res.data?.sensors || []); })
+    getGameTypes()
+      .then((res) => {
+        if (cancelled) return;
+        const found = res.data?.find(
+          (g) => g.id === gameTypeId || g.name?.toLowerCase() === gameTypeId.toLowerCase()
+        );
+        setSensors(found?.sensors || []);
+      })
       .catch(() => { if (!cancelled) setSensors([]); });
     return () => { cancelled = true; };
   }, [gameTypeId]);

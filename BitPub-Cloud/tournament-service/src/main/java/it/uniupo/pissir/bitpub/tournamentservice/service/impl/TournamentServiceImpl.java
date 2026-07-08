@@ -102,10 +102,11 @@ public class TournamentServiceImpl implements TournamentService {
             String winnerId = ev.get("winnerId") == null ? null : ev.get("winnerId").toString();
             int winnerScore = ev.get("winnerScore") instanceof Number n ? n.intValue() : 0;
             int loserScore = ev.get("loserScore") instanceof Number n ? n.intValue() : 0;
-            if (winnerId != null && winnerId.equals(m.getPlayer1Id())) {
+            String tid = m.getTournament().getId();
+            if (isUserInParticipantSlot(winnerId, m.getPlayer1Id(), tid)) {
                 m.setPlayer1Goals(winnerScore);
                 m.setPlayer2Goals(loserScore);
-            } else if (winnerId != null && winnerId.equals(m.getPlayer2Id())) {
+            } else if (isUserInParticipantSlot(winnerId, m.getPlayer2Id(), tid)) {
                 m.setPlayer2Goals(winnerScore);
                 m.setPlayer1Goals(loserScore);
             } else {
@@ -379,8 +380,9 @@ public class TournamentServiceImpl implements TournamentService {
         TournamentMatch match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match not found with id: " + matchId));
 
-        boolean p1won = winnerId != null && winnerId.equals(match.getPlayer1Id());
-        boolean p2won = winnerId != null && winnerId.equals(match.getPlayer2Id());
+        String tid = match.getTournament().getId();
+        boolean p1won = isUserInParticipantSlot(winnerId, match.getPlayer1Id(), tid);
+        boolean p2won = isUserInParticipantSlot(winnerId, match.getPlayer2Id(), tid);
         if (!p1won && !p2won) {
             throw new BitpubException("winnerId non e' un giocatore di questo scontro", HttpStatus.BAD_REQUEST);
         }
@@ -423,8 +425,25 @@ public class TournamentServiceImpl implements TournamentService {
     @Transactional(readOnly = true)
     public boolean isPlayerInBracketMatch(String matchId, String playerId) {
         return matchRepository.findById(matchId)
-                .map(m -> playerId != null
-                        && (playerId.equals(m.getPlayer1Id()) || playerId.equals(m.getPlayer2Id())))
+                .map(m -> {
+                    String tid = m.getTournament().getId();
+                    return isUserInParticipantSlot(playerId, m.getPlayer1Id(), tid)
+                            || isUserInParticipantSlot(playerId, m.getPlayer2Id(), tid);
+                })
+                .orElse(false);
+    }
+
+    /**
+     * True se userId occupa lo slot participantId dello scontro. Match diretto per l'individuale
+     * (participantId = userId); per le squadre (participantId = teamId) verifica che userId sia tra
+     * i membri della TournamentRegistration di quella squadra nel torneo. Risolve il caso in cui
+     * match-service invia come winnerId l'id del primo membro anziche' il teamId.
+     */
+    private boolean isUserInParticipantSlot(String userId, String participantId, String tournamentId) {
+        if (userId == null || participantId == null) return false;
+        if (userId.equals(participantId)) return true;
+        return registrationRepository.findByTournamentIdAndParticipantId(tournamentId, participantId)
+                .map(r -> r.getMembers() != null && r.getMembers().contains(userId))
                 .orElse(false);
     }
 
