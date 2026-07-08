@@ -91,10 +91,12 @@ services:
       - "8084:8084"
     depends_on:
       - postgres
+      - mosquitto
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
 
