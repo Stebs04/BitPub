@@ -199,6 +199,7 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public TournamentDto getTournament(String id) {
         Tournament tournament = tournamentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + id));
@@ -206,11 +207,13 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TournamentDto> getAllTournaments() {
         return tournamentRepository.findAll().stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TournamentDto> getActiveTournaments() {
         return tournamentRepository.findByStatus("ACTIVE").stream().map(this::mapToDto).collect(Collectors.toList());
     }

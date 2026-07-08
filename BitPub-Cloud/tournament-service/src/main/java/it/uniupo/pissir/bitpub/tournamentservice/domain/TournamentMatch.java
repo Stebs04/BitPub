@@ -43,7 +43,9 @@ public class TournamentMatch {
 
     // Gol per slot, ingeriti via MQTT (bitpub/cloud/matches/result). Fonte isolata dei gol del torneo:
     // solo gli scontri del tabellone contribuiscono, mai la leaderboard globale.
+    @Column(name = "player1_goals")
     private int player1Goals;
+    @Column(name = "player2_goals")
     private int player2Goals;
 
     private String nextMatchId;
