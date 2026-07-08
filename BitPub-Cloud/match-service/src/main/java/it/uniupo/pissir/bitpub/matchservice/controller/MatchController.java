@@ -1,8 +1,6 @@
 package it.uniupo.pissir.bitpub.matchservice.controller;
 
-import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
-import it.uniupo.pissir.bitpub.matchservice.dto.GameActionRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
@@ -104,21 +102,6 @@ public class MatchController {
     }
 
     /**
-     * Azione di gioco interattiva del giocatore di turno. Il match-service verifica che
-     * il chiamante (X-User-Id) sia effettivamente il giocatore di turno; in caso contrario
-     * l'azione viene rifiutata (403). Al termine pubblica il nuovo stato via MQTT ai client.
-     */
-    @PostMapping("/{id}/action")
-    public ResponseEntity<MatchDto> gameAction(@PathVariable String id,
-            @RequestBody GameActionRequestDto action,
-            @RequestHeader(value = "X-User-Id", required = false) String callerId) {
-        if (callerId == null) {
-            throw new BitpubException("Utente autenticato obbligatorio", HttpStatus.UNAUTHORIZED);
-        }
-        return ResponseEntity.ok(matchService.processGameAction(id, callerId, action));
-    }
-
-    /**
      * Backfill statistiche (PLATFORM_ADMIN): ricostruisce la leaderboard dallo storico dei match
      * gia' conclusi, recuperando quelli terminati mentre lo statistics-service era irraggiungibile.
      */
@@ -129,16 +112,5 @@ public class MatchController {
             throw new BitpubException("Solo un PLATFORM_ADMIN puo' rigenerare le statistiche", HttpStatus.FORBIDDEN);
         }
         return ResponseEntity.ok(matchService.backfillStatistics());
-    }
-
-    /**
-     * Receives sensor events forwarded from the Edge app via REST.
-     * Handles all game types: calciobalilla (GOAL), freccette (DART_HIT), biliardo (BALL_POCKETED).
-     */
-    @PostMapping("/events")
-    public ResponseEntity<Void> receiveSensorEvent(@RequestBody SensorEvent event) {
-        log.info("Received sensor event via REST: type={}, gameInstanceId={}", event.getSensorType(), event.getGameInstanceId());
-        matchService.processSensorEvent(event);
-        return ResponseEntity.ok().build();
     }
 }

@@ -32,12 +32,11 @@ public class BufferedEvent {
     @Column(nullable = false)
     private String payloadJson;
 
-    // Cloud path this command replays to. Defaults to the sensor ingest path so existing
-    // sensor buffering keeps working unchanged; game-action / tournament-result commands
-    // set their own path (e.g. /api/matches/{id}/action, /api/v1/tournaments/.../result).
+    // Absolute cloud URL this command replays to. Sensor events now go Edge -> Cloud over MQTT,
+    // so only WebApp game-action / tournament-result commands are buffered here, each setting its
+    // own URL (e.g. .../api/matches/{id}/action, .../api/v1/tournaments/.../result).
     @Column(nullable = false)
-    @Builder.Default
-    private String targetEndpoint = "/api/matches/events";
+    private String targetEndpoint;
 
     // HTTP method for the replay. Sensor + action are POST; tournament result is PUT.
     @Column(nullable = false)

@@ -3,14 +3,19 @@ package it.uniupo.pissir.bitpub.edge.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import it.uniupo.pissir.bitpub.edge.model.BufferedEvent;
 import it.uniupo.pissir.bitpub.edge.repository.BufferedEventRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.ResourceAccessException;
@@ -27,17 +32,23 @@ public class EventForwardingService {
 
     private final RuleEngineService ruleEngineService;
     private final BufferedEventRepository repository;
-    private final RestClient restClient;
+    private final MessageChannel cloudMqttOutboundChannel;
     private final ObjectMapper objectMapper;
 
-    public EventForwardingService(RuleEngineService ruleEngineService, BufferedEventRepository repository, RestClient restClient) {
+    public EventForwardingService(RuleEngineService ruleEngineService, BufferedEventRepository repository,
+                                  @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel) {
         this.ruleEngineService = ruleEngineService;
         this.repository = repository;
-        this.restClient = restClient;
+        this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
     }
 
+    /**
+     * Validated sensor events are forwarded Edge -> Cloud over MQTT (QoS1) instead of REST.
+     * The broker durably queues them for match-service while it is down, so no app-level
+     * buffering is needed here; match-service dedups on eventId, so a QoS1 redelivery is safe.
+     */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(Message<String> message) {
         String payload = message.getPayload();
@@ -50,12 +61,6 @@ public class EventForwardingService {
 
         SensorEvent event = optionalEvent.get();
 
-        // Check if we already buffered this to avoid duplicate processing on local redeliveries
-        if (repository.existsByOriginalEventId(event.getEventId())) {
-            log.info("Event {} already buffered, skipping.", event.getEventId());
-            return;
-        }
-
         String json;
         try {
             json = objectMapper.writeValueAsString(event);
@@ -64,21 +69,18 @@ public class EventForwardingService {
             return;
         }
 
-        // Sensor events are POSTed to the match-service ingest path (relative to the base RestClient).
-        boolean success = forwardCommand("POST", "/api/matches/events", json, null, null);
-        if (!success) {
-            log.warn("Cloud unreachable or error, buffering event {}", event.getEventId());
-            bufferCommand(event.getEventId(), event.getGameInstanceId(), "POST", "/api/matches/events", json, null, null);
-        } else {
-            log.info("Event {} successfully forwarded to Cloud.", event.getEventId());
-        }
+        String topic = MqttTopics.getCloudSensorIngestTopic(event.getGameInstanceId());
+        cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                .setHeader(MqttHeaders.TOPIC, topic)
+                .build());
+        log.info("Event {} forwarded to Cloud via MQTT topic {}", event.getEventId(), topic);
     }
 
     /**
-     * Sends a command to the cloud. A relative targetEndpoint uses the match-service base
-     * RestClient; an absolute (http...) one is sent as-is, letting a single mechanism replay
-     * to any cloud service (e.g. tournament-service results). Captured identity is replayed
-     * as X-User-Id / X-User-Role (null for sensor events).
+     * Replays a buffered WebApp command (interactive game action / tournament result) to the
+     * cloud over REST. Kept for the {@link it.uniupo.pissir.bitpub.edge.controller.EdgeCommandController}
+     * offline path, which needs synchronous response semantics (403/JWT relay) MQTT can't give.
+     * Captured identity is replayed as X-User-Id / X-User-Role.
      * <p>
      * Return contract for the retry loop:
      *   true  = done, delete from buffer (2xx, or a 4xx that will never succeed = poison pill dropped);
@@ -87,8 +89,7 @@ public class EventForwardingService {
     public boolean forwardCommand(String httpMethod, String targetEndpoint, String payloadJson,
                                   String actorUserId, String actorRole) {
         try {
-            RestClient client = targetEndpoint.startsWith("http") ? RestClient.create() : restClient;
-            RestClient.RequestBodySpec spec = client.method(HttpMethod.valueOf(httpMethod))
+            RestClient.RequestBodySpec spec = RestClient.create().method(HttpMethod.valueOf(httpMethod))
                     .uri(targetEndpoint)
                     .contentType(MediaType.APPLICATION_JSON);
             if (actorUserId != null) spec = spec.header("X-User-Id", actorUserId);

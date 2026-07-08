@@ -1,15 +1,21 @@
 package it.uniupo.pissir.bitpub.edge.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
+import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
 import it.uniupo.pissir.bitpub.edge.service.EventForwardingService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.integration.mqtt.support.MqttHeaders;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.util.UriUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.ResourceAccessException;
@@ -40,28 +46,35 @@ public class EdgeCommandController {
     private final JwtUtils jwtUtils;
     private final EventForwardingService forwardingService;
     private final ObjectMapper objectMapper;
-
-    @Value("${bitpub.cloud.match-service-url}")
-    private String matchServiceUrl;
+    private final MessageChannel cloudMqttOutboundChannel;
 
     @Value("${bitpub.cloud.tournament-service-url}")
     private String tournamentServiceUrl;
 
-    public EdgeCommandController(JwtUtils jwtUtils, EventForwardingService forwardingService, ObjectMapper objectMapper) {
+    public EdgeCommandController(JwtUtils jwtUtils, EventForwardingService forwardingService, ObjectMapper objectMapper,
+                                @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel) {
         this.jwtUtils = jwtUtils;
         this.forwardingService = forwardingService;
         this.objectMapper = objectMapper;
+        this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
     }
 
-    /** Interactive game action from the turn player. Body = GameActionRequestDto JSON incl. eventId. */
+    /**
+     * Interactive game action from the turn player. Body = GameActionRequestDto JSON incl. eventId.
+     * Published to the cloud over MQTT (QoS1): the broker durably queues it while match-service is
+     * down, so no app-level buffer is needed. Identity is packed into the wrapper (MQTT has no
+     * headers). Returns 202 immediately — the resulting state reaches the WebApp via the match-state
+     * MQTT topic. A rejection (not-your-turn) is logged Cloud-side, not surfaced synchronously.
+     */
     @PostMapping("/matches/{matchId}/action")
     public ResponseEntity<String> gameAction(@PathVariable("matchId") String matchId,
                                              @RequestBody String actionJson,
                                              @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Actor actor = authenticate(authHeader);
-        UUID eventId = extractEventId(actionJson);
-        String url = matchServiceUrl + "/api/matches/" + matchId + "/action";
-        return relayOrBuffer(eventId, matchId, "POST", url, actionJson, actor);
+        String topic = MqttTopics.getCloudMatchActionTopic(matchId);
+        publishCommand(topic, matchId, actor, actionJson);
+        log.info("Game action for match {} published to cloud via MQTT {} (actor {})", matchId, topic, actor.userId());
+        return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
     /** Tournament match result reported by a LOCALE_ADMIN. No body; params carry the outcome. */
@@ -82,6 +95,19 @@ public class EdgeCommandController {
     // ── internals ───────────────────────────────────────────────────────────────
 
     private record Actor(String userId, String role) {}
+
+    /** Packs identity + body into an MqttCommandWrapper and publishes it to the cloud command topic (QoS1). */
+    private void publishCommand(String topic, String targetId, Actor actor, String payloadJson) {
+        try {
+            String json = objectMapper.writeValueAsString(
+                    new MqttCommandWrapper(actor.userId(), actor.role(), targetId, payloadJson));
+            cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                    .setHeader(MqttHeaders.TOPIC, topic)
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize command");
+        }
+    }
 
     private Actor authenticate(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -131,20 +157,6 @@ public class EdgeCommandController {
                     eventId, http.getStatusCode(), method, url, http.getResponseBodyAsString());
             return ResponseEntity.status(http.getStatusCode()).body(http.getResponseBodyAsString());
         }
-    }
-
-    /** Reads eventId from the action body; generates one if the client omitted it (idempotency key). */
-    private UUID extractEventId(String actionJson) {
-        try {
-            JsonNode node = objectMapper.readTree(actionJson);
-            JsonNode idNode = node.get("eventId");
-            if (idNode != null && !idNode.isNull() && !idNode.asText().isBlank()) {
-                return UUID.fromString(idNode.asText());
-            }
-        } catch (Exception e) {
-            log.warn("Could not parse eventId from action body, generating one", e);
-        }
-        return UUID.randomUUID();
     }
 
     private static String enc(String v) {

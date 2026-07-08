@@ -187,12 +187,12 @@ export const getWaitingLobby = (gameInstanceId: string) =>
 
 export const getMatch = (matchId: string) => matchApi.get<MatchRecord>(`/${matchId}`);
 
-// Invia un'azione di gioco tramite l'Edge (bufferizzata se il cloud e' irraggiungibile).
-// eventId = chiave di idempotenza: se l'azione bufferizzata viene rigiocata, il cloud la ignora.
-// Online -> 200 con lo stato aggiornato; cloud offline -> 202 (BUFFERED_OFFLINE), lo stato si
-// aggiorna comunque via MQTT/refetch quando il cloud torna e la coda viene svuotata.
+// Invia un'azione di gioco: l'Edge la pubblica sul cloud via MQTT (QoS1) e risponde subito 202.
+// eventId = chiave di idempotenza (il cloud ignora un replay). Lo stato aggiornato NON torna nella
+// risposta: arriva alla WebApp via il topic MQTT di match-state. Un'azione fuori turno viene
+// scartata e loggata lato cloud (nessun 403 sincrono).
 export const postGameAction = (matchId: string, action: GameActionPayload) =>
-  edgeApi.post<MatchRecord>(`/matches/${matchId}/action`, { ...action, eventId: crypto.randomUUID() });
+  edgeApi.post<void>(`/matches/${matchId}/action`, { ...action, eventId: crypto.randomUUID() });
 
 export const getMatchesByPlayer = (playerId: string) => matchApi.get<MatchRecord[]>(`/by-player/${playerId}`);
 

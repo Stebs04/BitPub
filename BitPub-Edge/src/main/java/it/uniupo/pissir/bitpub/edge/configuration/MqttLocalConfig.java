@@ -5,13 +5,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.IntegrationComponentScan;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageHandler;
 
 @Configuration
 @IntegrationComponentScan
@@ -25,6 +28,10 @@ public class MqttLocalConfig {
 
     @Value("${bitpub.mqtt.local.topic-sensors}")
     private String topicSensors;
+
+    // Stable client id so the durable cloud subscriber (match-service) keeps its QoS1 queue.
+    @Value("${bitpub.mqtt.cloud.client-id}")
+    private String cloudClientId;
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -40,6 +47,23 @@ public class MqttLocalConfig {
     @Bean
     public MessageChannel mqttInputChannel() {
         return new DirectChannel();
+    }
+
+    // ── Cloud egress: publish validated sensor events to the Cloud ingest topic (QoS1). ──
+    // Same broker as local in this deployment; a separate handler/client keeps the roles distinct.
+
+    @Bean
+    public MessageChannel cloudMqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "cloudMqttOutboundChannel")
+    public MessageHandler cloudMqttOutbound() {
+        MqttPahoMessageHandler handler = new MqttPahoMessageHandler(cloudClientId, mqttClientFactory());
+        handler.setAsync(true);
+        handler.setDefaultQos(1); // QoS1 so the broker queues for the durable cloud subscriber while it is down
+        return handler;
     }
 
     @Bean

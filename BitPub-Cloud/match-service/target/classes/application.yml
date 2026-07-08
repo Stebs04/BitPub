@@ -21,8 +21,12 @@ spring:
 mqtt:
   broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
   client-id: ${MQTT_CLIENT_ID:match-service-${random.uuid}}
+  # Stable id + durable session so the broker queues Edge-forwarded events while this service is down.
+  inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:match-service-ingest}
+  command-inbound-client-id: ${MQTT_COMMAND_INBOUND_CLIENT_ID:match-service-command-ingest}
   topic:
-    sensors: bitpub/sensors/#
+    cloud-sensors: bitpub/cloud/sensors/+/event
+    cloud-commands: bitpub/cloud/commands/matches/+/action
 
 # URL verso statistics-service per aggiornare la leaderboard a fine partita
 statistics:
