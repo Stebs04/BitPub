@@ -15,3 +15,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+# MQTT: durable ingest of Edge-forwarded tournament results + outbound live tournament-state publish.
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:tournament-service-${random.uuid}}
+  # Stable id + durable session so the broker queues Edge-forwarded results while this service is down.
+  inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:tournament-service-result-ingest}
+  topic:
+    cloud-results: bitpub/cloud/commands/tournaments/+/matches/+/result

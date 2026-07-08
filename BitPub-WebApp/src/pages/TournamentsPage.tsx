@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PlayFlow from '../components/PlayFlow';
+import { notificationService } from '../services/notificationService';
 import {
   Swords, CalendarDays, CheckCircle2, MapPin, Plus, StopCircle, Trophy, ChevronDown,
   Pencil, Trash2, UserPlus, Users, X,
@@ -74,6 +75,9 @@ const TournamentsPage: React.FC = () => {
   // Classifica espandibile per torneo
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rankings, setRankings] = useState<Record<string, TournamentRankingRecord[]>>({});
+  // Ref all'id espanso: l'handler MQTT (registrato una volta) legge sempre il valore corrente.
+  const expandedIdRef = useRef(expandedId);
+  expandedIdRef.current = expandedId;
 
   // Form crea/modifica torneo (manager). editingId != null => modifica.
   const [form, setForm] = useState(EMPTY_FORM);
@@ -107,6 +111,31 @@ const TournamentsPage: React.FC = () => {
       cancelled = true;
     };
   }, [user]);
+
+  // Aggiornamento live del tabellone: tournament-service pubblica il TournamentDto aggiornato su
+  // bitpub/tournaments/{id}/state a ogni avvio/avanzamento/chiusura. Sostituisce il torneo nella
+  // lista (bracket in tempo reale) e, se la classifica di quel torneo e' aperta, la ri-carica.
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe(
+      'bitpub/tournaments/+/state',
+      (payload: TournamentRecord) => {
+        if (!payload?.id) return;
+        setTournaments((prev) => {
+          const idx = prev.findIndex((t) => t.id === payload.id);
+          if (idx === -1) return [payload, ...prev];
+          const next = [...prev];
+          next[idx] = payload;
+          return next;
+        });
+        if (expandedIdRef.current === payload.id) {
+          getTournamentRankings(payload.id)
+            .then((res) => setRankings((prev) => ({ ...prev, [payload.id]: res.data || [] })))
+            .catch(() => {});
+        }
+      }
+    );
+    return unsubscribe;
+  }, []);
 
   const registeredTournamentIds = new Set(myRegistrations.map((r) => r.tournamentId));
   const hasEntrants = (t: TournamentRecord) => (t.registrations?.length ?? 0) > 0;

@@ -141,14 +141,6 @@ public class TournamentController {
         return ResponseEntity.ok().build();
     }
 
-    /** Registra il vincitore e le statistiche di uno scontro del tabellone. Solo LOCALE_ADMIN proprietario. */
-    @PutMapping("/{id}/matches/{matchId}/result")
-    public ResponseEntity<TournamentDto> updateMatchResult(@PathVariable String id, @PathVariable String matchId,
-            @RequestParam String winnerId,
-            @RequestParam(required = false) String stats,
-            @RequestHeader(value = "X-User-Role", required = false) String callerRole,
-            @RequestHeader(value = "X-User-Locale-Id", required = false) String callerLocaleId) {
-        assertOwns(id, requireLocaleAdmin(callerRole, callerLocaleId));
-        return ResponseEntity.ok(tournamentService.updateMatchResult(matchId, winnerId, stats));
-    }
+    // L'esito manuale di uno scontro (LOCALE_ADMIN) non passa piu' da REST: il WebApp lo invia
+    // all'Edge, che lo pubblica su MQTT; TournamentServiceImpl lo ingerisce via ServiceActivator.
 }

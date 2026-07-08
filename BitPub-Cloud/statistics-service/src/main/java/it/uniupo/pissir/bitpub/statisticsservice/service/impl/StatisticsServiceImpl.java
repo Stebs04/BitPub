@@ -11,9 +11,16 @@ import it.uniupo.pissir.bitpub.statisticsservice.dto.StatisticUpdateRequest;
 import it.uniupo.pissir.bitpub.statisticsservice.repository.AggregateStatisticRepository;
 import it.uniupo.pissir.bitpub.statisticsservice.repository.LeaderboardRepository;
 import it.uniupo.pissir.bitpub.statisticsservice.service.StatisticsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.integration.mqtt.support.MqttHeaders;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -32,6 +39,11 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private final AggregateStatisticRepository statisticRepository;
     private final LeaderboardRepository leaderboardRepository;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    @Qualifier("mqttOutboundChannel")
+    private MessageChannel mqttOutboundChannel;
 
     @Value("${locale.service.url:http://localhost:8083}")
     private String localeServiceUrl;
@@ -146,6 +158,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 event.getWinnerName(), event.getWinnerId(), event.getLoserName(), event.getLoserId(), event.getGameTypeId());
 
         applyToLeaderboard(event);
+        publishLeaderboardUpdate(event.getGameTypeId());
 
         // ── AggregateStatistic (by userId) ────────────────────────────────────
         // ponytail: aggiorna solo se winnerId/loserId sono valorizzati (partite dal matchmaking player)
@@ -193,6 +206,25 @@ public class StatisticsServiceImpl implements StatisticsService {
             loser.setLocaleId(event.getLocaleId());
             loser.setTeamBased(event.isTeamBased());
             leaderboardRepository.save(loser);
+        }
+    }
+
+    /**
+     * Pubblica la leaderboard aggiornata del gioco su bitpub/statistics/update cosi' il WebApp la
+     * aggiorna in tempo reale (feeling da app sportiva). Best-effort: un errore di publish non deve
+     * far fallire la registrazione del risultato.
+     */
+    private void publishLeaderboardUpdate(String gameTypeId) {
+        if (gameTypeId == null) return; // partite libere senza gioco associato: niente da pubblicare
+        try {
+            String json = objectMapper.writeValueAsString(Map.of(
+                    "gameTypeId", gameTypeId,
+                    "entries", getLeaderboard(gameTypeId)));
+            mqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                    .setHeader(MqttHeaders.TOPIC, MqttTopics.STATISTICS_UPDATE_TOPIC)
+                    .build());
+        } catch (Exception e) {
+            log.error("Publish leaderboard update per gameType {} fallito", gameTypeId, e);
         }
     }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
 import { statsApi, backfillStats } from '../services/api';
+import { notificationService } from '../services/notificationService';
 import { useAuthStore } from '../store/authStore';
 
 interface LeaderboardEntry {
@@ -23,6 +24,11 @@ const GAME_TYPE_MAP: Record<GameTab, string> = {
   freccette:     'darts',
   biliardo:      'billiards',
 };
+
+// Inverso: backend gameTypeId → tab UI, per instradare gli update MQTT live.
+const BACKEND_TO_TAB: Record<string, GameTab> = Object.fromEntries(
+  Object.entries(GAME_TYPE_MAP).map(([tab, backend]) => [backend, tab as GameTab])
+) as Record<string, GameTab>;
 
 const TABS: { id: GameTab; label: string; icon: React.ReactNode; color: string; accentBg: string; accentBorder: string }[] = [
   {
@@ -95,6 +101,22 @@ const LeaderboardPage: React.FC = () => {
   useEffect(() => {
     fetchLeaderboard(activeTab);
   }, [activeTab, fetchLeaderboard]);
+
+  // Aggiornamento live della leaderboard: lo statistics-service pubblica la classifica del gioco
+  // su bitpub/statistics/update a ogni risultato di partita. Sostituisce le entry del tab relativo
+  // senza refetch, cosi' la classifica si aggiorna in tempo reale come un'app sportiva.
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe(
+      'bitpub/statistics/update',
+      (payload: { gameTypeId?: string; entries?: LeaderboardEntry[] }) => {
+        const tab = payload.gameTypeId ? BACKEND_TO_TAB[payload.gameTypeId] : undefined;
+        if (!tab || !payload.entries) return;
+        setData((prev) => ({ ...prev, [tab]: payload.entries! }));
+        setLastRefresh(new Date());
+      }
+    );
+    return unsubscribe;
+  }, []);
 
   const handleBackfill = async () => {
     setBackfilling(true);

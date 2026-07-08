@@ -20,3 +20,8 @@ spring:
 locale:
   service:
     url: ${LOCALE_SERVICE_URL:http://localhost:8083}
+
+# MQTT: outbound-only publisher for live leaderboard updates (bitpub/statistics/update).
+mqtt:
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:statistics-service-${random.uuid}}

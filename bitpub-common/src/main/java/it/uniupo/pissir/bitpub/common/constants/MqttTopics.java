@@ -34,6 +34,16 @@ public final class MqttTopics {
     // MQTT has no HTTP headers, so the caller identity travels inside the MqttCommandWrapper payload.
     public static final String CLOUD_MATCH_ACTION_FORMAT = "bitpub/cloud/commands/matches/%s/action";
 
+    // bitpub/cloud/commands/tournaments/{tournamentId}/matches/{matchId}/result — Edge -> Cloud
+    // tournament bracket result reported by a LOCALE_ADMIN. Identity travels in the MqttCommandWrapper.
+    public static final String CLOUD_TOURNAMENT_RESULT_FORMAT = "bitpub/cloud/commands/tournaments/%s/matches/%s/result";
+
+    // bitpub/tournaments/{tournamentId}/state — Cloud -> WebApp live tournament (bracket) updates.
+    public static final String TOURNAMENT_STATE_FORMAT = "bitpub/tournaments/%s/state";
+
+    // bitpub/statistics/update — Cloud -> WebApp live leaderboard updates (single shared topic).
+    public static final String STATISTICS_UPDATE_TOPIC = "bitpub/statistics/update";
+
     public static String getSensorEventTopic(String localeId, String gameInstanceId) {
         return String.format(SENSOR_EVENT_FORMAT, localeId, gameInstanceId);
     }
@@ -56,5 +66,13 @@ public final class MqttTopics {
 
     public static String getCloudMatchActionTopic(String matchId) {
         return String.format(CLOUD_MATCH_ACTION_FORMAT, matchId);
+    }
+
+    public static String getCloudTournamentResultTopic(String tournamentId, String matchId) {
+        return String.format(CLOUD_TOURNAMENT_RESULT_FORMAT, tournamentId, matchId);
+    }
+
+    public static String getTournamentStateTopic(String tournamentId) {
+        return String.format(TOURNAMENT_STATE_FORMAT, tournamentId);
     }
 }

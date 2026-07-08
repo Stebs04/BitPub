@@ -4,38 +4,25 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
+import it.uniupo.pissir.bitpub.common.mqtt.TournamentResultCommand;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
-import it.uniupo.pissir.bitpub.edge.service.EventForwardingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
-import org.springframework.web.util.UriUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
-
 /**
- * Inbound REST ingress for WebApp commands that must survive a cloud outage: interactive
- * game actions and tournament match results. The WebApp calls the Edge (reachable on the
- * local network even when the cloud is down) instead of the gateway.
- * <p>
- * Flow: validate the caller's JWT once here (Edge as trusted origin), try the cloud
- * immediately and relay its response so online play is unchanged; if the cloud is
- * unreachable, buffer the command and return 202 — the OfflineSyncScheduler replays it later,
- * stamping the captured identity as X-User-Id/X-User-Role so it authorizes even if the JWT
- * has since expired.
+ * Inbound REST ingress for WebApp commands: interactive game actions and tournament match results.
+ * The WebApp calls the Edge (reachable on the local network even when the cloud is briefly down);
+ * the Edge validates the caller's JWT once (trusted origin) and relays the command to the Cloud
+ * 100% over MQTT (QoS1). The broker durably queues the command while the Cloud subscriber is down,
+ * so there is no app-level buffer or REST fallback. Everything returns 202 — the resulting state
+ * reaches the WebApp on its own live MQTT topic (match-state / tournament-state).
  */
 @RestController
 @RequestMapping("/edge")
@@ -44,27 +31,20 @@ import java.util.UUID;
 public class EdgeCommandController {
 
     private final JwtUtils jwtUtils;
-    private final EventForwardingService forwardingService;
     private final ObjectMapper objectMapper;
     private final MessageChannel cloudMqttOutboundChannel;
 
-    @Value("${bitpub.cloud.tournament-service-url}")
-    private String tournamentServiceUrl;
-
-    public EdgeCommandController(JwtUtils jwtUtils, EventForwardingService forwardingService, ObjectMapper objectMapper,
+    public EdgeCommandController(JwtUtils jwtUtils, ObjectMapper objectMapper,
                                 @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel) {
         this.jwtUtils = jwtUtils;
-        this.forwardingService = forwardingService;
         this.objectMapper = objectMapper;
         this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
     }
 
     /**
      * Interactive game action from the turn player. Body = GameActionRequestDto JSON incl. eventId.
-     * Published to the cloud over MQTT (QoS1): the broker durably queues it while match-service is
-     * down, so no app-level buffer is needed. Identity is packed into the wrapper (MQTT has no
-     * headers). Returns 202 immediately — the resulting state reaches the WebApp via the match-state
-     * MQTT topic. A rejection (not-your-turn) is logged Cloud-side, not surfaced synchronously.
+     * Published to the cloud over MQTT (QoS1); identity is packed into the wrapper (MQTT has no
+     * headers). Returns 202 — the resulting state reaches the WebApp via the match-state MQTT topic.
      */
     @PostMapping("/matches/{matchId}/action")
     public ResponseEntity<String> gameAction(@PathVariable("matchId") String matchId,
@@ -77,19 +57,24 @@ public class EdgeCommandController {
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
-    /** Tournament match result reported by a LOCALE_ADMIN. No body; params carry the outcome. */
+    /**
+     * Tournament match result reported by a LOCALE_ADMIN. Published to the cloud over MQTT (QoS1);
+     * tournament-service validates the role from the wrapper and advances the bracket. Returns 202 —
+     * the updated bracket reaches the WebApp via the tournament-state MQTT topic.
+     */
     @PutMapping("/tournaments/{tournamentId}/matches/{tMatchId}/result")
     public ResponseEntity<String> tournamentResult(@PathVariable("tournamentId") String tournamentId,
                                                    @PathVariable("tMatchId") String tMatchId,
                                                    @RequestParam("winnerId") String winnerId,
                                                    @RequestParam(name = "stats", required = false) String stats,
-                                                   @RequestParam("eventId") String eventId,
                                                    @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Actor actor = authenticate(authHeader);
-        String url = tournamentServiceUrl + "/api/v1/tournaments/" + tournamentId + "/matches/" + tMatchId
-                + "/result?winnerId=" + enc(winnerId) + "&eventId=" + enc(eventId)
-                + (stats != null ? "&stats=" + enc(stats) : "");
-        return relayOrBuffer(UUID.fromString(eventId), tournamentId, "PUT", url, null, actor);
+        String topic = MqttTopics.getCloudTournamentResultTopic(tournamentId, tMatchId);
+        String payload = toJson(new TournamentResultCommand(tMatchId, winnerId, stats));
+        publishCommand(topic, tournamentId, actor, payload);
+        log.info("Tournament result for {}/{} published to cloud via MQTT {} (actor {})",
+                tournamentId, tMatchId, topic, actor.userId());
+        return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
     // ── internals ───────────────────────────────────────────────────────────────
@@ -98,12 +83,15 @@ public class EdgeCommandController {
 
     /** Packs identity + body into an MqttCommandWrapper and publishes it to the cloud command topic (QoS1). */
     private void publishCommand(String topic, String targetId, Actor actor, String payloadJson) {
+        String json = toJson(new MqttCommandWrapper(actor.userId(), actor.role(), targetId, payloadJson));
+        cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                .setHeader(MqttHeaders.TOPIC, topic)
+                .build());
+    }
+
+    private String toJson(Object value) {
         try {
-            String json = objectMapper.writeValueAsString(
-                    new MqttCommandWrapper(actor.userId(), actor.role(), targetId, payloadJson));
-            cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
-                    .setHeader(MqttHeaders.TOPIC, topic)
-                    .build());
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize command");
         }
@@ -118,48 +106,5 @@ public class EdgeCommandController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
         }
         return new Actor(jwtUtils.getUserIdFromToken(token), jwtUtils.getRoleFromToken(token));
-    }
-
-    /**
-     * Try the cloud now and relay its response (online path — behaves exactly like a direct call).
-     * On unreachable/5xx, buffer for deferred replay and return 202. A 4xx is a real rejection
-     * (e.g. 403 not-your-turn) and is surfaced to the caller, never buffered.
-     */
-    private ResponseEntity<String> relayOrBuffer(UUID eventId, String contextTag, String method,
-                                                 String url, String bodyJson, Actor actor) {
-        try {
-            RestClient.RequestBodySpec spec = RestClient.create()
-                    .method(HttpMethod.valueOf(method))
-                    .uri(url)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("X-User-Id", actor.userId());
-            if (actor.role() != null) spec = spec.header("X-User-Role", actor.role());
-            String resp = (bodyJson != null && !bodyJson.isBlank())
-                    ? spec.body(bodyJson).retrieve().body(String.class)
-                    : spec.retrieve().body(String.class);
-            log.info("Command {} relayed online to cloud: {} {} (actor {})", eventId, method, url, actor.userId());
-            return ResponseEntity.ok(resp);
-        } catch (ResourceAccessException io) {
-            forwardingService.bufferCommand(eventId, contextTag, method, url, bodyJson, actor.userId(), actor.role());
-            log.warn("Cloud unreachable, buffered command {} ({} {})", eventId, method, url);
-            return ResponseEntity.accepted()
-                    .body("{\"status\":\"BUFFERED_OFFLINE\",\"eventId\":\"" + eventId + "\"}");
-        } catch (RestClientResponseException http) {
-            if (http.getStatusCode().is5xxServerError()) {
-                forwardingService.bufferCommand(eventId, contextTag, method, url, bodyJson, actor.userId(), actor.role());
-                log.warn("Cloud 5xx, buffered command {} ({} {})", eventId, method, url);
-                return ResponseEntity.accepted()
-                        .body("{\"status\":\"BUFFERED_OFFLINE\",\"eventId\":\"" + eventId + "\"}");
-            }
-            // 4xx: genuine rejection (e.g. 403 not-your-turn, 409 match not in progress).
-            // Surface it, do not buffer. Logged so the command is visible even when rejected.
-            log.info("Command {} relayed to cloud but rejected {} ({} {}): {}",
-                    eventId, http.getStatusCode(), method, url, http.getResponseBodyAsString());
-            return ResponseEntity.status(http.getStatusCode()).body(http.getResponseBodyAsString());
-        }
-    }
-
-    private static String enc(String v) {
-        return UriUtils.encode(v, StandardCharsets.UTF_8);
     }
 }

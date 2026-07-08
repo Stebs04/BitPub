@@ -1,7 +1,11 @@
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
+import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
+import it.uniupo.pissir.bitpub.common.mqtt.TournamentResultCommand;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.Tournament;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentMatch;
 import it.uniupo.pissir.bitpub.tournamentservice.domain.TournamentRegistration;
@@ -15,7 +19,15 @@ import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.mqtt.support.MqttHeaders;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +40,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
@@ -35,6 +48,53 @@ public class TournamentServiceImpl implements TournamentService {
     private final TournamentMatchRepository matchRepository;
     private final TournamentRankingRepository rankingRepository;
     private final TournamentRankingService rankingService;
+    private final ObjectMapper objectMapper;
+
+    @Autowired
+    @Qualifier("mqttOutboundChannel")
+    private MessageChannel mqttOutboundChannel;
+
+    /**
+     * Ingerisce l'esito manuale di uno scontro inviato dall'Edge su MQTT (QoS1). Identita' e ruolo
+     * viaggiano nel wrapper (MQTT non ha header): solo il LOCALE_ADMIN puo' registrare un esito.
+     * Cattura le eccezioni per non far crashare il subscriber ne' nack-are il messaggio QoS1
+     * (un replay ripeterebbe lo stesso esito deterministico).
+     * ponytail: il vecchio path REST verificava anche la proprieta' del locale (assertOwns). Il
+     * wrapper non porta il localeId, quindi qui si controlla solo il ruolo; per ripristinare il
+     * controllo di proprieta' aggiungere il localeId a MqttCommandWrapper e riverificarlo.
+     */
+    @ServiceActivator(inputChannel = "mqttResultInboundChannel")
+    public void onTournamentResult(Message<String> message) {
+        try {
+            MqttCommandWrapper wrapper = objectMapper.readValue(message.getPayload(), MqttCommandWrapper.class);
+            if (!"LOCALE_ADMIN".equals(wrapper.actorRole())) {
+                log.warn("Rifiutato esito torneo via MQTT: ruolo {} non autorizzato", wrapper.actorRole());
+                return;
+            }
+            TournamentResultCommand cmd = objectMapper.readValue(wrapper.payload(), TournamentResultCommand.class);
+            updateMatchResult(cmd.matchId(), cmd.winnerId(), cmd.stats());
+            log.info("Esito torneo processato via MQTT: match={}, winner={}", cmd.matchId(), cmd.winnerId());
+        } catch (BitpubException e) {
+            // Rifiuto legittimo (winnerId non valido, match/torneo inesistente). ResourceNotFoundException
+            // estende BitpubException, quindi rientra qui. Non far crashare il subscriber.
+            log.info("Esito torneo via MQTT rifiutato: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Impossibile processare esito torneo inbound: {}", message.getPayload(), e);
+        }
+    }
+
+    /** Pubblica il TournamentDto aggiornato sul topic live cosi' il WebApp aggiorna il tabellone in tempo reale. */
+    private void publishState(TournamentDto dto) {
+        try {
+            String json = objectMapper.writeValueAsString(dto);
+            mqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                    .setHeader(MqttHeaders.TOPIC, MqttTopics.getTournamentStateTopic(dto.getId()))
+                    .build());
+        } catch (Exception e) {
+            // Best-effort: un errore di publish non deve far fallire la transazione del torneo.
+            log.error("Publish stato torneo {} fallito", dto.getId(), e);
+        }
+    }
 
     @Override
     @Transactional
@@ -115,6 +175,7 @@ public class TournamentServiceImpl implements TournamentService {
         // All'avvio crea una riga di classifica per ogni iscritto, cosi' la classifica esiste
         // gia' a torneo iniziato (poi i punteggi si sincronizzano dai match via statistics-service).
         rankingService.initializeRankingsForTournament(id);
+        publishState(dto);
         return dto;
     }
 
@@ -125,7 +186,9 @@ public class TournamentServiceImpl implements TournamentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tournament not found with id: " + id));
         tournament.setStatus("COMPLETED");
         tournament.setEndDate(Instant.now());
-        return mapToDto(tournamentRepository.save(tournament));
+        TournamentDto dto = mapToDto(tournamentRepository.save(tournament));
+        publishState(dto);
+        return dto;
     }
 
     /**
@@ -246,7 +309,9 @@ public class TournamentServiceImpl implements TournamentService {
         tournamentRepository.save(tournament);
         // Classifica inizializzata all'attivazione (prima lo faceva startTournament, ora rimosso).
         rankingService.initializeRankingsForTournament(tournamentId);
-        return mapToDto(tournament);
+        TournamentDto dto = mapToDto(tournament);
+        publishState(dto);
+        return dto;
     }
 
     /**
@@ -287,7 +352,9 @@ public class TournamentServiceImpl implements TournamentService {
             tournament.setEndDate(Instant.now());
             tournamentRepository.save(tournament);
         }
-        return mapToDto(match.getTournament());
+        TournamentDto dto = mapToDto(match.getTournament());
+        publishState(dto);
+        return dto;
     }
 
     /**

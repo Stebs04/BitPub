@@ -127,11 +127,13 @@ services:
       - "8086:8086"
     depends_on:
       - postgres
+      - mosquitto
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
 
@@ -142,10 +144,12 @@ services:
       - "8087:8087"
     depends_on:
       - postgres
+      - mosquitto
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
 
