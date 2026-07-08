@@ -44,6 +44,9 @@ public final class MqttTopics {
     // bitpub/statistics/update — Cloud -> WebApp live leaderboard updates (single shared topic).
     public static final String STATISTICS_UPDATE_TOPIC = "bitpub/statistics/update";
 
+    // bitpub/cloud/matches/result — match-service -> statistics-service completed-match results (single shared topic).
+    public static final String CLOUD_MATCH_RESULT_TOPIC = "bitpub/cloud/matches/result";
+
     public static String getSensorEventTopic(String localeId, String gameInstanceId) {
         return String.format(SENSOR_EVENT_FORMAT, localeId, gameInstanceId);
     }

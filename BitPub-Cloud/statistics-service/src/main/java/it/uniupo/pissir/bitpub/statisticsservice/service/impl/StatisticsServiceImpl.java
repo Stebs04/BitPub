@@ -2,6 +2,8 @@ package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
 
 import it.uniupo.pissir.bitpub.statisticsservice.domain.AggregateStatistic;
 import it.uniupo.pissir.bitpub.statisticsservice.domain.Leaderboard;
+import it.uniupo.pissir.bitpub.statisticsservice.domain.MatchHistoryRecord;
+import it.uniupo.pissir.bitpub.statisticsservice.repository.MatchHistoryRecordRepository;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.AggregateStatisticDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.GameUsageDto;
 import it.uniupo.pissir.bitpub.statisticsservice.dto.GlobalStatsDto;
@@ -39,6 +41,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private final AggregateStatisticRepository statisticRepository;
     private final LeaderboardRepository leaderboardRepository;
+    private final MatchHistoryRecordRepository historyRepository;
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -157,6 +160,14 @@ public class StatisticsServiceImpl implements StatisticsService {
         log.info("Recording match result: winner={} ({}), loser={} ({}), gameType={}",
                 event.getWinnerName(), event.getWinnerId(), event.getLoserName(), event.getLoserId(), event.getGameTypeId());
 
+        // Idempotenza: la sessione MQTT durevole (QoS1) puo' riconsegnare lo stesso risultato al
+        // riavvio; senza questo guard i wins/losses verrebbero contati due volte. matchId = chiave.
+        if (event.getMatchId() != null && historyRepository.existsByMatchId(event.getMatchId())) {
+            log.info("Match {} gia' registrato, ingest ignorato", event.getMatchId());
+            return;
+        }
+
+        saveHistory(event);
         applyToLeaderboard(event);
         publishLeaderboardUpdate(event.getGameTypeId());
 
@@ -172,6 +183,20 @@ public class StatisticsServiceImpl implements StatisticsService {
             incrementStat(event.getLoserId(), "PLAYER", "LOSSES", 1);
             incrementStat(event.getLoserId(), "PLAYER", "MATCHES_PLAYED", 1);
         }
+    }
+
+    /** Salva lo storico stabile per-partita (chi ha vinto/perso, punteggi, tipo di gioco). */
+    private void saveHistory(MatchResultEvent event) {
+        historyRepository.save(MatchHistoryRecord.builder()
+                .matchId(event.getMatchId())
+                .gameTypeId(event.getGameTypeId())
+                .winnerName(event.getWinnerName())
+                .loserName(event.getLoserName())
+                .winnerScore(event.getWinnerScore())
+                .loserScore(event.getLoserScore())
+                .teamBased(event.isTeamBased())
+                .timestamp(Instant.now())
+                .build());
     }
 
     /** Upsert delle righe leaderboard (vincitore + eventuale perdente) per un singolo match. */

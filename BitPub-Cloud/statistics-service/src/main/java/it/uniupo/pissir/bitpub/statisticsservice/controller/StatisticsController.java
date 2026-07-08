@@ -60,16 +60,6 @@ public class StatisticsController {
     }
 
     /**
-     * Called by match-service when a match completes.
-     * Updates the leaderboard for winner and loser.
-     */
-    @PostMapping("/match-result")
-    public ResponseEntity<Void> recordMatchResult(@RequestBody MatchResultEvent event) {
-        statisticsService.recordMatchResult(event);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
      * Backfill invocato dal match-service: azzera e ricostruisce la leaderboard dai match conclusi.
      * ponytail: endpoint interno trusted (stesso pattern di /match-result); l'autorizzazione
      * PLATFORM_ADMIN e' applicata dal match-service che riceve il JWT dal gateway.

@@ -185,7 +185,7 @@ public class MatchServiceImpl implements MatchService {
         Match match = Match.builder()
                 .gameInstanceId(request.getGameInstanceId())
                 .localeId(resolveLocaleId(request.getGameInstanceId()))
-                .gameTypeId(request.getGameTypeId())
+                .gameTypeId(canonicalGameType(request.getGameTypeId(), request.getGameInstanceId()))
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
                 .build();
@@ -292,7 +292,11 @@ public class MatchServiceImpl implements MatchService {
             throw new BitpubException("Il gioco selezionato non e' attivo in questo momento", HttpStatus.CONFLICT);
         }
         String localeId = info.get("localeId") != null ? info.get("localeId").toString() : null;
-        String gameTypeId = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : "unknown";
+        // Il locale-service passa a volte l'UUID del catalogo, a volte il nome: normalizza al token
+        // stabile del frontend, ripiegando sul localInstanceId (es. "calciobalilla-1") se serve.
+        String rawGameType = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : null;
+        String localInstanceId = info.get("localInstanceId") != null ? info.get("localInstanceId").toString() : null;
+        String gameTypeId = canonicalGameType(rawGameType, localInstanceId);
 
         Match match = Match.builder()
                 .gameInstanceId(gameInstanceId)
@@ -383,7 +387,7 @@ public class MatchServiceImpl implements MatchService {
             match = Match.builder()
                 .gameInstanceId(event.getGameInstanceId())
                 .localeId(resolveLocaleId(event.getGameInstanceId()))
-                .gameTypeId(event.getGameInstanceId().contains("-") ? event.getGameInstanceId().split("-")[0] : "unknown")
+                .gameTypeId(canonicalGameType(event.getGameInstanceId()))
                 .status("IN_PROGRESS")
                 .startTime(Instant.now())
                 .teams(new ArrayList<>())
@@ -500,6 +504,29 @@ public class MatchServiceImpl implements MatchService {
         if (g.contains("biliard") || g.contains("billiard") || g.contains("pool")) return GameKind.BILLIARDS;
         if (g.contains("frecc") || g.contains("dart")) return GameKind.DARTS;
         return GameKind.UNKNOWN;
+    }
+
+    /**
+     * Normalizza il gameTypeId in uno dei tre token stabili che il frontend interroga
+     * ("foosball" / "billiards" / "darts"), gli stessi con cui la leaderboard e' indicizzata.
+     * Prima causava classifiche vuote e classify()==UNKNOWN: il locale-service passava a volte
+     * l'UUID del catalogo, a volte il nome ("Calciobalilla"), mai il token del frontend.
+     * Prova i candidati in ordine (es. gameTypeId poi localInstanceId) e ritorna il primo
+     * riconoscibile; se nessuno lo e', ritorna il primo candidato non nullo invariato.
+     */
+    private String canonicalGameType(String... candidates) {
+        for (String c : candidates) {
+            switch (classify(c)) {
+                case FOOSBALL: return "foosball";
+                case BILLIARDS: return "billiards";
+                case DARTS: return "darts";
+                default: // UNKNOWN: prova il candidato successivo
+            }
+        }
+        for (String c : candidates) {
+            if (c != null) return c;
+        }
+        return "unknown";
     }
 
     /**
@@ -767,22 +794,25 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
+    /**
+     * Pubblica il risultato del match concluso su MQTT (bitpub/cloud/matches/result); lo statistics-service
+     * lo consuma in modo asincrono e durevole (QoS1). Sostituisce la vecchia POST REST sincrona: se lo
+     * statistics-service e' giu', il broker accoda il risultato e lo riconsegna al riavvio, quindi le
+     * partite concluse finiscono comunque in classifica senza dover ricorrere al backfill manuale.
+     * L'ingest e' idempotente sul matchId, quindi una riconsegna QoS1 non raddoppia i conteggi.
+     */
     private void notifyStatisticsService(Match match) {
         Map<String, Object> resultEvent = buildResultEvent(match);
         if (resultEvent == null) return;
         try {
             String body = objectMapper.writeValueAsString(resultEvent);
-            RestClient.create(statisticsServiceUrl)
-                    .post()
-                    .uri("/api/v1/statistics/match-result")
-                    .header("Content-Type", "application/json")
-                    .body(body)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Notified statistics-service: winner={}, gameType={}",
+            mqttOutboundChannel.send(MessageBuilder.withPayload(body)
+                    .setHeader(MqttHeaders.TOPIC, it.uniupo.pissir.bitpub.common.constants.MqttTopics.CLOUD_MATCH_RESULT_TOPIC)
+                    .build());
+            log.info("Published match result to MQTT: winner={}, gameType={}",
                     resultEvent.get("winnerName"), match.getGameTypeId());
         } catch (Exception e) {
-            log.error("Failed to notify statistics-service", e);
+            log.error("Failed to publish match result to MQTT", e);
         }
     }
 
