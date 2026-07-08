@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -83,6 +84,44 @@ public class TournamentServiceImpl implements TournamentService {
         }
     }
 
+    /**
+     * Ingerisce il risultato di una partita conclusa (bitpub/cloud/matches/result) per attribuire i GOL
+     * al torneo. Isolamento: solo gli eventi con tournamentMatchId aggiornano i gol del tabellone; le
+     * partite libere vengono ignorate, quindi i gol del torneo non dipendono dalla leaderboard globale.
+     * Idempotente: memorizza i gol per slot sullo scontro, una riconsegna QoS1 riscrive lo stesso valore.
+     */
+    @ServiceActivator(inputChannel = "mqttMatchResultInboundChannel")
+    @Transactional
+    public void onMatchResult(Message<String> message) {
+        try {
+            Map<String, Object> ev = objectMapper.readValue(message.getPayload(), Map.class);
+            Object bracketId = ev.get("tournamentMatchId");
+            if (bracketId == null) return; // partita non di torneo: nessun aggiornamento gol torneo
+            TournamentMatch m = matchRepository.findById(bracketId.toString()).orElse(null);
+            if (m == null) return;
+            String winnerId = ev.get("winnerId") == null ? null : ev.get("winnerId").toString();
+            int winnerScore = ev.get("winnerScore") instanceof Number n ? n.intValue() : 0;
+            int loserScore = ev.get("loserScore") instanceof Number n ? n.intValue() : 0;
+            if (winnerId != null && winnerId.equals(m.getPlayer1Id())) {
+                m.setPlayer1Goals(winnerScore);
+                m.setPlayer2Goals(loserScore);
+            } else if (winnerId != null && winnerId.equals(m.getPlayer2Id())) {
+                m.setPlayer2Goals(winnerScore);
+                m.setPlayer1Goals(loserScore);
+            } else {
+                // ponytail: winnerId non combacia con uno slot (tornei a squadre: participantId=teamId ma
+                // l'evento porta l'id del primo membro). Gol non attribuibili, saltati. Per i team,
+                // propagare il teamId nel result event di match-service e mapparlo qui.
+                log.warn("Gol match {} non attribuibili: winnerId {} non e' uno slot dello scontro", bracketId, winnerId);
+                return;
+            }
+            matchRepository.save(m);
+            log.info("Gol torneo ingeriti via MQTT per bracketMatch {}: {}-{}", bracketId, m.getPlayer1Goals(), m.getPlayer2Goals());
+        } catch (Exception e) {
+            log.error("Impossibile processare risultato match inbound: {}", message.getPayload(), e);
+        }
+    }
+
     /** Pubblica il TournamentDto aggiornato sul topic live cosi' il WebApp aggiorna il tabellone in tempo reale. */
     private void publishState(TournamentDto dto) {
         try {
@@ -93,6 +132,18 @@ public class TournamentServiceImpl implements TournamentService {
         } catch (Exception e) {
             // Best-effort: un errore di publish non deve far fallire la transazione del torneo.
             log.error("Publish stato torneo {} fallito", dto.getId(), e);
+        }
+    }
+
+    /** Evento dedicato di fine torneo (bitpub/tournaments/{id}/ended): notifica servizi/edge in tempo reale. */
+    private void publishEnded(TournamentDto dto) {
+        try {
+            String json = objectMapper.writeValueAsString(dto);
+            mqttOutboundChannel.send(MessageBuilder.withPayload(json)
+                    .setHeader(MqttHeaders.TOPIC, MqttTopics.getTournamentEndedTopic(dto.getId()))
+                    .build());
+        } catch (Exception e) {
+            log.error("Publish fine torneo {} fallito", dto.getId(), e);
         }
     }
 
@@ -188,6 +239,7 @@ public class TournamentServiceImpl implements TournamentService {
         tournament.setEndDate(Instant.now());
         TournamentDto dto = mapToDto(tournamentRepository.save(tournament));
         publishState(dto);
+        publishEnded(dto);
         return dto;
     }
 
@@ -335,6 +387,7 @@ public class TournamentServiceImpl implements TournamentService {
         match.setScore(stats);
         matchRepository.save(match);
 
+        boolean justEnded = false;
         if (match.getNextMatchId() != null) {
             TournamentMatch next = matchRepository.findById(match.getNextMatchId())
                     .orElseThrow(() -> new ResourceNotFoundException("Next match not found: " + match.getNextMatchId()));
@@ -351,9 +404,11 @@ public class TournamentServiceImpl implements TournamentService {
             tournament.setStatus("COMPLETED");
             tournament.setEndDate(Instant.now());
             tournamentRepository.save(tournament);
+            justEnded = true;
         }
         TournamentDto dto = mapToDto(match.getTournament());
         publishState(dto);
+        if (justEnded) publishEnded(dto);
         return dto;
     }
 
@@ -414,15 +469,48 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     private TournamentRegistrationDto mapRegistrationToDto(TournamentRegistration reg) {
+        Tournament t = reg.getTournament();
+        String pid = reg.getParticipantId();
+        int played = 0, goals = 0, maxRound = -1, totalRounds = 0;
+        List<TournamentMatch> bracket = t.getBracketMatches();
+        if (bracket != null) {
+            for (TournamentMatch m : bracket) totalRounds = Math.max(totalRounds, m.getRound() + 1);
+            for (TournamentMatch m : bracket) {
+                boolean p1 = pid.equals(m.getPlayer1Id());
+                boolean p2 = pid.equals(m.getPlayer2Id());
+                if (!p1 && !p2) continue;
+                if (m.getRound() > maxRound) maxRound = m.getRound();
+                if (m.getWinnerId() != null) { // scontro concluso
+                    played++;
+                    goals += p1 ? m.getPlayer1Goals() : m.getPlayer2Goals();
+                }
+            }
+        }
         return TournamentRegistrationDto.builder()
                 .id(reg.getId())
-                .tournamentId(reg.getTournament().getId())
+                .tournamentId(t.getId())
                 .participantId(reg.getParticipantId())
                 .participantName(reg.getParticipantName())
                 .team(reg.isTeam())
                 .members(reg.getMembers())
                 .localeId(reg.getLocaleId())
                 .registeredAt(reg.getRegisteredAt())
+                .matchesPlayed(played)
+                .goalsScored(goals)
+                .currentStage(stageLabel(maxRound, totalRounds))
+                .tournamentStatus(t.getStatus())
                 .build();
+    }
+
+    /** Fase raggiunta dal partecipante, in base al round piu' avanzato in cui compare nel tabellone. */
+    private String stageLabel(int round, int totalRounds) {
+        if (round < 0 || totalRounds <= 0) return "—";
+        switch (totalRounds - 1 - round) {
+            case 0: return "Finale";
+            case 1: return "Semifinale";
+            case 2: return "Quarti di finale";
+            case 3: return "Ottavi di finale";
+            default: return "Round " + (round + 1);
+        }
     }
 }

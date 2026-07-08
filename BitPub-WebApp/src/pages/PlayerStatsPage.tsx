@@ -70,6 +70,9 @@ const PlayerStatsPage: React.FC = () => {
   const decided = totals.wins + totals.losses;
   const winRate = decided > 0 ? Math.round((totals.wins / decided) * 100) : 0;
 
+  // Nasconde i tornei conclusi dalla vista "Le mie Iscrizioni" (i dati sono sincronizzati via MQTT).
+  const activeRegs = tournamentRegs.filter((r) => r.tournamentStatus !== 'COMPLETED');
+
   if (loading) {
     return (
       <div className="p-8 animate-slide-up">
@@ -111,7 +114,7 @@ const PlayerStatsPage: React.FC = () => {
         </Card>
         <Card>
           <p className="text-slate-400 text-sm mb-1">Tornei Iscritti</p>
-          <p className="text-3xl font-bold text-accent-pink">{tournamentRegs.length}</p>
+          <p className="text-3xl font-bold text-accent-pink">{activeRegs.length}</p>
         </Card>
       </div>
 
@@ -205,7 +208,7 @@ const PlayerStatsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {tournamentRegs.length > 0 && (
+      {activeRegs.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -214,12 +217,12 @@ const PlayerStatsPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="divide-y divide-white/5">
-              {tournamentRegs.map((r) => (
-                <div key={r.id} className="py-3 flex items-center justify-between text-sm">
-                  <span className="text-slate-300">{r.participantName}</span>
-                  <span className="text-slate-500 text-xs">
-                    Iscritto il {r.registeredAt ? new Date(r.registeredAt).toLocaleDateString('it-IT') : '—'}
-                  </span>
+              {activeRegs.map((r) => (
+                <div key={r.id} className="py-3 flex items-center justify-between text-sm gap-3">
+                  <span className="text-slate-300 font-medium min-w-[90px]">{r.participantName}</span>
+                  <span className="text-slate-400 flex-1 text-center">{r.currentStage || '—'}</span>
+                  <span className="text-slate-400 min-w-[70px] text-center">{r.matchesPlayed ?? 0} partite</span>
+                  <span className="text-brand-light font-bold min-w-[60px] text-right">{r.goalsScored ?? 0} gol</span>
                 </div>
               ))}
             </div>

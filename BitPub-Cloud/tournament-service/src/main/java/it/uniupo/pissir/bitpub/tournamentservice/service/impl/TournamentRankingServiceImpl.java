@@ -12,10 +12,8 @@ import it.uniupo.pissir.bitpub.tournamentservice.repository.TournamentRepository
 import it.uniupo.pissir.bitpub.tournamentservice.service.TournamentRankingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,49 +29,19 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
     private final TournamentRegistrationRepository registrationRepository;
     private final TournamentRepository tournamentRepository;
 
-    @Value("${statistics.service.url:http://localhost:8087}")
-    private String statisticsServiceUrl;
-
     /**
      * La classifica del torneo si calcola retroattivamente dagli scontri gia' giocati del tabellone
-     * (winnerId valorizzato): sorgente auto-contenuta, senza dipendere da match per nome sulla
-     * leaderboard globale. Ricalcolata a ogni lettura, quindi recupera anche le partite vecchie.
-     * Ordinata per vittorie; i gol segnati arrivano dalla leaderboard globale del gioco del torneo.
+     * (winnerId valorizzato): sorgente auto-contenuta. Ordinata per vittorie. I gol segnati sono quelli
+     * ingeriti via MQTT sugli scontri del tabellone (player1Goals/player2Goals), ISOLATI dalla
+     * leaderboard globale: contano solo le partite di questo torneo. Ricalcolata a ogni lettura.
      */
     @Override
     @Transactional
     public List<TournamentRankingDto> getTournamentRankings(String tournamentId) {
         syncFromBracket(tournamentId);
-        String gameTypeId = tournamentRepository.findById(tournamentId)
-                .map(Tournament::getGameTypeId).orElse(null);
-        Map<String, Integer> goalsByPlayer = fetchGoals(gameTypeId);
         return rankingRepository.findByTournamentIdOrderByMatchesWonDesc(tournamentId).stream()
-                .map(r -> mapToDto(r, goalsByPlayer.getOrDefault(
-                        r.getParticipantName() == null ? "" : r.getParticipantName().toLowerCase(), 0)))
+                .map(this::mapToDto)
                 .collect(Collectors.toList());
-    }
-
-    /** playerName (lowercase) -> gol totali, dalla leaderboard globale del gioco. Best-effort. */
-    private Map<String, Integer> fetchGoals(String gameTypeId) {
-        Map<String, Integer> goals = new HashMap<>();
-        if (gameTypeId == null) return goals;
-        try {
-            List<Map<String, Object>> entries = RestClient.create(statisticsServiceUrl)
-                    .get().uri("/api/v1/statistics/leaderboard/{gameTypeId}", gameTypeId)
-                    .retrieve().body(List.class);
-            if (entries != null) {
-                for (Map<String, Object> e : entries) {
-                    Object name = e.get("playerName");
-                    Object pts = e.get("totalPoints");
-                    if (name != null && pts instanceof Number n) {
-                        goals.put(name.toString().toLowerCase(), n.intValue());
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            log.error("Fetch gol leaderboard per gioco {} fallito", gameTypeId, ex);
-        }
-        return goals;
     }
 
     private void syncFromBracket(String tournamentId) {
@@ -82,29 +50,34 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
         List<TournamentRanking> rankings = rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId);
         if (rankings.isEmpty()) return;
 
-        // participantId -> [partite giocate, vittorie]. Conta ogni scontro concluso del tabellone.
+        // participantId -> [partite giocate, vittorie, gol]. Conta ogni scontro concluso del tabellone;
+        // i gol arrivano dagli eventi MQTT match-result (isolati a questo torneo).
         Map<String, int[]> tally = new HashMap<>();
         List<TournamentMatch> bracket = tournament.getBracketMatches();
         if (bracket != null) {
             for (TournamentMatch m : bracket) {
                 if (m.getWinnerId() == null) continue; // scontro non ancora giocato
-                countPlayed(tally, m.getPlayer1Id());
-                countPlayed(tally, m.getPlayer2Id());
-                tally.computeIfAbsent(m.getWinnerId(), k -> new int[2])[1]++;
+                addTally(tally, m.getPlayer1Id(), m.getPlayer1Goals(), m.getWinnerId());
+                addTally(tally, m.getPlayer2Id(), m.getPlayer2Goals(), m.getWinnerId());
             }
         }
 
         for (TournamentRanking r : rankings) {
-            int[] t = tally.getOrDefault(r.getParticipantId(), new int[2]);
+            int[] t = tally.getOrDefault(r.getParticipantId(), new int[3]);
             r.setMatchesPlayed(t[0]);
             r.setMatchesWon(t[1]);
+            r.setGoalsScored(t[2]);
         }
         rankingRepository.saveAll(rankings);
         recalculateRankings(tournamentId);
     }
 
-    private void countPlayed(Map<String, int[]> tally, String participantId) {
-        if (participantId != null) tally.computeIfAbsent(participantId, k -> new int[2])[0]++;
+    private void addTally(Map<String, int[]> tally, String participantId, int goals, String winnerId) {
+        if (participantId == null) return;
+        int[] t = tally.computeIfAbsent(participantId, k -> new int[3]);
+        t[0]++;             // partita giocata
+        t[2] += goals;      // gol nel torneo
+        if (participantId.equals(winnerId)) t[1]++; // vittoria
     }
 
     @Override
@@ -121,8 +94,7 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
         
         ranking = rankingRepository.save(ranking);
         recalculateRankings(tournamentId);
-        // ponytail: endpoint legacy (non usato dalla WebApp); gol non risolti qui, li calcola la lettura classifica.
-        return mapToDto(ranking, 0);
+        return mapToDto(ranking);
     }
 
     @Override
@@ -158,13 +130,13 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
         }
     }
 
-    private TournamentRankingDto mapToDto(TournamentRanking ranking, int goalsScored) {
+    private TournamentRankingDto mapToDto(TournamentRanking ranking) {
         return TournamentRankingDto.builder()
                 .id(ranking.getId())
                 .tournamentId(ranking.getTournament().getId())
                 .participantId(ranking.getParticipantId())
                 .participantName(ranking.getParticipantName())
-                .goalsScored(goalsScored)
+                .goalsScored(ranking.getGoalsScored())
                 .matchesPlayed(ranking.getMatchesPlayed())
                 .matchesWon(ranking.getMatchesWon())
                 .currentRank(ranking.getCurrentRank())

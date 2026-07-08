@@ -761,6 +761,9 @@ public class MatchServiceImpl implements MatchService {
         resultEvent.put("matchId", match.getId());
         resultEvent.put("localeId", match.getLocaleId());
         resultEvent.put("teamBased", isTeamBased(match));
+        // Bracket slot (null se non e' una partita di torneo): il tournament-service lo usa per
+        // attribuire i gol al torneo corretto, isolandoli dalla leaderboard globale.
+        resultEvent.put("tournamentMatchId", match.getTournamentMatchId());
         return resultEvent;
     }
 

@@ -41,5 +41,10 @@ public class TournamentMatch {
 
     private String score; // punteggio / statistiche dello scontro (testo libero)
 
+    // Gol per slot, ingeriti via MQTT (bitpub/cloud/matches/result). Fonte isolata dei gol del torneo:
+    // solo gli scontri del tabellone contribuiscono, mai la leaderboard globale.
+    private int player1Goals;
+    private int player2Goals;
+
     private String nextMatchId;
 }

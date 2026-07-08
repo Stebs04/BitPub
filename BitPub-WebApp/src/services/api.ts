@@ -240,6 +240,10 @@ export interface TournamentRegistrationRecord {
   members?: string[];      // membri della squadra (o singolo giocatore)
   localeId: string;
   registeredAt: string;
+  matchesPlayed?: number;    // partite giocate in QUESTO torneo
+  goalsScored?: number;      // gol segnati in QUESTO torneo (via MQTT)
+  currentStage?: string;     // fase raggiunta: Finale, Semifinale, ...
+  tournamentStatus?: string; // UPCOMING | ACTIVE | COMPLETED
 }
 
 export interface RegisterPayload {

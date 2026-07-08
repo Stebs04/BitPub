@@ -29,6 +29,7 @@ public class TournamentRanking {
     private int score;
     private int matchesPlayed;
     private int matchesWon;
+    private int goalsScored; // gol segnati SOLO nelle partite di questo torneo (dal tabellone, via MQTT)
     
     @Column(nullable = false)
     private int currentRank; // Posizione in classifica

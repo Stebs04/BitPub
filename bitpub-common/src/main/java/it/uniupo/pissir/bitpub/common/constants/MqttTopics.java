@@ -41,6 +41,9 @@ public final class MqttTopics {
     // bitpub/tournaments/{tournamentId}/state — Cloud -> WebApp live tournament (bracket) updates.
     public static final String TOURNAMENT_STATE_FORMAT = "bitpub/tournaments/%s/state";
 
+    // bitpub/tournaments/{tournamentId}/ended — Cloud -> services/edges: tournament concluded (COMPLETED).
+    public static final String TOURNAMENT_ENDED_FORMAT = "bitpub/tournaments/%s/ended";
+
     // bitpub/statistics/update — Cloud -> WebApp live leaderboard updates (single shared topic).
     public static final String STATISTICS_UPDATE_TOPIC = "bitpub/statistics/update";
 
@@ -77,5 +80,9 @@ public final class MqttTopics {
 
     public static String getTournamentStateTopic(String tournamentId) {
         return String.format(TOURNAMENT_STATE_FORMAT, tournamentId);
+    }
+
+    public static String getTournamentEndedTopic(String tournamentId) {
+        return String.format(TOURNAMENT_ENDED_FORMAT, tournamentId);
     }
 }

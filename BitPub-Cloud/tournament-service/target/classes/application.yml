@@ -22,5 +22,7 @@ mqtt:
   client-id: ${MQTT_CLIENT_ID:tournament-service-${random.uuid}}
   # Stable id + durable session so the broker queues Edge-forwarded results while this service is down.
   inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:tournament-service-result-ingest}
+  # Stable id for the completed-match result stream (tournament-isolated goals ingest).
+  match-result-client-id: ${MQTT_MATCH_RESULT_CLIENT_ID:tournament-service-match-result-ingest}
   topic:
     cloud-results: bitpub/cloud/commands/tournaments/+/matches/+/result
