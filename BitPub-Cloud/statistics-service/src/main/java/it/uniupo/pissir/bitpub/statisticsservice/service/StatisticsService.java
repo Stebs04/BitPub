@@ -22,6 +22,9 @@ public interface StatisticsService {
     /** Returns leaderboard entries for a specific game type, ordered by wins then points. */
     List<LeaderboardEntryDto> getLeaderboard(String gameTypeId);
 
+    /** gameTypeId distinti su cui il giocatore compare (per le sue statistiche personali). */
+    List<String> getGameTypeIdsForPlayer(String playerName);
+
     /** Returns leaderboard entries for a specific game type, scoped to a single locale. */
     List<LeaderboardEntryDto> getLeaderboardByLocale(String gameTypeId, String localeId);
 

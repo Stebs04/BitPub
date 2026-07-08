@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Trophy, Gamepad2, Target, CircleDashed, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
-import { statsApi, backfillStats } from '../services/api';
+import { Trophy, Gamepad2, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
+import { statsApi, backfillStats, getGameTypes } from '../services/api';
 import { notificationService } from '../services/notificationService';
 import { useAuthStore } from '../store/authStore';
 
@@ -15,47 +15,8 @@ interface LeaderboardEntry {
   lastUpdated: string | null;
 }
 
-type GameTab = 'biliardo' | 'calciobalilla' | 'freccette';
-
-// Maps frontend Italian tab IDs → backend English gameTypeIds stored in DB
-// The match-service derives gameTypeId from gameInstanceId (e.g. "foosball-1" → "foosball")
-const GAME_TYPE_MAP: Record<GameTab, string> = {
-  calciobalilla: 'foosball',
-  freccette:     'darts',
-  biliardo:      'billiards',
-};
-
-// Inverso: backend gameTypeId → tab UI, per instradare gli update MQTT live.
-const BACKEND_TO_TAB: Record<string, GameTab> = Object.fromEntries(
-  Object.entries(GAME_TYPE_MAP).map(([tab, backend]) => [backend, tab as GameTab])
-) as Record<string, GameTab>;
-
-const TABS: { id: GameTab; label: string; icon: React.ReactNode; color: string; accentBg: string; accentBorder: string }[] = [
-  {
-    id: 'calciobalilla',
-    label: 'Calciobalilla',
-    icon: <Gamepad2 className="w-4 h-4" />,
-    color: 'text-blue-400',
-    accentBg: 'bg-blue-500/10',
-    accentBorder: 'border-blue-500/50',
-  },
-  {
-    id: 'biliardo',
-    label: 'Biliardo',
-    icon: <CircleDashed className="w-4 h-4" />,
-    color: 'text-amber-400',
-    accentBg: 'bg-amber-500/10',
-    accentBorder: 'border-amber-500/50',
-  },
-  {
-    id: 'freccette',
-    label: 'Freccette',
-    icon: <Target className="w-4 h-4" />,
-    color: 'text-rose-400',
-    accentBg: 'bg-rose-500/10',
-    accentBorder: 'border-rose-500/50',
-  },
-];
+// Tab dei giochi: caricati dinamicamente dal catalogo (/catalog/games). id = gameTypeId reale.
+interface GameTab { id: string; label: string; }
 
 const RANK_COLORS: Record<number, string> = {
   0: 'text-yellow-400',
@@ -73,21 +34,28 @@ const LeaderboardPage: React.FC = () => {
   const currentUsername = useAuthStore((state) => state.user?.username);
   const isPlatformAdmin = useAuthStore((state) => state.user?.role === 'PLATFORM_ADMIN');
   const [backfilling, setBackfilling] = useState(false);
-  const [activeTab, setActiveTab] = useState<GameTab>('calciobalilla');
-  const [data, setData] = useState<Record<GameTab, LeaderboardEntry[]>>({
-    biliardo: [],
-    calciobalilla: [],
-    freccette: [],
-  });
+  const [tabs, setTabs] = useState<GameTab[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('');
+  const [data, setData] = useState<Record<string, LeaderboardEntry[]>>({});
   const [loading, setLoading] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
-  const fetchLeaderboard = useCallback(async (gameTypeId: GameTab) => {
+  // Tab dinamici dal catalogo: id = gameTypeId reale, nessuna mappa statica.
+  useEffect(() => {
+    getGameTypes()
+      .then(res => {
+        const loaded = res.data.map(g => ({ id: g.id, label: g.name || g.id }));
+        setTabs(loaded);
+        setActiveTab(prev => prev || loaded[0]?.id || '');
+      })
+      .catch(() => setTabs([]));
+  }, []);
+
+  const fetchLeaderboard = useCallback(async (gameTypeId: string) => {
+    if (!gameTypeId) return;
     setLoading(true);
     try {
-      // Translate the Italian UI tab ID to the English backend ID
-      const backendId = GAME_TYPE_MAP[gameTypeId];
-      const res = await statsApi.get<LeaderboardEntry[]>(`/leaderboard/${backendId}`);
+      const res = await statsApi.get<LeaderboardEntry[]>(`/leaderboard/${gameTypeId}`);
       setData(prev => ({ ...prev, [gameTypeId]: res.data }));
       setLastRefresh(new Date());
     } catch {
@@ -103,15 +71,13 @@ const LeaderboardPage: React.FC = () => {
   }, [activeTab, fetchLeaderboard]);
 
   // Aggiornamento live della leaderboard: lo statistics-service pubblica la classifica del gioco
-  // su bitpub/statistics/update a ogni risultato di partita. Sostituisce le entry del tab relativo
-  // senza refetch, cosi' la classifica si aggiorna in tempo reale come un'app sportiva.
+  // su bitpub/statistics/update a ogni risultato di partita. La chiave e' il gameTypeId reale.
   useEffect(() => {
     const unsubscribe = notificationService.subscribe(
       'bitpub/statistics/update',
       (payload: { gameTypeId?: string; entries?: LeaderboardEntry[] }) => {
-        const tab = payload.gameTypeId ? BACKEND_TO_TAB[payload.gameTypeId] : undefined;
-        if (!tab || !payload.entries) return;
-        setData((prev) => ({ ...prev, [tab]: payload.entries! }));
+        if (!payload.gameTypeId || !payload.entries) return;
+        setData((prev) => ({ ...prev, [payload.gameTypeId!]: payload.entries! }));
         setLastRefresh(new Date());
       }
     );
@@ -130,8 +96,8 @@ const LeaderboardPage: React.FC = () => {
     }
   };
 
-  const currentEntries = data[activeTab];
-  const currentTab = TABS.find(t => t.id === activeTab)!;
+  const currentEntries = data[activeTab] ?? [];
+  const currentTab = tabs.find(t => t.id === activeTab);
 
   return (
     <div className="p-6 md:p-8 animate-slide-up">
@@ -177,20 +143,20 @@ const LeaderboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Game tabs */}
-      <div className="flex gap-2 mb-6">
-        {TABS.map(tab => (
+      {/* Game tabs (dinamici dal catalogo) */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {tabs.map(tab => (
           <button
             key={tab.id}
             id={`leaderboard-tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
               activeTab === tab.id
-                ? `${tab.accentBg} ${tab.accentBorder} ${tab.color}`
+                ? 'bg-brand/10 border-brand/50 text-brand-light'
                 : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700'
             }`}
           >
-            <span className={activeTab === tab.id ? tab.color : ''}>{tab.icon}</span>
+            <Gamepad2 className="w-4 h-4" />
             {tab.label}
           </button>
         ))}
@@ -199,9 +165,9 @@ const LeaderboardPage: React.FC = () => {
       {/* Leaderboard table */}
       <div className="glass-panel overflow-hidden">
         {/* Table header */}
-        <div className={`px-6 py-4 border-b border-white/5 flex items-center gap-3 ${currentTab.accentBg}`}>
-          <span className={currentTab.color}>{currentTab.icon}</span>
-          <h2 className="text-lg font-semibold text-white">{currentTab.label} — Top Giocatori</h2>
+        <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 bg-brand/5">
+          <Gamepad2 className="w-4 h-4 text-brand-light" />
+          <h2 className="text-lg font-semibold text-white">{currentTab?.label ?? 'Gioco'} — Top Giocatori</h2>
           {currentEntries.length > 0 && (
             <span className="ml-auto text-xs text-slate-400">{currentEntries.length} giocatori</span>
           )}

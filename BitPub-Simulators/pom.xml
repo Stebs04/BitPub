@@ -12,9 +12,6 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>calciobalilla-simulator</module>
-        <module>freccette-simulator</module>
-        <module>biliardo-simulator</module>
         <module>demo-control-panel</module>
     </modules>
 </project>

@@ -59,7 +59,7 @@ public class MqttConfig {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(
                 clientId + "_out-" + java.util.UUID.randomUUID(), mqttClientFactory());
         handler.setAsync(true);
-        handler.setDefaultTopic("bitpub/tournaments/unknown/state");
+        handler.setDefaultTopic("bitpub/unrouted/tournament/state");
         return handler;
     }
 

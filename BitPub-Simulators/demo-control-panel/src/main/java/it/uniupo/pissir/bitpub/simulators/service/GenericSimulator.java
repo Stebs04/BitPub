@@ -129,6 +129,11 @@ public class GenericSimulator {
         return Optional.ofNullable(configByGameType.get(gameTypeId));
     }
 
+    /** Tutti i tipi di gioco attualmente in cache (dal catalogo via MQTT), per il pannello demo. */
+    public java.util.Collection<GameConfig> configs() {
+        return configByGameType.values();
+    }
+
     private static String str(Object o) {
         return o == null ? null : o.toString();
     }

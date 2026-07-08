@@ -22,11 +22,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatisticsController {
 
-    // Stessi gameTypeId gia' usati dalla LeaderboardPage (GAME_TYPE_MAP) per le 3 tipologie
-    // di gioco della demo: la leaderboard e' indicizzata per gameTypeId, non esiste una query
-    // "tutti i game type" lato statistics-service.
-    private static final List<String> KNOWN_GAME_TYPE_IDS = List.of("foosball", "darts", "billiards");
-
     private final StatisticsService statisticsService;
 
     // Se il chiamante e' un LOCALE_ADMIN, puo' interrogare solo le statistiche aggregate
@@ -95,7 +90,7 @@ public class StatisticsController {
      */
     @GetMapping("/leaderboard/me/{playerName}")
     public ResponseEntity<List<LeaderboardEntryDto>> getMyStatistics(@PathVariable String playerName) {
-        List<LeaderboardEntryDto> mine = KNOWN_GAME_TYPE_IDS.stream()
+        List<LeaderboardEntryDto> mine = statisticsService.getGameTypeIdsForPlayer(playerName).stream()
                 .flatMap(gameTypeId -> statisticsService.getLeaderboard(gameTypeId).stream())
                 .filter(entry -> entry.getPlayerName() != null && entry.getPlayerName().equalsIgnoreCase(playerName))
                 .collect(Collectors.toList());

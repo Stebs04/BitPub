@@ -292,6 +292,11 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     @Override
+    public List<String> getGameTypeIdsForPlayer(String playerName) {
+        return leaderboardRepository.findDistinctGameTypeIdsByPlayerName(playerName);
+    }
+
+    @Override
     public List<LeaderboardEntryDto> getLeaderboardByLocale(String gameTypeId, String localeId) {
         List<Leaderboard> entries = leaderboardRepository
                 .findByGameTypeIdAndLocaleIdOrderByWinsDescTotalPointsDesc(gameTypeId, localeId);

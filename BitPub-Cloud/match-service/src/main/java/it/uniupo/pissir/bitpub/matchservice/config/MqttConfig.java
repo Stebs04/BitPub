@@ -61,7 +61,7 @@ public class MqttConfig {
         org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler messageHandler =
                 new org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler(clientId + "_out-" + java.util.UUID.randomUUID().toString(), mqttClientFactory());
         messageHandler.setAsync(true);
-        messageHandler.setDefaultTopic("bitpub/match/LOC-1/default/state");
+        messageHandler.setDefaultTopic("bitpub/unrouted/match/state");
         return messageHandler;
     }
 
