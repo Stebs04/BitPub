@@ -1,7 +1,9 @@
 package it.uniupo.pissir.bitpub.localeservice.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
+import it.uniupo.pissir.bitpub.localeservice.config.MqttConfig.GamePublisher;
 import it.uniupo.pissir.bitpub.localeservice.domain.GameInstance;
 import it.uniupo.pissir.bitpub.localeservice.domain.Locale;
 import it.uniupo.pissir.bitpub.localeservice.dto.AddGameInstanceRequest;
@@ -30,9 +32,13 @@ public class LocaleService {
 
     private final LocaleRepository localeRepository;
     private final GameInstanceRepository gameInstanceRepository;
+    private final GamePublisher gamePublisher;
+    private final ObjectMapper objectMapper;
 
     @Value("${user.service.url:http://localhost:8082}")
     private String userServiceUrl;
+
+    private static final String GAMES_TOPIC_PREFIX = "bitpub/locales/games/";
 
     @Transactional
     public LocaleDto createLocale(CreateLocaleRequest request) {
@@ -151,7 +157,40 @@ public class LocaleService {
                 .build();
 
         GameInstance saved = gameInstanceRepository.save(instance);
+        publishGameEvent("ADD", localeId, saved.getId(), saved.getGameTypeId());
         return mapGameInstanceToDto(saved);
+    }
+
+    /**
+     * Rimozione di una macchina dal locale: consentita al LOCALE_ADMIN proprietario o al PLATFORM_ADMIN.
+     */
+    @Transactional
+    public void removeGameInstance(String localeId, String gameInstanceId, String callerId, String callerRole) {
+        GameInstance instance = gameInstanceRepository.findById(gameInstanceId)
+                .orElseThrow(() -> new ResourceNotFoundException("GameInstance", "id", gameInstanceId));
+
+        if (!instance.getLocale().getId().equals(localeId)) {
+            throw new ResourceNotFoundException("GameInstance", "id", gameInstanceId);
+        }
+
+        assertLocaleManageable(instance.getLocale(), callerId, callerRole);
+
+        String gameTypeId = instance.getGameTypeId();
+        gameInstanceRepository.delete(instance);
+        publishGameEvent("REMOVE", localeId, gameInstanceId, gameTypeId);
+    }
+
+    private void publishGameEvent(String action, String localeId, String gameInstanceId, String gameTypeId) {
+        try {
+            String json = objectMapper.writeValueAsString(java.util.Map.of(
+                    "action", action,
+                    "localeId", localeId,
+                    "gameInstanceId", gameInstanceId,
+                    "gameTypeId", gameTypeId));
+            gamePublisher.publish(json, GAMES_TOPIC_PREFIX + localeId);
+        } catch (Exception e) {
+            log.error("Failed to publish game {} event for locale {}", action, localeId, e);
+        }
     }
 
     @Transactional(readOnly = true)

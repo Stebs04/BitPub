@@ -34,3 +34,5 @@ bitpub:
     cloud:
       # Publisher client-id for validated events forwarded to the Cloud ingest topic.
       client-id: ${MQTT_CLOUD_CLIENT_ID:edge-node-1-cloud-out}
+      # Subscription: game ADD/REMOVE events for this locale, published by locale-service.
+      topic-games: bitpub/locales/games/${LOCALE_ID:locale-1}

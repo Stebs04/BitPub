@@ -33,6 +33,9 @@ public class MqttLocalConfig {
     @Value("${bitpub.mqtt.cloud.client-id}")
     private String cloudClientId;
 
+    @Value("${bitpub.mqtt.cloud.topic-games}")
+    private String topicGames;
+
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
@@ -74,6 +77,24 @@ public class MqttLocalConfig {
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
+        return adapter;
+    }
+
+    // ── Cloud ingress: subscribe to game ADD/REMOVE events for this locale. ──
+
+    @Bean
+    public MessageChannel cloudGamesInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer gamesInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(clientId + "-games-" + java.util.UUID.randomUUID().toString(), mqttClientFactory(), topicGames);
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(cloudGamesInputChannel());
         return adapter;
     }
 }

@@ -86,6 +86,14 @@ public class LocaleController {
         return localeService.getGameInstanceById(gameInstanceId);
     }
 
+    @DeleteMapping("/{localeId}/games/{gameInstanceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeGameInstance(@PathVariable String localeId, @PathVariable String gameInstanceId,
+                                    @RequestHeader(value = "X-User-Id", required = false) String callerId,
+                                    @RequestHeader(value = "X-User-Role", required = false) String callerRole) {
+        localeService.removeGameInstance(localeId, gameInstanceId, callerId, callerRole);
+    }
+
     @PatchMapping("/{localeId}/games/{gameInstanceId}/status")
     public GameInstanceDto setGameInstanceStatus(@PathVariable String localeId, @PathVariable String gameInstanceId, @RequestParam boolean active,
                                                   @RequestHeader(value = "X-User-Id", required = false) String callerId,
