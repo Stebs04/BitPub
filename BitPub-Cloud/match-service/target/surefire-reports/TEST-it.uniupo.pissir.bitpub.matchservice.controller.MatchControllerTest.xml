@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.447" tests="12" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="2.878" tests="5" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -9,7 +9,6 @@
     <property name="sun.arch.data.model" value="64"/>
     <property name="user.variant" value=""/>
     <property name="java.vendor.url" value="https://java.oracle.com/"/>
-    <property name="catalina.useNaming" value="false"/>
     <property name="user.timezone" value="Europe/Rome"/>
     <property name="org.jboss.logging.provider" value="slf4j"/>
     <property name="os.name" value="Windows 11"/>
@@ -48,8 +47,6 @@
     <property name="localRepository" value="C:\Users\DeaDS\.m2\repository"/>
     <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
     <property name="java.io.tmpdir" value="C:\Users\DeaDS\AppData\Local\Temp\"/>
-    <property name="catalina.home" value="C:\Users\DeaDS\AppData\Local\Temp\tomcat.0.16537732611637066921"/>
-    <property name="com.zaxxer.hikari.pool_number" value="1"/>
     <property name="java.version" value="21.0.11"/>
     <property name="user.dir" value="C:\Users\DeaDS\Documents\Programming projects\BitPub\BitPub-Cloud\match-service"/>
     <property name="os.arch" value="amd64"/>
@@ -57,7 +54,6 @@
     <property name="PID" value="23388"/>
     <property name="sun.os.patch.level" value=""/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
-    <property name="catalina.base" value="C:\Users\DeaDS\AppData\Local\Temp\tomcat.0.16537732611637066921"/>
     <property name="native.encoding" value="Cp1252"/>
     <property name="java.library.path" value="C:\Program Files\Java\jdk-21.0.11\bin;C:\WINDOWS\Sun\Java\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\Users\DeaDS\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\local\bin;C:\Program Files\Git\usr\bin;C:\Program Files\Git\usr\bin;C:\Program Files\Git\mingw64\bin;C:\Program Files\Git\usr\bin;C:\Users\DeaDS\bin;C:\Program Files\Common Files\Oracle\Java\javapath;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;C:\Program Files\apache-maven-3.9.16\bin;C:\Program Files\Git\cmd;C:\Program Files\nodejs;C:\Program Files\Sunshine;C:\Program Files\Sunshine\tools;C:\Users\DeaDS\AppData\Local\agy\bin;C:\Users\DeaDS\AppData\Local\Programs\Python\Python311\Scripts;C:\Users\DeaDS\AppData\Local\Programs\Python\Python311;C:\Users\DeaDS\AppData\Local\Microsoft\WindowsApps;C:\Users\DeaDS\AppData\Local\spicetify;C:\Users\DeaDS\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\DeaDS\.local\bin;C:\Program Files\Git\usr\bin\vendor_perl;C:\Program Files\Git\usr\bin\core_perl;C:\Users\DeaDS\.claude\plugins\cache\caveman\caveman\0d95a81d35a9\bin;C:\Users\DeaDS\.claude\plugins\cache\ponytail\ponytail\4.8.4\bin;."/>
     <property name="java.vm.info" value="mixed mode, sharing"/>
@@ -68,122 +64,28 @@
     <property name="java.class.version" value="65.0"/>
     <property name="LOGGED_APPLICATION_NAME" value="[match-service] "/>
   </properties>
-  <testcase name="processGameAction_missingSensorType_badRequest" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.369"/>
-  <testcase name="processGameAction_valid_routesToSimulatorViaMqtt" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.009">
-    <system-out><![CDATA[2026-07-09T22:27:45.792+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Routed action GOAL to simulator for match m1 (team alice)
-]]></system-out>
-  </testcase>
-  <testcase name="applyFinalResult_tie_hasNoWinner" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.003"/>
-  <testcase name="endMatch_completesAndComputesWinner" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.01">
-    <system-out><![CDATA[2026-07-09T22:27:45.803+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Published match result to MQTT: winner=alice, gameType=pool
-]]></system-out>
-  </testcase>
-  <testcase name="applyFinalResult_appliesScoresByTeamName_andCompletes" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.013">
-    <system-out><![CDATA[2026-07-09T22:27:45.811+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Published match result to MQTT: winner=RED, gameType=pool
-]]></system-out>
-  </testcase>
-  <testcase name="startMatch_existingInProgress_throwsIllegalState" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.004"/>
-  <testcase name="processSensorEvent_duplicateEventId_skips" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.003">
-    <system-out><![CDATA[2026-07-09T22:27:45.831+02:00  WARN 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Event a6285a44-e1e2-4632-9d63-92e99ba5fd70 already processed, skipping.
-]]></system-out>
-  </testcase>
-  <testcase name="joinLobby_secondPlayer_transitionsToInProgress" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.011">
-    <system-out><![CDATA[2026-07-09T22:27:45.839+02:00 ERROR 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Failed to publish match sync for m1
+  <testcase name="joinLobby_valid_returns200" classname="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="0.28">
+    <system-out><![CDATA[22:27:33.397 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest]: MatchControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+22:27:33.715 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration it.uniupo.pissir.bitpub.matchservice.MatchServiceApplication for test class it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest
 
-com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Java 8 date/time type `java.time.Instant` not supported by default: add Module "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" to enable handling (through reference chain: it.uniupo.pissir.bitpub.matchservice.dto.MatchDto["startTime"])
-	at com.fasterxml.jackson.databind.exc.InvalidDefinitionException.from(InvalidDefinitionException.java:77) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.SerializerProvider.reportBadDefinition(SerializerProvider.java:1308) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.impl.UnsupportedTypeSerializer.serialize(UnsupportedTypeSerializer.java:35) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.BeanPropertyWriter.serializeAsField(BeanPropertyWriter.java:732) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.std.BeanSerializerBase.serializeFields(BeanSerializerBase.java:772) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.BeanSerializer.serialize(BeanSerializer.java:178) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.DefaultSerializerProvider._serialize(DefaultSerializerProvider.java:479) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ser.DefaultSerializerProvider.serializeValue(DefaultSerializerProvider.java:318) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ObjectMapper._writeValueAndClose(ObjectMapper.java:4719) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at com.fasterxml.jackson.databind.ObjectMapper.writeValueAsString(ObjectMapper.java:3964) ~[jackson-databind-2.15.4.jar:2.15.4]
-	at it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImpl.publishMatchSync(MatchServiceImpl.java:700) ~[classes/:na]
-	at it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImpl.joinLobby(MatchServiceImpl.java:317) ~[classes/:na]
-	at it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest.joinLobby_secondPlayer_transitionsToInProgress(MatchServiceImplTest.java:76) ~[test-classes/:na]
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728) ~[junit-platform-commons-1.10.2.jar:1.10.2]
-	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69) ~[junit-jupiter-engine-5.10.2.jar:5.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[na:na]
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596) ~[na:na]
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54) ~[junit-platform-engine-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47) ~[junit-platform-launcher-1.10.2.jar:1.10.2]
-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.executeWithoutCancellationToken(LauncherAdapter.java:60) ~[surefire-junit-platform-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.junitplatform.LauncherAdapter.execute(LauncherAdapter.java:52) ~[surefire-junit-platform-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.execute(JUnitPlatformProvider.java:203) ~[surefire-junit-platform-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invokeAllTests(JUnitPlatformProvider.java:168) ~[surefire-junit-platform-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.junitplatform.JUnitPlatformProvider.invoke(JUnitPlatformProvider.java:136) ~[surefire-junit-platform-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:385) ~[surefire-booter-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162) ~[surefire-booter-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507) ~[surefire-booter-3.5.4.jar:3.5.4]
-	at org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495) ~[surefire-booter-3.5.4.jar:3.5.4]
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
 
-2026-07-09T22:27:45.842+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Lobby m1 STARTED: bob joined gameInstanceId gi1
+2026-07-09T22:27:34.193+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.c.MatchControllerTest          : Starting MatchControllerTest using Java 21.0.11 with PID 23388 (started by DeaDS in C:\Users\DeaDS\Documents\Programming projects\BitPub\BitPub-Cloud\match-service)
+2026-07-09T22:27:34.194+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.c.MatchControllerTest          : No active profile set, falling back to 1 default profile: "default"
+2026-07-09T22:27:35.763+02:00  INFO 23388 --- [match-service] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-07-09T22:27:35.763+02:00  INFO 23388 --- [match-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-07-09T22:27:35.763+02:00  INFO 23388 --- [match-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-07-09T22:27:35.789+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.c.MatchControllerTest          : Started MatchControllerTest in 1.991 seconds (process running for 4.787)
 ]]></system-out>
   </testcase>
-  <testcase name="endMatch_alreadyCompleted_isIdempotent" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.004"/>
-  <testcase name="joinLobby_samePlayerReconnect_isIdempotent" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.005"/>
-  <testcase name="processGameAction_matchNotInProgress_conflict" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.004"/>
-  <testcase name="processSensorEvent_matchEnd_closesActiveMatch" classname="it.uniupo.pissir.bitpub.matchservice.service.impl.MatchServiceImplTest" time="0.003">
-    <system-out><![CDATA[2026-07-09T22:27:45.860+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Processing event e4316292-14d2-4d56-88ab-75b0980bae9f for gameInstanceId gi1
-2026-07-09T22:27:45.860+02:00  INFO 23388 --- [match-service] [           main] i.u.p.b.m.service.impl.MatchServiceImpl  : Published match result to MQTT: winner=alice, gameType=pool
-]]></system-out>
-  </testcase>
+  <testcase name="startMatch_returns201" classname="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="0.006"/>
+  <testcase name="endMatch_nonAdminRole_returns403" classname="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="0.031"/>
+  <testcase name="getActiveMatches_openAccess_returns200" classname="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="0.021"/>
+  <testcase name="joinLobby_missingUserIdHeader_returns400" classname="it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest" time="0.005"/>
 </testsuite>

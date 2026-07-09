@@ -231,8 +231,7 @@ public class MatchServiceImpl implements MatchService {
 
         // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
         // (piu' basso a freccette, dove si parte da 501 e si scende a 0).
-        notifyStatisticsService(saved);
-        notifyTournamentResult(saved);
+        notifyStatisticsService(saved); // pubblica su bitpub/cloud/matches/result: stats E avanzamento torneo
         publishGameState(saved, "FINISHED", "MATCH_END");
 
         return mapToDto(saved);
@@ -265,8 +264,7 @@ public class MatchServiceImpl implements MatchService {
         match.setTeamBased(isTeamBased(match));
         Match saved = matchRepository.save(match);
 
-        notifyStatisticsService(saved);
-        notifyTournamentResult(saved);
+        notifyStatisticsService(saved); // stats E avanzamento torneo via bitpub/cloud/matches/result (durevole)
         // Nessun broadcast di stato: la FINISHED live la pubblica l'Edge sul topic match-state.
 
         return mapToDto(saved);
@@ -479,8 +477,7 @@ public class MatchServiceImpl implements MatchService {
                 match.setEndTime(Instant.now());
                 match.setTeamBased(isTeamBased(match));
                 matchRepository.save(match);
-                notifyStatisticsService(match);
-                notifyTournamentResult(match);
+                notifyStatisticsService(match); // stats E avanzamento torneo via bitpub/cloud/matches/result
             }
         } else {
             log.info("No active match found for gameInstanceId {}. Event will just be logged.", event.getGameInstanceId());
@@ -627,42 +624,6 @@ public class MatchServiceImpl implements MatchService {
         // attribuire i gol al torneo corretto, isolandoli dalla leaderboard globale.
         resultEvent.put("tournamentMatchId", match.getTournamentMatchId());
         return resultEvent;
-    }
-
-    /**
-     * Partita di torneo conclusa: riporta vincitore e punteggio al tournament-service, che registra
-     * l'esito nel tabellone e fa avanzare il vincitore al match successivo. Fire-and-forget: un
-     * errore qui non deve far fallire la chiusura della partita (le stats restano recuperabili
-     * dal tournamentMatchId salvato sul match). Salta i pareggi (nessun avanzamento possibile).
-     */
-    private void notifyTournamentResult(Match match) {
-        if (match.getTournamentMatchId() == null) return;
-        MatchParticipant winner = winnerTeam(match);
-        if (winner == null) {
-            log.warn("Match {} di torneo senza vincitore (pareggio): esito non riportato", match.getId());
-            return;
-        }
-        // Per i match a squadre lo slot del tabellone e' identificato dal teamId, non dal primo
-        // membro: privilegia winner.getId() cosi' il tournament-service risolve lo slot corretto.
-        String winnerId = isTeamBased(match) ? winner.getId() : firstPlayerId(winner);
-        if (winnerId == null) {
-            log.warn("Match {} di torneo senza vincitore (pareggio): esito non riportato", match.getId());
-            return;
-        }
-        String stats = match.getTeams().stream()
-                .map(t -> t.getName() + " " + t.getScore())
-                .collect(Collectors.joining(" - "));
-        try {
-            RestClient.create(tournamentServiceUrl)
-                    .post()
-                    .uri("/api/v1/tournaments/matches/{id}/result?winnerId={w}&stats={s}",
-                            match.getTournamentMatchId(), winnerId, stats)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Esito torneo riportato: bracketMatch={}, winnerId={}", match.getTournamentMatchId(), winnerId);
-        } catch (Exception e) {
-            log.error("Riporto esito al tournament-service fallito per bracketMatch {}", match.getTournamentMatchId(), e);
-        }
     }
 
     /**

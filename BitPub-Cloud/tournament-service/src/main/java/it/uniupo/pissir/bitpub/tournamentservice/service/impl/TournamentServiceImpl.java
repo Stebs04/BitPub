@@ -122,6 +122,12 @@ public class TournamentServiceImpl implements TournamentService {
             }
             matchRepository.save(m);
             log.info("Gol torneo ingeriti via MQTT per bracketMatch {}: {}-{}", bracketId, m.getPlayer1Goals(), m.getPlayer2Goals());
+
+            // Avanzamento DUREVOLE del tabellone dallo stesso stream QoS1: il vincitore avanza qui,
+            // non piu' via POST REST di match-service (che andava persa se tournament-service era giu').
+            // slotWinnerId e' gia' verificato come slot valido sopra, quindi updateMatchResult non
+            // rigetta; e' idempotente, una riconsegna riscrive lo stesso vincitore/avanzamento.
+            updateMatchResult(bracketId.toString(), slotWinnerId, winnerScore + "-" + loserScore);
         } catch (Exception e) {
             log.error("Impossibile processare risultato match inbound: {}", message.getPayload(), e);
         }
