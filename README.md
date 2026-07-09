@@ -149,7 +149,7 @@ Il `game-catalog-service` contiene i regolamenti:
 Ecco il flusso per disputare un incontro (es. Calciobalilla):
 
 1. **Creazione della Lobby (Cloud):** Un utente dalla WebApp seleziona una macchina dal suo locale e clicca "Inizia Partita". Lo stato della macchina diventa `WAITING_FOR_PLAYERS`.
-2. **Ingresso Giocatori:** Il secondo utente scansiona il QR Code o entra nella stessa lobby. La partita passa allo stato `IN_PROGRESS`.
+2. **Ingresso Giocatori:** Il secondo dovrá entrare nella stessa lobby e la partita passa allo stato `IN_PROGRESS`.
 3. **Generazione Eventi (Fisico/Simulatore):** 
    - Apri il **Pannello Simulatori** ([http://localhost:8090](http://localhost:8090)).
    - Inserisci l'ID della macchina in partita.
