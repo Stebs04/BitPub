@@ -116,6 +116,27 @@ public class UserService {
         return mapToDto(userRepository.save(user));
     }
 
+    public UserDto updateUserDetails(String id, it.uniupo.pissir.bitpub.userservice.dto.UpdateUserRequest req) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        if (!user.getUsername().equals(req.getUsername()) && userRepository.existsByUsername(req.getUsername())) {
+            throw new BitpubException("Username already exists", HttpStatus.CONFLICT);
+        }
+        if (!user.getEmail().equals(req.getEmail()) && userRepository.existsByEmail(req.getEmail())) {
+            throw new BitpubException("Email already exists", HttpStatus.CONFLICT);
+        }
+        user.setUsername(req.getUsername());
+        user.setEmail(req.getEmail());
+        return mapToDto(userRepository.save(user));
+    }
+
+    public UserDto updateUserPassword(String id, it.uniupo.pissir.bitpub.userservice.dto.UpdatePasswordRequest req) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        user.setPasswordHash(passwordUtils.hash(req.getNewPassword()));
+        return mapToDto(userRepository.save(user));
+    }
+
     public void deleteUser(String id) {
         if (!userRepository.existsById(id)) {
             throw new ResourceNotFoundException("User", "id", id);

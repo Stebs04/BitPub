@@ -89,6 +89,24 @@ public class EdgeCommandController {
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
+    /**
+     * Generic CUD (Create/Update/Delete) command for any cloud entity (users, locales, catalog, ...).
+     * The WebApp posts the raw action body; the Edge validates the JWT once and relays it to the Cloud
+     * 100% over MQTT (QoS1), packed in an MqttCommandWrapper. {entity} is echoed in the topic so each
+     * cloud service subscribes only to its own slice. Returns 202 — result flows back on the entity's
+     * own live MQTT topic. The action verb (CREATE/UPDATE/DELETE) travels inside the body JSON.
+     */
+    @PostMapping("/system/{entity}/action")
+    public ResponseEntity<String> systemAction(@PathVariable("entity") String entity,
+                                               @RequestBody String actionJson,
+                                               @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        Actor actor = authenticate(authHeader);
+        String topic = MqttTopics.getCloudSystemActionTopic(entity);
+        publishCommand(topic, entity, actor, actionJson);
+        log.info("System CUD action for entity {} published to cloud via MQTT {} (actor {})", entity, topic, actor.userId());
+        return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
+    }
+
     // ── internals ───────────────────────────────────────────────────────────────
 
     private record Actor(String userId, String role) {}

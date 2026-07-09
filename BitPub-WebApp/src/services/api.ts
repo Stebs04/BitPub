@@ -77,6 +77,8 @@ export interface GlobalStats {
 export const createUser = (payload: CreateUserPayload) => api.post('/users', payload);
 export const getAllUsers = () => api.get<UserRecord[]>('/users');
 export const updateUserRole = (id: string, role: string) => api.patch<UserRecord>(`/users/${id}/role`, null, { params: { role } });
+export const updateUser = (id: string, payload: { username: string; email: string }) => api.patch<UserRecord>(`/users/${id}`, payload);
+export const updateUserPassword = (id: string, newPassword: string) => api.patch<UserRecord>(`/users/${id}/password`, { newPassword });
 export const deleteUser = (id: string) => api.delete(`/users/${id}`);
 
 // Gestione locali (PLATFORM_ADMIN)

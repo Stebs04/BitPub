@@ -38,6 +38,10 @@ public final class MqttTopics {
     // tournament bracket result reported by a LOCALE_ADMIN. Identity travels in the MqttCommandWrapper.
     public static final String CLOUD_TOURNAMENT_RESULT_FORMAT = "bitpub/cloud/commands/tournaments/%s/matches/%s/result";
 
+    // bitpub/cloud/commands/system/{entity}/action — Edge -> Cloud generic CUD command for any entity
+    // (users, locales, catalog, ...). Identity + body travel in the MqttCommandWrapper (MQTT has no headers).
+    public static final String CLOUD_SYSTEM_ACTION_FORMAT = "bitpub/cloud/commands/system/%s/action";
+
     // bitpub/tournaments/{tournamentId}/state — Cloud -> WebApp live tournament (bracket) updates.
     public static final String TOURNAMENT_STATE_FORMAT = "bitpub/tournaments/%s/state";
 
@@ -81,6 +85,10 @@ public final class MqttTopics {
 
     public static String getCloudMatchActionTopic(String matchId) {
         return String.format(CLOUD_MATCH_ACTION_FORMAT, matchId);
+    }
+
+    public static String getCloudSystemActionTopic(String entity) {
+        return String.format(CLOUD_SYSTEM_ACTION_FORMAT, entity);
     }
 
     public static String getCloudTournamentResultTopic(String tournamentId, String matchId) {

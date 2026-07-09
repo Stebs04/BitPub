@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
-import { UserPlus, Trash2, Users as UsersIcon } from 'lucide-react';
-import { createUser, deleteUser, getAllUsers, updateUserRole, type UserRecord } from '../services/api';
+import { UserPlus, Trash2, Users as UsersIcon, Pencil, KeyRound, Check, X } from 'lucide-react';
+import { createUser, deleteUser, getAllUsers, updateUserRole, updateUser, updateUserPassword, type UserRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 // NOTE: bitpub-common Role enum values (verbatim strings expected by the backend)
@@ -16,6 +16,9 @@ const UserManagementPage: React.FC = () => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editUsername, setEditUsername] = useState('');
+  const [editEmail, setEditEmail] = useState('');
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +73,34 @@ const UserManagementPage: React.FC = () => {
       setListError(err?.response?.data?.message || 'Errore durante la modifica del ruolo.');
     } finally {
       setPendingRoleId(null);
+    }
+  };
+
+  const startEdit = (u: UserRecord) => {
+    setEditingId(u.id);
+    setEditUsername(u.username);
+    setEditEmail(u.email);
+    setListError(null);
+  };
+
+  const handleSaveEdit = async (userId: string) => {
+    try {
+      const res = await updateUser(userId, { username: editUsername, email: editEmail });
+      setUsers((prev) => prev.map((u) => (u.id === userId ? res.data : u)));
+      setEditingId(null);
+    } catch (err: any) {
+      setListError(err?.response?.data?.message || 'Errore durante la modifica utente.');
+    }
+  };
+
+  const handleResetPassword = async (userId: string, targetUsername: string) => {
+    const newPassword = window.prompt(`Nuova password per "${targetUsername}":`);
+    if (!newPassword) return;
+    try {
+      await updateUserPassword(userId, newPassword);
+      setListError(null);
+    } catch (err: any) {
+      setListError(err?.response?.data?.message || 'Errore durante il reset della password.');
     }
   };
 
@@ -167,8 +198,29 @@ const UserManagementPage: React.FC = () => {
                 <tbody className="divide-y divide-white/5">
                   {users.map((u) => (
                     <tr key={u.id} className="text-slate-200">
-                      <td className="py-3 pr-4 font-medium">{u.username}</td>
-                      <td className="py-3 pr-4 text-slate-400">{u.email}</td>
+                      <td className="py-3 pr-4 font-medium">
+                        {editingId === u.id ? (
+                          <input
+                            value={editUsername}
+                            onChange={(e) => setEditUsername(e.target.value)}
+                            className="h-9 w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 text-sm text-white"
+                          />
+                        ) : (
+                          u.username
+                        )}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-400">
+                        {editingId === u.id ? (
+                          <input
+                            type="email"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                            className="h-9 w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 text-sm text-white"
+                          />
+                        ) : (
+                          u.email
+                        )}
+                      </td>
                       <td className="py-3 pr-4">
                         <select
                           value={u.role}
@@ -184,16 +236,37 @@ const UserManagementPage: React.FC = () => {
                         </select>
                       </td>
                       <td className="py-3 pr-4">
-                        <Button
-                          type="button"
-                          variant="danger"
-                          size="sm"
-                          disabled={u.id === currentUser?.id}
-                          title={u.id === currentUser?.id ? 'Non puoi eliminare il tuo stesso account' : 'Elimina utente'}
-                          onClick={() => handleDelete(u.id, u.username)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          {editingId === u.id ? (
+                            <>
+                              <Button type="button" size="sm" title="Salva" onClick={() => handleSaveEdit(u.id)}>
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button type="button" variant="secondary" size="sm" title="Annulla" onClick={() => setEditingId(null)}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button type="button" size="sm" title="Modifica anagrafica" onClick={() => startEdit(u)}>
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button type="button" variant="secondary" size="sm" title="Reset password" onClick={() => handleResetPassword(u.id, u.username)}>
+                                <KeyRound className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                disabled={u.id === currentUser?.id}
+                                title={u.id === currentUser?.id ? 'Non puoi eliminare il tuo stesso account' : 'Elimina utente'}
+                                onClick={() => handleDelete(u.id, u.username)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

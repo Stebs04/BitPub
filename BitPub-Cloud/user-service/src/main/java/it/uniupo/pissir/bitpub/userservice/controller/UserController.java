@@ -68,6 +68,20 @@ public class UserController {
         return userService.getUsersByRole(role);
     }
 
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    public UserDto updateUser(@PathVariable("id") String id,
+                              @Valid @RequestBody it.uniupo.pissir.bitpub.userservice.dto.UpdateUserRequest request) {
+        return userService.updateUserDetails(id, request);
+    }
+
+    @PatchMapping("/{id}/password")
+    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
+    public UserDto updateUserPassword(@PathVariable("id") String id,
+                                      @Valid @RequestBody it.uniupo.pissir.bitpub.userservice.dto.UpdatePasswordRequest request) {
+        return userService.updateUserPassword(id, request);
+    }
+
     @PatchMapping("/{id}/role")
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public UserDto updateUserRole(@PathVariable("id") String id, @RequestParam String role) {
