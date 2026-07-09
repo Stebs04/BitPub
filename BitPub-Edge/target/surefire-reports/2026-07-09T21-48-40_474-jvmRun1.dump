@@ -1,5 +1,5 @@
-# Created at 2026-07-09T18:23:57.883
-Thread dump for process (8912@StePC) after 30 seconds shutdown timeout:
+# Created at 2026-07-09T21:49:21.147
+Thread dump for process (23392@StePC) after 30 seconds shutdown timeout:
 "main" 
    java.lang.Thread.State: WAITING
         at java.base@21.0.11/java.lang.Object.wait0(Native Method)
@@ -60,62 +60,46 @@ Thread dump for process (8912@StePC) after 30 seconds shutdown timeout:
         at java.base@21.0.11/java.lang.Object.wait0(Native Method)
         at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
         at app//org.testcontainers.utility.RyukResourceReaper.lambda$null$1(RyukResourceReaper.java:115)
-        at app//org.testcontainers.utility.RyukResourceReaper$$Lambda/0x000001cf2f282f40.run(Unknown Source)
+        at app//org.testcontainers.utility.RyukResourceReaper$$Lambda/0x0000027b632e9000.run(Unknown Source)
         at app//org.rnorth.ducttape.ratelimits.RateLimiter.doWhenReady(RateLimiter.java:27)
         at app//org.testcontainers.utility.RyukResourceReaper.lambda$maybeStart$2(RyukResourceReaper.java:101)
-        at app//org.testcontainers.utility.RyukResourceReaper$$Lambda/0x000001cf2f282d28.run(Unknown Source)
+        at app//org.testcontainers.utility.RyukResourceReaper$$Lambda/0x0000027b632ebd90.run(Unknown Source)
         at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
         at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
 
-"Catalina-utility-1" 
+"testcontainers-wait-0" 
    java.lang.Thread.State: TIMED_WAITING
         at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
-        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
-        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1763)
-        at java.base@21.0.11/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1182)
-        at java.base@21.0.11/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:899)
-        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1070)
+        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:410)
+        at java.base@21.0.11/java.util.concurrent.LinkedTransferQueue$DualNode.await(LinkedTransferQueue.java:452)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue$Transferer.xferLifo(SynchronousQueue.java:194)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue.xfer(SynchronousQueue.java:235)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:338)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1069)
         at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
         at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
-        at app//org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
         at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
         at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
 
-"Catalina-utility-2" 
-   java.lang.Thread.State: WAITING
+"testcontainers-wait-1" 
+   java.lang.Thread.State: TIMED_WAITING
         at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
-        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.park(LockSupport.java:371)
-        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionNode.block(AbstractQueuedSynchronizer.java:519)
-        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3778)
-        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3723)
-        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1712)
-        at java.base@21.0.11/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1177)
-        at java.base@21.0.11/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:899)
-        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1070)
+        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:410)
+        at java.base@21.0.11/java.util.concurrent.LinkedTransferQueue$DualNode.await(LinkedTransferQueue.java:452)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue$Transferer.xferLifo(SynchronousQueue.java:194)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue.xfer(SynchronousQueue.java:235)
+        at java.base@21.0.11/java.util.concurrent.SynchronousQueue.poll(SynchronousQueue.java:338)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1069)
         at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
         at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
-        at app//org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
         at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
         at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
 
-"container-0" 
+"MVStore background writer C:/Users/DeaDS/Documents/Programming projects/BitPub/BitPub-Edge/data/edge-db.mv.db" 
    java.lang.Thread.State: TIMED_WAITING
-        at java.base@21.0.11/java.lang.Thread.sleep0(Native Method)
-        at java.base@21.0.11/java.lang.Thread.sleep(Thread.java:509)
-        at app//org.apache.catalina.core.StandardServer.await(StandardServer.java:564)
-        at app//org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1.run(TomcatWebServer.java:217)
-
-"PostgreSQL-JDBC-Cleaner" 
-   java.lang.Thread.State: TIMED_WAITING
-        at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
-        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
-        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1852)
-        at java.base@21.0.11/java.lang.ref.ReferenceQueue.await(ReferenceQueue.java:71)
-        at java.base@21.0.11/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:143)
-        at java.base@21.0.11/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:218)
-        at app//org.postgresql.util.LazyCleaner$1.run(LazyCleaner.java:128)
-        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
-        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at app//org.h2.mvstore.FileStore$BackgroundWriterThread.run(FileStore.java:2242)
 
 "HikariPool-1 housekeeper" 
    java.lang.Thread.State: TIMED_WAITING
@@ -130,7 +114,45 @@ Thread dump for process (8912@StePC) after 30 seconds shutdown timeout:
         at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
         at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
 
-"MQTT Reconnect: user-service-command-ingest" 
+"H2-serialization" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
+        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.park(LockSupport.java:371)
+        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionNode.block(AbstractQueuedSynchronizer.java:519)
+        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3778)
+        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3723)
+        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1712)
+        at java.base@21.0.11/java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:435)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1070)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"H2-save" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
+        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.park(LockSupport.java:371)
+        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionNode.block(AbstractQueuedSynchronizer.java:519)
+        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3778)
+        at java.base@21.0.11/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3723)
+        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1712)
+        at java.base@21.0.11/java.util.concurrent.LinkedBlockingQueue.take(LinkedBlockingQueue.java:435)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1070)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"HttpClient-1-SelectorManager" 
+   java.lang.Thread.State: RUNNABLE
+        at java.base@21.0.11/sun.nio.ch.WEPoll.wait(Native Method)
+        at java.base@21.0.11/sun.nio.ch.WEPollSelectorImpl.doSelect(WEPollSelectorImpl.java:114)
+        at java.base@21.0.11/sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:130)
+        at java.base@21.0.11/sun.nio.ch.SelectorImpl.select(SelectorImpl.java:142)
+        at platform/java.net.http@21.0.11/jdk.internal.net.http.HttpClientImpl$SelectorManager.run(HttpClientImpl.java:1376)
+
+"MQTT Reconnect: edge-node-1-cloud-out" 
    java.lang.Thread.State: WAITING
         at java.base@21.0.11/java.lang.Object.wait0(Native Method)
         at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
@@ -138,14 +160,20 @@ Thread dump for process (8912@StePC) after 30 seconds shutdown timeout:
         at java.base@21.0.11/java.util.TimerThread.mainLoop(Timer.java:537)
         at java.base@21.0.11/java.util.TimerThread.run(Timer.java:516)
 
-"Keep-Alive-Timer" 
+"MQTT Reconnect: edge-node-1-e92c8a29-21d9-4853-b1a8-88b7c023db4e" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:339)
+        at java.base@21.0.11/java.util.TimerThread.mainLoop(Timer.java:537)
+        at java.base@21.0.11/java.util.TimerThread.run(Timer.java:516)
+
+"MQTT Reconnect: edge-node-1-games-e5ddc3aa-c13c-4c9a-98e3-c0c9868b1b95" 
    java.lang.Thread.State: TIMED_WAITING
-        at java.base@21.0.11/java.lang.Thread.sleep0(Native Method)
-        at java.base@21.0.11/java.lang.Thread.sleep(Thread.java:509)
-        at java.base@21.0.11/sun.net.www.http.KeepAliveCache.run(KeepAliveCache.java:238)
-        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
-        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
-        at java.base@21.0.11/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:186)
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.util.TimerThread.mainLoop(Timer.java:563)
+        at java.base@21.0.11/java.util.TimerThread.run(Timer.java:516)
 
 "surefire-forkedjvm-last-ditch-daemon-shutdown-thread-30s" 
    java.lang.Thread.State: RUNNABLE
@@ -176,15 +204,14 @@ Thread dump for process (8912@StePC) after 30 seconds shutdown timeout:
         at app//org.springframework.integration.endpoint.AbstractEndpoint.stop(AbstractEndpoint.java:192)
         at app//org.springframework.context.support.DefaultLifecycleProcessor.doStop(DefaultLifecycleProcessor.java:348)
         at app//org.springframework.context.support.DefaultLifecycleProcessor$LifecycleGroup.stop(DefaultLifecycleProcessor.java:487)
-        at app//org.springframework.context.support.DefaultLifecycleProcessor$$Lambda/0x000001cf2fd0dd08.accept(Unknown Source)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor$$Lambda/0x0000027b63a9b4b0.accept(Unknown Source)
         at java.base@21.0.11/java.lang.Iterable.forEach(Iterable.java:75)
         at app//org.springframework.context.support.DefaultLifecycleProcessor.stopBeans(DefaultLifecycleProcessor.java:317)
         at app//org.springframework.context.support.DefaultLifecycleProcessor.onClose(DefaultLifecycleProcessor.java:218)
         at app//org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1139)
-        at app//org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:174)
         at app//org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1093)
         at app//org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
-        at app//org.springframework.boot.SpringApplicationShutdownHook$$Lambda/0x000001cf2fd0d460.accept(Unknown Source)
+        at app//org.springframework.boot.SpringApplicationShutdownHook$$Lambda/0x0000027b63a9a9c8.accept(Unknown Source)
         at java.base@21.0.11/java.lang.Iterable.forEach(Iterable.java:75)
         at app//org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
         at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)

@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.localeservice.controller.LocaleControllerTest
--------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.881 s -- in it.uniupo.pissir.bitpub.localeservice.controller.LocaleControllerTest
