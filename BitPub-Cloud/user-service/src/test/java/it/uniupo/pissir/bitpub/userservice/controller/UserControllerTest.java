@@ -1,14 +1,19 @@
 package it.uniupo.pissir.bitpub.userservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.security.JwtAuthenticationFilter;
+import it.uniupo.pissir.bitpub.userservice.config.SecurityConfig;
 import it.uniupo.pissir.bitpub.userservice.dto.CreateUserRequest;
 import it.uniupo.pissir.bitpub.userservice.dto.UserDto;
 import it.uniupo.pissir.bitpub.userservice.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -21,7 +26,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(UserController.class)
+// Mapping/validation slice: exclude SecurityConfig so @EnableMethodSecurity/@PreAuthorize don't run
+// (authz is enforced upstream at the gateway), and addFilters=false drops the default security chain.
+@WebMvcTest(controllers = UserController.class,
+        excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                classes = {SecurityConfig.class, JwtAuthenticationFilter.class}))
+@AutoConfigureMockMvc(addFilters = false)
 public class UserControllerTest {
 
     @Autowired
