@@ -91,6 +91,8 @@ export const addGameInstance = (localeId: string, payload: { localInstanceId: st
   edgeApi.post('/system/locales/action', { action: 'ADD_GAME_INSTANCE', localeId, ...payload });
 export const toggleGameInstance = (localeId: string, gameInstanceId: string, active: boolean) =>
   edgeApi.post('/system/locales/action', { action: 'TOGGLE_GAME_INSTANCE', localeId, gameInstanceId, active });
+export const deleteGameInstance = (localeId: string, gameInstanceId: string) =>
+  edgeApi.post('/system/locales/action', { action: 'DELETE_GAME_INSTANCE', localeId, gameInstanceId });
 
 // Statistiche globali della piattaforma (PLATFORM_ADMIN)
 export const getGlobalStats = () => statsApi.get<GlobalStats>('/global');

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: it.uniupo.pissir.bitpub.userservice.repository.UserRepositoryIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.493 s -- in it.uniupo.pissir.bitpub.userservice.repository.UserRepositoryIntegrationTest

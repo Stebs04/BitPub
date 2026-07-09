@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.statisticsservice.service.impl.StatisticsServiceImplTest" time="0.293" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest" time="1.043" tests="3" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -64,8 +64,35 @@
     <property name="java.class.version" value="65.0"/>
     <property name="LOGGED_APPLICATION_NAME" value="[statistics-service] "/>
   </properties>
-  <testcase name="rebuildLeaderboard_excludesTournamentMatches_and_broadcastsOncePerGame" classname="it.uniupo.pissir.bitpub.statisticsservice.service.impl.StatisticsServiceImplTest" time="0.288">
-    <system-out><![CDATA[2026-07-09T18:41:40.448+02:00 ERROR 4716 --- [statistics-service] [e-result-ingest] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connessione persa
+  <testcase name="getStatistics_localeAdminOwnLocale_returns200" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest" time="0.013">
+    <system-out><![CDATA[2026-07-09T18:41:39.353+02:00  INFO 4716 --- [statistics-service] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest]: StatisticsControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-07-09T18:41:39.366+02:00  INFO 4716 --- [statistics-service] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration it.uniupo.pissir.bitpub.statisticsservice.StatisticsServiceApplication for test class it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-07-09T18:41:39.419+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.StatisticsControllerTest     : Starting StatisticsControllerTest using Java 21.0.11 with PID 4716 (started by DeaDS in C:\Users\DeaDS\Documents\Programming projects\BitPub\BitPub-Cloud\statistics-service)
+2026-07-09T18:41:39.419+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.StatisticsControllerTest     : No active profile set, falling back to 1 default profile: "default"
+2026-07-09T18:41:39.894+02:00  WARN 4716 --- [statistics-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: d430c855-f7ed-49da-bf4a-090a64c93a15
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-07-09T18:41:39.941+02:00  INFO 4716 --- [statistics-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@903c13, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@4ae5ddc0, org.springframework.security.web.context.SecurityContextHolderFilter@efa04b5, org.springframework.security.web.header.HeaderWriterFilter@4e4af370, org.springframework.web.filter.CorsFilter@36ab69d9, org.springframework.security.web.authentication.logout.LogoutFilter@8167f57, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@a80a896, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@13c81bc5, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@5ebfe7fa, org.springframework.security.web.session.SessionManagementFilter@5cf33d25, org.springframework.security.web.access.ExceptionTranslationFilter@1da32baf, org.springframework.security.web.access.intercept.AuthorizationFilter@2f58f492]
+2026-07-09T18:41:39.987+02:00  INFO 4716 --- [statistics-service] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-07-09T18:41:39.987+02:00  INFO 4716 --- [statistics-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-07-09T18:41:39.987+02:00  INFO 4716 --- [statistics-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-07-09T18:41:40.323+02:00  INFO 4716 --- [statistics-service] [           main] .m.i.MqttPahoMessageDrivenChannelAdapter : started bean 'mqttResultInbound'; defined in: 'class path resource [it/uniupo/pissir/bitpub/statisticsservice/config/MqttConfig.class]'; from source: 'it.uniupo.pissir.bitpub.statisticsservice.config.MqttConfig.mqttResultInbound()'
+2026-07-09T18:41:40.326+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.StatisticsControllerTest     : Started StatisticsControllerTest in 0.951 seconds (process running for 5.999)
+2026-07-09T18:41:40.329+02:00 ERROR 4716 --- [statistics-service] [e-result-ingest] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connessione persa
 ]]></system-out>
   </testcase>
+  <testcase name="getGlobalOverview_platformAdmin_returns200" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest" time="0.038"/>
+  <testcase name="getStatistics_localeAdminOtherLocale_returns403" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.StatisticsControllerTest" time="0.011"/>
 </testsuite>

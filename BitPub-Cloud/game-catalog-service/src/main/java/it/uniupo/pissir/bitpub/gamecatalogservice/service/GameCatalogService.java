@@ -15,6 +15,8 @@ import it.uniupo.pissir.bitpub.gamecatalogservice.repository.GameTypeRepository;
 import it.uniupo.pissir.bitpub.gamecatalogservice.repository.SensorDefinitionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,19 @@ public class GameCatalogService {
      * cosi' i simulatori aggiornano le regole in cache. Fire-and-forget: un errore MQTT non deve
      * far fallire la mutazione del catalogo.
      */
+    /**
+     * Al boot ripubblica la config di ogni GameType esistente: il broker perde i messaggi retained
+     * ai riavvii e le config vengono altrimenti pubblicate solo su create/update, lasciando la cache
+     * dei simulatori vuota per i giochi gia' presenti nel DB.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional(readOnly = true)
+    public void republishAllConfigsOnStartup() {
+        List<GameTypeDto> gameTypes = getAllGameTypes();
+        log.info("Republishing {} game configs to MQTT on startup", gameTypes.size());
+        gameTypes.forEach(dto -> publishConfig(dto.getId()));
+    }
+
     public void publishConfig(String gameTypeId) {
         try {
             GameTypeDto dto = getGameTypeById(gameTypeId);

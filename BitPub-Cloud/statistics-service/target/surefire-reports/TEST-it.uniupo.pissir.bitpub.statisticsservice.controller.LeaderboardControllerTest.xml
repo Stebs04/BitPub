@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.statisticsservice.service.impl.StatisticsServiceImplTest" time="0.293" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest" time="4.449" tests="3" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.cpu.isalist" value="amd64"/>
@@ -64,8 +64,39 @@
     <property name="java.class.version" value="65.0"/>
     <property name="LOGGED_APPLICATION_NAME" value="[statistics-service] "/>
   </properties>
-  <testcase name="rebuildLeaderboard_excludesTournamentMatches_and_broadcastsOncePerGame" classname="it.uniupo.pissir.bitpub.statisticsservice.service.impl.StatisticsServiceImplTest" time="0.288">
-    <system-out><![CDATA[2026-07-09T18:41:40.448+02:00 ERROR 4716 --- [statistics-service] [e-result-ingest] .m.i.MqttPahoMessageDrivenChannelAdapter : Lost connection: Connessione persa
+  <testcase name="getLeaderboardByLocale_localeAdminOwnLocale_returns200" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest" time="0.239">
+    <system-out><![CDATA[18:41:35.070 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest]: LeaderboardControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+18:41:35.212 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration it.uniupo.pissir.bitpub.statisticsservice.StatisticsServiceApplication for test class it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.4)
+
+2026-07-09T18:41:35.653+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.LeaderboardControllerTest    : Starting LeaderboardControllerTest using Java 21.0.11 with PID 4716 (started by DeaDS in C:\Users\DeaDS\Documents\Programming projects\BitPub\BitPub-Cloud\statistics-service)
+2026-07-09T18:41:35.656+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.LeaderboardControllerTest    : No active profile set, falling back to 1 default profile: "default"
+2026-07-09T18:41:37.979+02:00  WARN 4716 --- [statistics-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 43842cc2-01e0-4090-b504-926fe69393bd
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-07-09T18:41:38.320+02:00  INFO 4716 --- [statistics-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@4f7bb8df, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@269c7104, org.springframework.security.web.context.SecurityContextHolderFilter@249b54af, org.springframework.security.web.header.HeaderWriterFilter@786ff0ea, org.springframework.web.filter.CorsFilter@6de84336, org.springframework.security.web.authentication.logout.LogoutFilter@4cc26df, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@4751cd3, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@64ec1459, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@627bcd7e, org.springframework.security.web.session.SessionManagementFilter@745926c3, org.springframework.security.web.access.ExceptionTranslationFilter@586728e8, org.springframework.security.web.access.intercept.AuthorizationFilter@21f91efa]
+2026-07-09T18:41:38.663+02:00  INFO 4716 --- [statistics-service] [           main] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-07-09T18:41:38.663+02:00  INFO 4716 --- [statistics-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-07-09T18:41:38.663+02:00  INFO 4716 --- [statistics-service] [           main] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 0 ms
+2026-07-09T18:41:39.060+02:00  INFO 4716 --- [statistics-service] [           main] .m.i.MqttPahoMessageDrivenChannelAdapter : started bean 'mqttResultInbound'; defined in: 'class path resource [it/uniupo/pissir/bitpub/statisticsservice/config/MqttConfig.class]'; from source: 'it.uniupo.pissir.bitpub.statisticsservice.config.MqttConfig.mqttResultInbound()'
+2026-07-09T18:41:39.065+02:00  INFO 4716 --- [statistics-service] [           main] i.u.p.b.s.c.LeaderboardControllerTest    : Started LeaderboardControllerTest in 3.766 seconds (process running for 4.738)
 ]]></system-out>
+    <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (C:\Users\DeaDS\.m2\repository\net\bytebuddy\byte-buddy-agent\1.14.12\byte-buddy-agent-1.14.12.jar)
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
   </testcase>
+  <testcase name="getLeaderboard_returns200Ordered" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest" time="0.007"/>
+  <testcase name="getLeaderboardByLocale_localeAdminMismatch_returns403" classname="it.uniupo.pissir.bitpub.statisticsservice.controller.LeaderboardControllerTest" time="0.017"/>
 </testsuite>

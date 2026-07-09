@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { MapPin, Server, Plus, Power, Trash2, BarChart3 } from 'lucide-react';
-import api, { deleteLocale, createLocale, addGameInstance, toggleGameInstance, getLocaleGameUsage } from '../services/api';
+import api, { deleteLocale, createLocale, addGameInstance, toggleGameInstance, deleteGameInstance, getLocaleGameUsage } from '../services/api';
 import type { GameUsageRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
@@ -143,6 +143,20 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  const handleDeleteGameInstance = async (localeId: string, instance: GameInstance) => {
+    if (!confirm(`Eliminare la macchina "${instance.localInstanceId}"?`)) return;
+    setBusy(true);
+    try {
+      await deleteGameInstance(localeId, instance.id);
+      await pollUntil(fetchLocales, (d) =>
+        !d.find((l) => l.id === localeId)?.games?.some((g) => g.id === instance.id));
+    } catch (error) {
+      console.error('Error deleting game instance:', error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleToggleGameInstance = async (localeId: string, instance: GameInstance) => {
     const next = !instance.active;
     setBusy(true);
@@ -256,6 +270,16 @@ const LocalesPage: React.FC = () => {
                           <Power className="w-4 h-4" />
                         </button>
                       )}
+                      {isLocaleAdmin && (
+                        <button
+                          onClick={() => handleDeleteGameInstance(locale.id, game)}
+                          disabled={busy}
+                          className="text-slate-400 hover:text-red-400 disabled:opacity-40"
+                          title="Elimina macchina"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -301,7 +325,7 @@ const LocalesPage: React.FC = () => {
                     >
                       <option value="">Seleziona...</option>
                       {gameTypes.map(gt => (
-                        <option key={gt.id} value={gt.name}>{gt.name}</option>
+                        <option key={gt.id} value={gt.id}>{gt.name}</option>
                       ))}
                     </select>
                   </div>

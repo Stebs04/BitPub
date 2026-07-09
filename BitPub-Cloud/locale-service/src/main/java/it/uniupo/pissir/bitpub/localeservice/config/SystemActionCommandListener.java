@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 /**
  * Consumes Edge-forwarded locale CUD commands from the Cloud system-action MQTT topic and orchestrates
  * the matching {@link LocaleService} call. The inner payload JSON carries an {@code action} discriminant
- * (CREATE_LOCALE / DELETE_LOCALE / ADD_GAME_INSTANCE / TOGGLE_GAME_INSTANCE) plus the data.
+ * (CREATE_LOCALE / DELETE_LOCALE / ADD_GAME_INSTANCE / TOGGLE_GAME_INSTANCE / DELETE_GAME_INSTANCE) plus the data.
  *
  * <p>The Edge validated the caller's JWT but not their role. Create/delete of a locale are
  * PLATFORM_ADMIN-only, re-checked here. Add/toggle of a game instance are already authorized inside
@@ -55,6 +55,9 @@ public class SystemActionCommandListener {
                 case "TOGGLE_GAME_INSTANCE" ->
                         localeService.setGameInstanceActive(p.path("localeId").asText(),
                                 p.path("gameInstanceId").asText(), p.path("active").asBoolean(), actorId, actorRole);
+                case "DELETE_GAME_INSTANCE" ->
+                        localeService.removeGameInstance(p.path("localeId").asText(),
+                                p.path("gameInstanceId").asText(), actorId, actorRole);
                 default -> log.warn("Unknown locale action: {}", action);
             }
             log.info("Processed locale action {} via MQTT (actor {})", action, actorId);

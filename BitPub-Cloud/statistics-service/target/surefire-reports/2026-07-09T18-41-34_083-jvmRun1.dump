@@ -1,0 +1,153 @@
+# Created at 2026-07-09T18:42:10.713
+Thread dump for process (4716@StePC) after 30 seconds shutdown timeout:
+"main" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Thread.join(Thread.java:2078)
+        at java.base@21.0.11/java.lang.Thread.join(Thread.java:2154)
+        at java.base@21.0.11/java.lang.ApplicationShutdownHooks.runHooks(ApplicationShutdownHooks.java:114)
+        at java.base@21.0.11/java.lang.ApplicationShutdownHooks$1.run(ApplicationShutdownHooks.java:47)
+        at java.base@21.0.11/java.lang.Shutdown.runHooks(Shutdown.java:130)
+        at java.base@21.0.11/java.lang.Shutdown.exit(Shutdown.java:167)
+        at java.base@21.0.11/java.lang.Runtime.exit(Runtime.java:188)
+        at java.base@21.0.11/java.lang.System.exit(System.java:1921)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.acknowledgedExit(ForkedBooter.java:381)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:178)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:507)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:495)
+
+"Reference Handler" 
+   java.lang.Thread.State: RUNNABLE
+        at java.base@21.0.11/java.lang.ref.Reference.waitForReferencePendingList(Native Method)
+        at java.base@21.0.11/java.lang.ref.Reference.processPendingReferences(Reference.java:246)
+        at java.base@21.0.11/java.lang.ref.Reference$ReferenceHandler.run(Reference.java:208)
+
+"Finalizer" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:339)
+        at java.base@21.0.11/java.lang.ref.NativeReferenceQueue.await(NativeReferenceQueue.java:48)
+        at java.base@21.0.11/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:158)
+        at java.base@21.0.11/java.lang.ref.NativeReferenceQueue.remove(NativeReferenceQueue.java:89)
+        at java.base@21.0.11/java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:173)
+
+"Signal Dispatcher" 
+   java.lang.Thread.State: RUNNABLE
+
+"Attach Listener" 
+   java.lang.Thread.State: RUNNABLE
+
+"Notification Thread" 
+   java.lang.Thread.State: RUNNABLE
+
+"Common-Cleaner" 
+   java.lang.Thread.State: TIMED_WAITING
+        at java.base@21.0.11/jdk.internal.misc.Unsafe.park(Native Method)
+        at java.base@21.0.11/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
+        at java.base@21.0.11/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1852)
+        at java.base@21.0.11/java.lang.ref.ReferenceQueue.await(ReferenceQueue.java:71)
+        at java.base@21.0.11/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:143)
+        at java.base@21.0.11/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:218)
+        at java.base@21.0.11/jdk.internal.ref.CleanerImpl.run(CleanerImpl.java:140)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+        at java.base@21.0.11/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:186)
+
+"MQTT Reconnect: statistics-service-result-ingest" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:339)
+        at java.base@21.0.11/java.util.TimerThread.mainLoop(Timer.java:537)
+        at java.base@21.0.11/java.util.TimerThread.run(Timer.java:516)
+
+"surefire-forkedjvm-last-ditch-daemon-shutdown-thread-30s" 
+   java.lang.Thread.State: RUNNABLE
+        at java.management@21.0.11/sun.management.ThreadImpl.getThreadInfo1(Native Method)
+        at java.management@21.0.11/sun.management.ThreadImpl.getThreadInfo(ThreadImpl.java:187)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.generateThreadDump(ForkedBooter.java:579)
+        at app//org.apache.maven.surefire.booter.ForkedBooter.access$600(ForkedBooter.java:79)
+        at app//org.apache.maven.surefire.booter.ForkedBooter$7.run(ForkedBooter.java:424)
+        at java.base@21.0.11/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:572)
+        at java.base@21.0.11/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+        at java.base@21.0.11/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+        at java.base@21.0.11/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"SpringApplicationShutdownHook" 
+   java.lang.Thread.State: TIMED_WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at app//org.eclipse.paho.client.mqttv3.internal.ClientState.quiesce(ClientState.java:1358)
+        at app//org.eclipse.paho.client.mqttv3.internal.ClientComms.disconnectForcibly(ClientComms.java:542)
+        at app//org.eclipse.paho.client.mqttv3.internal.ClientComms.disconnectForcibly(ClientComms.java:528)
+        at app//org.eclipse.paho.client.mqttv3.MqttAsyncClient.disconnectForcibly(MqttAsyncClient.java:857)
+        at app//org.eclipse.paho.client.mqttv3.MqttAsyncClient.disconnectForcibly(MqttAsyncClient.java:846)
+        at app//org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter.doStop(MqttPahoMessageDrivenChannelAdapter.java:230)
+        at app//org.springframework.integration.endpoint.AbstractEndpoint.doStop(AbstractEndpoint.java:211)
+        at app//org.springframework.integration.endpoint.AbstractEndpoint.stop(AbstractEndpoint.java:192)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor.doStop(DefaultLifecycleProcessor.java:348)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor$LifecycleGroup.stop(DefaultLifecycleProcessor.java:487)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor$$Lambda/0x0000029f81762090.accept(Unknown Source)
+        at java.base@21.0.11/java.lang.Iterable.forEach(Iterable.java:75)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor.stopBeans(DefaultLifecycleProcessor.java:317)
+        at app//org.springframework.context.support.DefaultLifecycleProcessor.onClose(DefaultLifecycleProcessor.java:218)
+        at app//org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1139)
+        at app//org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1093)
+        at app//org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:145)
+        at app//org.springframework.boot.SpringApplicationShutdownHook$$Lambda/0x0000029f81761a08.accept(Unknown Source)
+        at java.base@21.0.11/java.lang.Iterable.forEach(Iterable.java:75)
+        at app//org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:114)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"MQTT Reconnect: statistics-service-result-ingest" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:339)
+        at java.base@21.0.11/java.util.TimerThread.mainLoop(Timer.java:537)
+        at java.base@21.0.11/java.util.TimerThread.run(Timer.java:516)
+
+"MQTT Con: statistics-service-result-ingest" 
+   java.lang.Thread.State: TIMED_WAITING
+        at java.base@21.0.11/java.lang.Thread.sleep0(Native Method)
+        at java.base@21.0.11/java.lang.Thread.sleep(Thread.java:509)
+        at app//org.eclipse.paho.client.mqttv3.internal.CommsSender.start(CommsSender.java:79)
+        at app//org.eclipse.paho.client.mqttv3.internal.ClientComms$ConnectBG.run(ClientComms.java:728)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"MQTT Rec: statistics-service-result-ingest" 
+   java.lang.Thread.State: RUNNABLE
+        at java.base@21.0.11/sun.nio.ch.Net.poll(Native Method)
+        at java.base@21.0.11/sun.nio.ch.NioSocketImpl.park(NioSocketImpl.java:191)
+        at java.base@21.0.11/sun.nio.ch.NioSocketImpl.timedRead(NioSocketImpl.java:280)
+        at java.base@21.0.11/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:304)
+        at java.base@21.0.11/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+        at java.base@21.0.11/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+        at java.base@21.0.11/java.net.Socket$SocketInputStream.read(Socket.java:1099)
+        at java.base@21.0.11/java.net.Socket$SocketInputStream.read(Socket.java:1093)
+        at java.base@21.0.11/java.io.DataInputStream.readUnsignedByte(DataInputStream.java:295)
+        at java.base@21.0.11/java.io.DataInputStream.readByte(DataInputStream.java:275)
+        at app//org.eclipse.paho.client.mqttv3.internal.wire.MqttInputStream.readMqttWireMessage(MqttInputStream.java:92)
+        at app//org.eclipse.paho.client.mqttv3.internal.CommsReceiver.run(CommsReceiver.java:137)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+"MQTT Snd: statistics-service-result-ingest" 
+   java.lang.Thread.State: WAITING
+        at java.base@21.0.11/java.lang.Object.wait0(Native Method)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:366)
+        at java.base@21.0.11/java.lang.Object.wait(Object.java:339)
+        at app//org.eclipse.paho.client.mqttv3.internal.ClientState.get(ClientState.java:833)
+        at app//org.eclipse.paho.client.mqttv3.internal.CommsSender.run(CommsSender.java:129)
+        at java.base@21.0.11/java.lang.Thread.runWith(Thread.java:1596)
+        at java.base@21.0.11/java.lang.Thread.run(Thread.java:1583)
+
+
+

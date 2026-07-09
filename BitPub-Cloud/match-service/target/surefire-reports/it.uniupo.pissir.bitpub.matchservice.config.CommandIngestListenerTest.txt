@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: it.uniupo.pissir.bitpub.matchservice.config.CommandIngestListenerTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.443 s -- in it.uniupo.pissir.bitpub.matchservice.config.CommandIngestListenerTest
