@@ -16,6 +16,7 @@ public class MatchResultEvent {
     private int winnerScore;
     private int loserScore;
     private String matchId;
+    private String tournamentMatchId; // valorizzato per le partite del tabellone torneo; qui solo per non scartare l'evento
     private String localeId;
     private boolean teamBased; // true = risultato di una partita a squadre (winnerName = nome squadra)
 }

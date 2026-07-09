@@ -22,6 +22,7 @@ import {
   endTournament,
   generateTournamentBracket,
   updateTournamentMatchResult,
+  getGameTypes,
 } from '../services/api';
 import type {
   TournamentRecord,
@@ -29,15 +30,8 @@ import type {
   TournamentMatchRecord,
   LocaleRecord,
   TournamentRankingRecord,
+  GameTypeRecord,
 } from '../services/api';
-
-const GAME_TYPE_LABELS: Record<string, string> = {
-  foosball: 'Calciobalilla',
-  darts: 'Freccette',
-  billiards: 'Biliardo',
-};
-
-const GAME_TYPE_OPTIONS = Object.entries(GAME_TYPE_LABELS); // [id, label]
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   UPCOMING: { label: 'In arrivo', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
@@ -45,7 +39,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   COMPLETED: { label: 'Concluso', className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' },
 };
 
-const EMPTY_FORM = { name: '', gameTypeId: 'foosball', teamBased: false, maxParticipants: 8 };
+const EMPTY_FORM = { name: '', gameTypeId: '', teamBased: false, maxParticipants: 8 };
 const MAX_PARTICIPANTS_OPTIONS = [4, 8, 16];
 
 /**
@@ -66,6 +60,7 @@ const TournamentsPage: React.FC = () => {
   const isPlayer = role === 'PLAYER';
 
   const [tournaments, setTournaments] = useState<TournamentRecord[]>([]);
+  const [gameTypes, setGameTypes] = useState<GameTypeRecord[]>([]);
   const [myRegistrations, setMyRegistrations] = useState<TournamentRegistrationRecord[]>([]);
   const [onlineLocales, setOnlineLocales] = useState<LocaleRecord[]>([]);
   const [selectedLocaleId, setSelectedLocaleId] = useState('');
@@ -106,6 +101,15 @@ const TournamentsPage: React.FC = () => {
       })
       .catch((err) => console.error('Error fetching tournaments:', err))
       .finally(() => !cancelled && setLoading(false));
+
+    getGameTypes()
+      .then((res) => {
+        if (cancelled) return;
+        const types = res.data || [];
+        setGameTypes(types);
+        if (types.length) setForm((p) => (p.gameTypeId ? p : { ...p, gameTypeId: types[0].id }));
+      })
+      .catch((err) => console.error('Error fetching game types:', err));
 
     return () => {
       cancelled = true;
@@ -322,8 +326,8 @@ const TournamentsPage: React.FC = () => {
                     value={form.gameTypeId}
                     onChange={(e) => setForm((p) => ({ ...p, gameTypeId: e.target.value }))}
                   >
-                    {GAME_TYPE_OPTIONS.map(([id, label]) => (
-                      <option key={id} value={id}>{label}</option>
+                    {gameTypes.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
                     ))}
                   </select>
                 </div>
@@ -420,7 +424,7 @@ const TournamentsPage: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-slate-400">{GAME_TYPE_LABELS[t.gameTypeId] || t.gameTypeId} · {t.teamBased ? 'A squadre' : 'Individuale'}</p>
+                <p className="text-slate-400">{gameTypes.find((g) => g.id === t.gameTypeId)?.name || t.gameTypeId} · {t.teamBased ? 'A squadre' : 'Individuale'}</p>
                 {t.maxParticipants && (
                   <p className="text-sm text-slate-500 flex items-center gap-2">
                     <Users className="w-4 h-4" /> Iscritti: {entrantsCount} / {t.maxParticipants}
@@ -508,7 +512,7 @@ const TournamentsPage: React.FC = () => {
                     canEdit={isManager && t.status === 'ACTIVE'}
                     onSetWinner={(m, winnerId) => handleSetWinner(t.id, m, winnerId)}
                     currentUserId={user?.id}
-                    onStartMatch={(m) => setPlayCtx({ matchId: m.id, gameTypeId: GAME_TYPE_LABELS[t.gameTypeId] ?? t.gameTypeId })}
+                    onStartMatch={(m) => setPlayCtx({ matchId: m.id, gameTypeId: gameTypes.find((g) => g.id === t.gameTypeId)?.name ?? t.gameTypeId })}
                   />
                 )}
 
