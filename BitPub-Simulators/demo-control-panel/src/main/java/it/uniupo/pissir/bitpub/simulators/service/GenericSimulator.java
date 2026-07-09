@@ -82,6 +82,12 @@ public class GenericSimulator {
         String eventId = str(action.get("eventId"));
 
         GameConfig config = configByGameType.get(gameTypeId);
+        if (config == null && gameTypeId != null) {
+            // gameTypeId a volte porta il name testuale ("foosball") invece dell'UUID: fallback per name
+            config = configByGameType.values().stream()
+                    .filter(c -> gameTypeId.equalsIgnoreCase(c.name))
+                    .findFirst().orElse(null);
+        }
         if (config == null) {
             log.warn("No cached config for gameTypeId {} — cannot resolve action {}", gameTypeId, sensorType);
             return;

@@ -63,13 +63,15 @@ public class LocaleDataSeeder implements CommandLineRunner {
         Locale saved = localeRepository.save(locale);
         syncAdminLocaleId(adminId, saved.getId());
 
-        List<String> gameTypeNames = fetchGameTypeNames();
+        List<Map> gameTypes = fetchGameTypes();
         List<GameInstance> instances = new ArrayList<>();
         int counter = 1;
-        for (String typeName : gameTypeNames) {
+        for (Map type : gameTypes) {
+            String typeName = String.valueOf(type.get("name"));
+            String typeId = String.valueOf(type.get("id")); // UUID catalogo: e' la chiave con cui il simulatore trova le regole
             instances.add(GameInstance.builder()
                     .localInstanceId(typeName.toLowerCase() + "-" + counter++)
-                    .gameTypeId(typeName)
+                    .gameTypeId(typeId)
                     .locale(saved)
                     .installedAt(Instant.now())
                     .active(true)
@@ -105,22 +107,22 @@ public class LocaleDataSeeder implements CommandLineRunner {
         return null;
     }
 
-    private List<String> fetchGameTypeNames() {
+    private List<Map> fetchGameTypes() {
         try {
             List response = RestClient.create(catalogServiceUrl)
                     .get()
                     .uri("/api/v1/catalog/games")
                     .retrieve()
                     .body(List.class);
-            List<String> names = new ArrayList<>();
+            List<Map> types = new ArrayList<>();
             if (response != null) {
                 for (Object o : response) {
-                    if (o instanceof Map && ((Map) o).get("name") != null) {
-                        names.add(((Map) o).get("name").toString());
+                    if (o instanceof Map && ((Map) o).get("id") != null && ((Map) o).get("name") != null) {
+                        types.add((Map) o);
                     }
                 }
             }
-            return names;
+            return types;
         } catch (Exception e) {
             log.warn("LocaleDataSeeder: game-catalog-service non raggiungibile, locale demo seminato senza macchine");
             return new ArrayList<>();
