@@ -116,7 +116,7 @@ Per registrare un nuovo utente:
 2. Vai su **Sign Up / Registrati**.
 3. Inserisci Email, Username e Password.
 4. Di default verrà assegnato il ruolo `PLAYER`. 
-   > *Per scopi di test o amministrazione, l'utente `admin@bitpub.com` (password: `admin`) viene autogenerato dal DB con ruolo `PLATFORM_ADMIN` al primo avvio.*
+   > *Per scopi di test o amministrazione, l'utente `platform_admin` (password: `password123`) viene autogenerato dal DB con ruolo `PLATFORM_ADMIN` al primo avvio.*
 
 ### 2. Come creare Locali e Macchine
 Solo un utente con ruolo `PLATFORM_ADMIN` (o `LOCALE_ADMIN` autorizzato) può definire la struttura fisica:
