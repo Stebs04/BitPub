@@ -1,0 +1,93 @@
+package it.uniupo.pissir.bitpub.edge.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import it.uniupo.pissir.bitpub.common.security.JwtUtils;
+import it.uniupo.pissir.bitpub.edge.service.RuleEngineService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.web.server.ResponseStatusException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+// Unit test diretto: l'Edge non usa spring-security, il controller valida il JWT via JwtUtils
+// e pubblica su MQTT. Nessun MockMvc necessario per la logica di auth/turno/relay.
+@ExtendWith(MockitoExtension.class)
+class EdgeCommandControllerTest {
+
+    @Mock private JwtUtils jwtUtils;
+    @Mock private MessageChannel cloudMqttOutboundChannel;
+    @Mock private RuleEngineService ruleEngine;
+
+    private EdgeCommandController controller;
+
+    @BeforeEach
+    void setUp() {
+        controller = new EdgeCommandController(jwtUtils, new ObjectMapper(), cloudMqttOutboundChannel, ruleEngine);
+    }
+
+    @Test
+    void gameAction_missingBearer_unauthorized() {
+        assertThatThrownBy(() -> controller.gameAction("m1", "{}", null))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+        verify(cloudMqttOutboundChannel, never()).send(any());
+    }
+
+    @Test
+    void gameAction_invalidToken_unauthorized() {
+        when(jwtUtils.validateToken("tok")).thenReturn(false);
+
+        assertThatThrownBy(() -> controller.gameAction("m1", "{}", "Bearer tok"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED));
+    }
+
+    @Test
+    void gameAction_outOfTurn_forbidden_notPublished() {
+        when(jwtUtils.validateToken("tok")).thenReturn(true);
+        when(jwtUtils.getUserIdFromToken("tok")).thenReturn("u1");
+        when(jwtUtils.getRoleFromToken("tok")).thenReturn("PLAYER");
+        when(ruleEngine.isPlayersTurn("m1", "u1", "Bearer tok")).thenReturn(false);
+
+        assertThatThrownBy(() -> controller.gameAction("m1", "{}", "Bearer tok"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+        verify(cloudMqttOutboundChannel, never()).send(any()); // bloccato sull'Edge, non raggiunge il Cloud
+    }
+
+    @Test
+    void gameAction_validTurn_publishesToCloudAndReturns202() {
+        when(jwtUtils.validateToken("tok")).thenReturn(true);
+        when(jwtUtils.getUserIdFromToken("tok")).thenReturn("u1");
+        when(jwtUtils.getRoleFromToken("tok")).thenReturn("PLAYER");
+        when(ruleEngine.isPlayersTurn(eq("m1"), eq("u1"), any())).thenReturn(true);
+
+        var response = controller.gameAction("m1", "{\"sensorType\":\"GOAL\"}", "Bearer tok");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        verify(cloudMqttOutboundChannel).send(any());
+    }
+
+    @Test
+    void tournamentResult_validToken_publishesToCloud() {
+        when(jwtUtils.validateToken("tok")).thenReturn(true);
+        when(jwtUtils.getUserIdFromToken("tok")).thenReturn("admin1");
+        when(jwtUtils.getRoleFromToken("tok")).thenReturn("LOCALE_ADMIN");
+
+        var response = controller.tournamentResult("t1", "tm1", "winner1", "2-1", "Bearer tok");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        verify(cloudMqttOutboundChannel).send(any());
+    }
+}
