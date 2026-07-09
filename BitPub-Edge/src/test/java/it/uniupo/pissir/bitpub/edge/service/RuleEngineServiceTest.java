@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class RuleEngineServiceTest {
 
-    private final RuleEngineService ruleEngineService = new RuleEngineService("http://localhost:8085");
+    private final RuleEngineService ruleEngineService = new RuleEngineService();
 
     // ── validateAndParse ────────────────────────────────────────────────────────
 

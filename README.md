@@ -1,4 +1,8 @@
-# BitPub — Connected Games Platform
+<p align="center">
+  <img src="docs/logo.png" alt="BitPub Logo" width="200" />
+</p>
+
+# BitPub — La Piattaforma per i Giochi Connessi
 
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)]()
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.4-brightgreen.svg)]()
@@ -8,396 +12,168 @@
 [![MQTT](https://img.shields.io/badge/MQTT-Mosquitto%202.0-purple.svg)]()
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)]()
 
-**Progetto di Laboratorio PISSIR**
-**Università del Piemonte Orientale (UPO)** — A.A. 2025/2026
+> **Progetto di Laboratorio PISSIR**  
+> **Università del Piemonte Orientale (UPO)** — A.A. 2025/2026
+
+**BitPub** è una piattaforma distribuita di ultima generazione dedicata ai **Giochi Connessi**. L'obiettivo è digitalizzare l'esperienza fisica all'interno di pub e sale giochi (calciobalilla, biliardo, freccette) attraverso l'uso di sensori IoT e la sincronizzazione Cloud in tempo reale. Grazie a un'architettura **Edge-Cloud a Microservizi**, BitPub unisce l'esperienza reale a dinamiche tipiche degli e-sports.
 
 ---
 
-## Team di Sviluppo
+## 👥 Team e Responsabilità
 
-| Studente | Matricola |
-|----------|-----------|
-| **Stefano Bellan** | 20054330 |
-| **Timothy Giolito** | 20054431 |
-| **Luca Franzon** | 20054744 |
+Il progetto è stato sviluppato in modo collaborativo, distribuendo il carico di lavoro in maniera bilanciata tra i tre sviluppatori:
 
----
-
-## Indice
-
-1. [Descrizione](#1-descrizione)
-2. [Architettura](#2-architettura)
-3. [Moduli e Servizi](#3-moduli-e-servizi)
-4. [Stack Tecnologico](#4-stack-tecnologico)
-5. [Flusso MQTT Edge-Cloud](#5-flusso-mqtt-edge-cloud)
-6. [Ruoli Utente e Autorizzazione](#6-ruoli-utente-e-autorizzazione)
-7. [Funzionalità Principali](#7-funzionalità-principali)
-8. [Requisiti](#8-requisiti)
-9. [Avvio del Progetto](#9-avvio-del-progetto)
-10. [Porte e Endpoint](#10-porte-e-endpoint)
-11. [API Gateway — Routing](#11-api-gateway--routing)
-12. [Database](#12-database)
-13. [Struttura del Repository](#13-struttura-del-repository)
-14. [Documentazione](#14-documentazione)
+| Sviluppatore | Matricola | Responsabilità Principali |
+| :--- | :--- | :--- |
+| **Luca Franzon** | `20054744` | **Frontend & Security:** Sviluppo della `BitPub-WebApp` (React 19, TypeScript, TailwindCSS 4), del `gateway-service` (Spring Cloud Gateway) e dei sistemi di identità e autenticazione (`auth-service`, `user-service` con JWT). |
+| **Timothy Giolito** | `20054431` | **Real-Time Engine & IoT:** Progettazione del motore di gioco (`match-service`), sviluppo del nodo di prossimità (`BitPub-Edge`) per il buffering offline, integrazione del broker `Mosquitto MQTT` e creazione dei simulatori hardware. |
+| **Stefano Bellan** | `20054330` | **Core Business & Infra:** Sviluppo dei servizi `tournament-service` (tabelloni automatici), `statistics-service` (leaderboard), `locale-service` e `game-catalog-service`. Gestione dell'infrastruttura Docker e delle push notifications via WebSockets. |
 
 ---
 
-## 1. Descrizione
-
-**BitPub** è una piattaforma distribuita per la gestione di **giochi connessi**
-(*Connected Games Platform*), progettata con architettura **Edge-Cloud** a
-microservizi.
-
-Il sistema digitalizza l'esperienza di gioco di un locale fisico (pub, sala
-giochi): tavoli da **calciobalilla**, **biliardo** e bersagli da **freccette**
-sono dotati di sensori che pubblicano eventi su un broker MQTT locale. Un **nodo
-Edge** valida e inoltra gli eventi al **cloud**, dove i microservizi gestiscono
-partite, tornei, classifiche e notifiche in tempo reale. I giocatori seguono e
-interagiscono con le partite dalla **WebApp**.
-
-Obiettivi didattici coperti:
-
-- Architettura **a microservizi** con API Gateway e servizi indipendenti.
-- Comunicazione **event-driven** a bassa latenza tramite **MQTT** (pub/sub).
-- Pattern **Edge-Cloud**: elaborazione di prossimità + logica centralizzata.
-- **Notifiche real-time** al frontend via WebSocket (MQTT over WS).
-- Persistenza relazionale, autenticazione **JWT**, autorizzazione per **ruolo**.
+## 📖 Indice
+1. [Architettura & Design](#-architettura--design)
+2. [Guida all'Avvio (Come farlo partire)](#-guida-allavvio-come-farlo-partire)
+3. [Esecuzione dei Test](#-esecuzione-dei-test)
+4. [Guida all'Uso del Sistema](#-guida-alluso-del-sistema)
+   - [Come creare gli Utenti](#1-come-creare-gli-utenti)
+   - [Come creare Locali e Macchine](#2-come-creare-locali-e-macchine)
+   - [Come creare i Giochi](#3-come-creare-i-giochi-catalogo)
+   - [Come creare i Tornei](#4-come-creare-i-tornei)
+   - [Come giocare alle Partite](#5-come-giocare-alle-partite)
+5. [Ecosistema dei Microservizi](#-ecosistema-dei-microservizi)
 
 ---
 
-## 2. Architettura
+## 🏗 Architettura & Design
 
-```
-                          ┌────────────────────────────────────────┐
-                          │              BitPub-Cloud               │
-   ┌──────────┐  REST     │  ┌──────────┐   route   ┌────────────┐  │
-   │ WebApp   │──────────▶│  │ Gateway  │──────────▶│ auth       │  │
-   │ (React)  │◀ ─ ─ ─ ─ ─│  │  :8080   │           │ user       │  │
-   └────┬─────┘  WS/MQTT  │  └──────────┘           │ locale     │  │
-        │  :9001          │        │                │ catalog    │  │
-        │                 │        ▼                │ match      │  │
-        │                 │  ┌──────────┐           │ tournament │  │
-        │                 │  │Mosquitto │◀─────────▶│ statistics │  │
-        │                 │  │  MQTT    │           │ notification│ │
-        │                 │  └────┬─────┘           └────────────┘  │
-        │                 └───────┼────────────────────────────────┘
-        │                         │ MQTT (cloud broker)
-        │                 ┌───────┴────────┐
-        │                 │  BitPub-Edge   │  valida + forwarda (REST → match)
-        │                 │     :8089      │
-        │                 └───────┬────────┘
-        │                         │ MQTT (broker locale)
-        │                 ┌───────┴────────────────────────┐
-        │                 │        BitPub-Simulators        │
-        └────────────────▶│ biliardo · calciobalilla ·      │
-                          │ freccette · demo-control-panel  │
-                          └─────────────────────────────────┘
-```
+BitPub si basa su una moderna architettura **Edge-Cloud**.
 
-La **WebApp** parla **solo** con l'API Gateway (`:8080`), mai direttamente con i
-microservizi. Il broker **Mosquitto** è condiviso da cloud ed edge (in Docker
-puntano allo stesso container).
+- **Edge Layer:** I giochi fisici (tramite simulatori o sensori reali) inviano eventi a un broker MQTT locale. Il nodo `BitPub-Edge` li elabora, li valida e li bufferizza, gestendo le disconnessioni di rete temporanee verso il cloud.
+- **Cloud Layer:** Una flotta di microservizi Spring Boot riceve gli eventi, calcola i punteggi, gestisce i tornei e salva i dati in un cluster PostgreSQL.
+- **Client Layer:** Una WebApp in React si interfaccia con il sistema via REST tramite l'API Gateway e riceve aggiornamenti in tempo reale via WebSocket.
 
 ---
 
-## 3. Moduli e Servizi
+## 🏁 Guida all'Avvio (Come farlo partire)
 
-### BitPub-Cloud — microservizi Spring Boot
+### Prerequisiti
+*   **Docker** e **Docker Compose** installati (per avviare l'intero stack).
+*   **Node.js 20+** (se si vuole lanciare il frontend separatamente).
+*   **JDK 21** e **Maven** (se si vuole compilare in locale o lanciare i test).
 
-| Servizio | Porta | Responsabilità |
-|----------|-------|----------------|
-| `gateway-service` | 8080 | API Gateway: unico ingresso, routing, inoltro claim JWT come header |
-| `auth-service` | 8081 | Registrazione, login, emissione token JWT |
-| `user-service` | 8082 | Anagrafica utenti |
-| `locale-service` | 8083 | Locali fisici e macchine/istanze di gioco |
-| `game-catalog-service` | 8084 | Catalogo giochi e definizioni sensori |
-| `match-service` | 8085 | Partite, matchmaking (lobby), gameplay a turni, ingest eventi sensori |
-| `tournament-service` | 8086 | Tornei, iscrizioni, tabellone a eliminazione diretta |
-| `statistics-service` | 8087 | Statistiche e leaderboard |
-| `notification-service` | 8088 | Notifiche utente via MQTT |
+### Avvio dell'intero stack via Docker
 
-### Altri moduli
-
-- **BitPub-Edge** (`:8089`) — nodo edge: consuma MQTT dei dispositivi, valida e
-  inoltra al `match-service` via REST. Internamente gira su 8085, mappato a 8089
-  in Docker per non collidere col match-service.
-- **BitPub-Common** — libreria condivisa: DTO, eventi, costanti dei topic MQTT,
-  eccezioni. Usata da tutti i servizi (contratto unico).
-- **BitPub-Simulators** — simulatori dei giochi fisici (biliardo, calciobalilla,
-  freccette) + **demo-control-panel** (`:8090`) per pilotarli da UI.
-- **BitPub-WebApp** (`:3000`) — frontend React 19 + TypeScript, servito in
-  produzione da Nginx.
-
----
-
-## 4. Stack Tecnologico
-
-### Backend
-
-- **Java 21**, **Spring Boot 3.2.4**, **Spring Cloud 2023.0.1** (Gateway)
-- **Spring Data JPA** (query derivate + `@Query` JPQL) su **PostgreSQL 15**
-- **Eclipse Paho MQTT** / Spring Integration MQTT — pub/sub eventi e stato
-- **Lombok** (boilerplate) · **MapStruct** (mapping DTO ↔ Entity)
-- **JWT** per autenticazione; autorizzazione per ruolo via header inoltrati dal
-  gateway (`X-User-Id`, `X-User-Role`, `X-User-Locale-Id`)
-
-### Frontend
-
-- **React 19** + **TypeScript** + **Vite**
-- **TailwindCSS 4**, **Framer Motion** (animazioni), **Lucide React** (icone)
-- **Axios** (client REST centralizzato in `services/api.ts`)
-- **Zustand** (stato auth) · **React Router 7** (routing)
-- **MQTT over WebSocket** per le notifiche real-time (`notificationService.ts`)
-
-### Infrastruttura
-
-- **Eclipse Mosquitto 2.0** (MQTT broker, TCP `1883` + WS `9001`)
-- **Docker** + **Docker Compose** (stack completo)
-- **Maven** multi-module (reactor)
-
----
-
-## 5. Flusso MQTT Edge-Cloud
-
-```
-[Simulatore / Device fisico]
-        │  pubblica evento su topic MQTT locale
-        ▼
-[BitPub-Edge]  ── valida, arricchisce, inoltra ──▶  (REST)
-        ▼
-[match-service]  ── aggiorna stato partita, pubblica su MQTT cloud
-        ▼
-[notification-service]  ── ascolta MQTT, genera notifiche utente
-        ▼  WebSocket (porta 9001)
-[BitPub-WebApp]  ── aggiornamento real-time in UI
-```
-
-**Topic principali:**
-
-| Topic | Uso |
-|-------|-----|
-| `bitpub/match/{matchId}/state` | Aggiornamenti stato partita |
-| `bitpub/match/{matchId}/event` | Eventi di gioco (goal, dardo, buca…) |
-| `bitpub/notifications/{userId}` | Notifiche personali |
-
-Gli eventi sensore sono **idempotenti** (deduplicati per `eventId`), così un
-re-invio dall'edge non conta due volte lo stesso punto.
-
----
-
-## 6. Ruoli Utente e Autorizzazione
-
-| Ruolo | Permessi |
-|-------|----------|
-| `PLATFORM_ADMIN` | Gestione utenti, statistiche globali, backfill leaderboard |
-| `GAME_ADMIN` | Gestione catalogo giochi e sensori |
-| `LOCALE_ADMIN` | Gestione del **proprio** locale, macchine e tornei |
-| `PLAYER` | Gioca partite, vede la leaderboard, si iscrive ai tornei |
-
-Il token JWT è conservato in `sessionStorage` (chiave `bitpub_token`) per
-isolare tab e sessioni in incognito. Il gateway valida il token e propaga i
-claim ai microservizi come header; ogni servizio applica il controllo di ruolo.
-
----
-
-## 7. Funzionalità Principali
-
-- **Autenticazione JWT** con quattro ruoli e autorizzazione fine per servizio.
-- **Gestione locali e macchine**: ogni `LOCALE_ADMIN` opera solo sul proprio
-  locale; le partite sono visibili/gestibili solo nell'ambito del locale.
-- **Matchmaking a lobby**: il primo giocatore crea una lobby
-  `WAITING_FOR_PLAYERS`; l'ingresso del secondo porta la partita `IN_PROGRESS`
-  in tempo reale (transizione propagata via MQTT).
-- **Gameplay a turni** modellato per gioco:
-  - *Calciobalilla* — primo a 10 goal;
-  - *Biliardo* — 8-ball con spaccata e assegnazione Piene/Spezzate;
-  - *Freccette* — regola ufficiale **501 double-out** con gestione del *bust*.
-- **Tornei a eliminazione diretta**: iscrizione dei `PLAYER`; il **tabellone si
-  genera automaticamente** al raggiungimento di `maxParticipants` (potenza di 2).
-  Solo i giocatori **abbinati** dal tabellone possono connettersi alla relativa
-  partita. Avanzamento automatico dei vincitori fino alla finale.
-- **Statistiche e leaderboard** aggiornate a fine partita; **backfill**
-  (`PLATFORM_ADMIN`) per ricostruire la classifica dallo storico dei match.
-- **Notifiche real-time** in WebApp via WebSocket.
-
----
-
-## 8. Requisiti
-
-Per l'esecuzione containerizzata (consigliata):
-
-- **Docker** + **Docker Compose**
-
-Per lo sviluppo locale dei singoli moduli:
-
-- **JDK 21** e **Maven 3.9+**
-- **Node.js 20+** e **npm** (per la WebApp)
-
----
-
-## 9. Avvio del Progetto
-
-Il progetto è interamente containerizzato.
-
-### Stack completo (Docker)
-
-```powershell
-# Rebuild completo (prima volta o dopo modifiche Java) — Windows/PowerShell
-.\scripts\rebuild_no_cache.ps1
-
-# In alternativa, direttamente con Docker Compose
-docker-compose up --build -d
-```
-
-Questo avvia PostgreSQL, Mosquitto, tutti i microservizi Cloud, il nodo Edge e
-la WebApp.
-
-### Solo WebApp in sviluppo
+Questo è il metodo raccomandato. Avvierà i database, il broker MQTT, il Gateway, l'Edge e tutti i microservizi.
 
 ```bash
-cd BitPub-WebApp
-npm install
-npm run dev      # dev server Vite (:5173)
-npm run lint     # linting con oxlint
-npm run build    # build di produzione
+# Da PowerShell (Windows)
+.\scripts\rebuild_no_cache.ps1
+
+# Oppure tramite terminale standard (Bash/CMD)
+docker-compose up --build -d
 ```
+> *Nota: attendi circa 30-60 secondi affinché tutti i container (in particolare Postgres e il Gateway) siano pronti e in ascolto sulle rispettive porte.*
 
-### Demo Control Panel (simulatori)
+### Accesso ai Servizi
+Una volta avviato lo stack:
+*   **WebApp (Frontend):** [http://localhost:3000](http://localhost:3000)
+*   **API Gateway (Backend):** [http://localhost:8080](http://localhost:8080)
+*   **Pannello di Controllo Simulatori:** Avviabile in locale sulla porta 8090 (vedi sotto).
 
+### Avvio del Pannello Simulatori in locale
+Per generare fisicamente gli "eventi" (come i gol del calciobalilla o i tiri a freccette), serve lanciare il pannello di simulazione:
 ```bash
 cd BitPub-Simulators/demo-control-panel
 mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
-# → http://localhost:8090
 ```
+Poi naviga su: [http://localhost:8090](http://localhost:8090).
 
-### Build Maven
+---
+
+## 🧪 Esecuzione dei Test
+
+Il progetto è dotato di suite di test unitari e di integrazione. Per eseguire i test su tutta la codebase backend, posizionati nella root del progetto e usa Maven:
 
 ```bash
-# Tutto il progetto, dalla root
-mvn clean install -DskipTests
-
-# Un singolo modulo (con dipendenze)
-mvn clean install -pl BitPub-Cloud/match-service -am -DskipTests
+# Esegui tutti i test nei microservizi e nei pacchetti comuni
+mvn clean test
 ```
 
-### Log dei container
-
+Se desideri eseguire i test solo per un servizio specifico (es. `match-service`):
 ```bash
-docker-compose logs -f match-service
-docker-compose logs -f edge-app
+mvn clean test -pl BitPub-Cloud/match-service
 ```
 
 ---
 
-## 10. Porte e Endpoint
+## 🎮 Guida all'Uso del Sistema
 
-| Servizio | Container | Porta Host |
-|----------|-----------|------------|
-| **WebApp (Nginx)** | `bitpub-webapp` | **3000** |
-| **API Gateway** | `bitpub-gateway` | **8080** |
-| auth-service | `bitpub-auth` | 8081 |
-| user-service | `bitpub-user` | 8082 |
-| locale-service | `bitpub-locale` | 8083 |
-| game-catalog-service | `bitpub-game-catalog` | 8084 |
-| match-service | `bitpub-match` | 8085 |
-| tournament-service | `bitpub-tournament` | 8086 |
-| statistics-service | `bitpub-statistics` | 8087 |
-| notification-service | `bitpub-notification` | 8088 |
-| Edge Node | `bitpub-edge` | 8089 (8085 interno) |
-| Demo Control Panel | *(locale)* | 8090 |
-| PostgreSQL | `bitpub-postgres` | 5432 |
-| Mosquitto MQTT | `bitpub-mosquitto` | 1883 (TCP), 9001 (WS) |
+### 1. Come creare gli Utenti
+All'interno dell'architettura è presente un'autenticazione RBAC (Role-Based Access Control) con JWT.
+Per registrare un nuovo utente:
+1. Apri la **WebApp** ([http://localhost:3000](http://localhost:3000)).
+2. Vai su **Sign Up / Registrati**.
+3. Inserisci Email, Username e Password.
+4. Di default verrà assegnato il ruolo `PLAYER`. 
+   > *Per scopi di test o amministrazione, l'utente `admin@bitpub.com` (password: `admin`) viene autogenerato dal DB con ruolo `PLATFORM_ADMIN` al primo avvio.*
 
-Accessi rapidi dopo l'avvio:
+### 2. Come creare Locali e Macchine
+Solo un utente con ruolo `PLATFORM_ADMIN` (o `LOCALE_ADMIN` autorizzato) può definire la struttura fisica:
+1. Accedi alla WebApp con un account Admin.
+2. Vai nella dashboard, sezione **Gestione Locali**.
+3. Clicca su **Aggiungi Locale**, indicando nome e indirizzo.
+4. Dopo aver creato il locale, apri i suoi dettagli e clicca su **Registra Macchina** (es. "Tavolo Calciobalilla 1"). Il sistema assocerà la macchina al locale e genererà un ID univoco da utilizzare nel simulatore.
 
-- **WebApp** → [http://localhost:3000](http://localhost:3000)
-- **API Gateway** → `http://localhost:8080`
-- **Simulator Panel** → [http://localhost:8090](http://localhost:8090)
+### 3. Come creare i Giochi (Catalogo)
+Il `game-catalog-service` contiene i regolamenti:
+1. Vai nella sezione **Catalogo Giochi**.
+2. Clicca su **Aggiungi Gioco**.
+3. Scegli il tipo di gioco:
+   - *Calciobalilla* (regole: si arriva a 10 goal).
+   - *Freccette* (regole: 501 a scalare, chiusura doppia).
+   - *Biliardo* (regole: Palla 8, piene e mezze).
+4. Assegna questo tipo di gioco alla Macchina fisica precedentemente creata.
 
----
+### 4. Come creare i Tornei
+1. Con un account avente privilegi adeguati (o tramite `PLATFORM_ADMIN`), vai nella sezione **Tornei**.
+2. Clicca su **Crea Nuovo Torneo**.
+3. Specifica:
+   - Nome del torneo (es. "Coppa UPO 2026").
+   - Tipo di Gioco associato (deve esistere nel catalogo).
+   - Numero massimo di partecipanti (es. 8 o 16 per un tabellone a eliminazione diretta).
+4. Una volta creato, i giocatori (account `PLAYER`) possono accedere alla sezione Tornei e cliccare su **Iscriviti**.
+5. Quando si raggiunge il numero massimo di iscritti, il tabellone viene **generato automaticamente** e iniziano gli abbinamenti del primo turno.
 
-## 11. API Gateway — Routing
+### 5. Come giocare alle Partite
+Ecco il flusso per disputare un incontro (es. Calciobalilla):
 
-Tutte le chiamate della WebApp passano dal gateway (`:8080`):
-
-```
-/api/v1/auth/**         → auth-service
-/api/v1/users/**        → user-service
-/api/v1/locales/**      → locale-service
-/api/v1/catalog/**      → game-catalog-service
-/api/v1/tournaments/**  → tournament-service
-/api/v1/statistics/**   → statistics-service
-/api/matches/**         → match-service   (NB: path senza /v1)
-```
-
-> `match-service` usa il prefisso `/api/matches/**` (senza `/v1`), a differenza
-> di tutti gli altri servizi.
-
----
-
-## 12. Database
-
-- **Singolo database PostgreSQL** condiviso: `bitpub_db`
-- Credenziali: `bitpub` / `bitpub_password`
-- Ogni microservizio gestisce il proprio schema tramite JPA
-- Dati persistiti nel volume Docker `pgdata`
-
-Connessione diretta:
-
-```bash
-docker exec -it bitpub-postgres psql -U bitpub -d bitpub_db
-```
+1. **Creazione della Lobby (Cloud):** Un utente dalla WebApp seleziona una macchina dal suo locale e clicca "Inizia Partita". Lo stato della macchina diventa `WAITING_FOR_PLAYERS`.
+2. **Ingresso Giocatori:** Il secondo utente scansiona il QR Code o entra nella stessa lobby. La partita passa allo stato `IN_PROGRESS`.
+3. **Generazione Eventi (Fisico/Simulatore):** 
+   - Apri il **Pannello Simulatori** ([http://localhost:8090](http://localhost:8090)).
+   - Inserisci l'ID della macchina in partita.
+   - Clicca i bottoni per simulare gli eventi del sensore (es. "Goal Squadra A", "Goal Squadra B").
+4. **Sincronizzazione Real-Time:** 
+   - L'evento passa tramite l'Edge Node e arriva al Match Service.
+   - Guardando la WebApp, noterai che il punteggio **si aggiorna istantaneamente** senza ricaricare la pagina grazie alle WebSocket!
+5. **Fine Partita:** Quando vengono raggiunti i 10 goal (per il calciobalilla), la partita termina automaticamente (stato `FINISHED`). Le statistiche e le leaderboard vengono aggiornate istantaneamente per mostrare il vincitore!
 
 ---
 
-## 13. Struttura del Repository
+## 📦 Ecosistema dei Microservizi
 
-```
-BitPub/                          (root — Maven reactor parent)
-├── pom.xml                      BOM e gestione versioni Spring
-├── docker-compose.yml           stack completo (servizi + infra)
-├── scripts/
-│   ├── rebuild_no_cache.ps1     rebuild Docker senza cache
-│   └── demo.ps1                 avvio rapido demo
-├── docs/
-│   ├── mqtt/mosquitto.conf      config broker MQTT
-│   ├── openapi/                 spec OpenAPI dei servizi
-│   ├── uml/                     diagrammi UML
-│   └── relazione/               relazione tecnica di progetto
-│
-├── bitpub-common/               libreria condivisa (DTO, eventi, costanti)
-│
-├── BitPub-Cloud/                microservizi Spring Boot
-│   ├── gateway-service/         auth-service/        user-service/
-│   ├── locale-service/          game-catalog-service/
-│   ├── match-service/           tournament-service/
-│   └── statistics-service/      notification-service/
-│
-├── BitPub-Edge/                 nodo Edge (Spring Boot + MQTT)
-│
-├── BitPub-Simulators/           simulatori giochi fisici
-│   ├── biliardo-simulator/      calciobalilla-simulator/
-│   ├── freccette-simulator/     demo-control-panel/
-│
-└── BitPub-WebApp/               frontend React + TypeScript
-    └── src/
-        ├── components/          pages/            routes/
-        ├── services/            (api.ts, notificationService.ts)
-        └── store/               (authStore.ts)
-```
+Ecco l'elenco dei servizi presenti, il responsabile tecnico e le porte associate:
 
----
-
-## 14. Documentazione
-
-Materiale tecnico nella cartella `/docs`:
-
-- `docs/openapi/` — specifiche **OpenAPI** dei servizi REST
-- `docs/uml/` — **diagrammi UML** (componenti, sequenza, entità)
-- `docs/mqtt/mosquitto.conf` — configurazione del **broker MQTT**
-- `docs/relazione/` — **relazione tecnica** completa del progetto
-
----
-
-*Realizzato per il corso di Laboratorio PISSIR — Università del Piemonte
-Orientale (UPO).*
+| Servizio | Porta | Descrizione | Responsabile |
+| :--- | :--- | :--- | :--- |
+| `gateway-service` | 8080 | Gateway API, Routing e validazione token JWT | Luca F. |
+| `auth-service` | 8081 | Registrazione, login ed emissione JWT | Luca F. |
+| `user-service` | 8082 | Gestione profili e ruoli | Luca F. |
+| `locale-service` | 8083 | Gestione sale, pub e macchine installate | Stefano B. |
+| `game-catalog-service` | 8084 | Definizione giochi e configurazione sensori | Stefano B. |
+| `match-service` | 8085 | Motore in tempo reale delle partite | Timothy G. |
+| `tournament-service` | 8086 | Generazione tabelloni e iscrizioni | Stefano B. |
+| `statistics-service` | 8087 | Leaderboard globali e aggregazioni dati | Stefano B. |
+| `notification-service` | 8088 | Server WebSocket per le notifiche push | Stefano B. |
+| `bitpub-edge` | 8089 | Nodo Edge di prossimità per i buffer MQTT | Timothy G. |

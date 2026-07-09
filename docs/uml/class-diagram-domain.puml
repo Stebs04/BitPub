@@ -1,20 +1,23 @@
 @startuml
 skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+}
 
-package "BitPub Domain Model" {
+package "BitPub Entities (DDD Style)" {
 
     class User {
         - id: UUID
-        - username: String
         - email: String
+        - passwordHash: String
         - role: Role
-        + login()
-        + updateProfile()
     }
 
     enum Role {
         PLAYER
         LOCALE_ADMIN
+        GAME_ADMIN
         PLATFORM_ADMIN
     }
 
@@ -23,71 +26,57 @@ package "BitPub Domain Model" {
         - name: String
         - address: String
         - ownerId: UUID
-        + addMachine()
     }
 
     class Machine {
         - id: UUID
         - serialNumber: String
-        - status: MachineStatus
-        - gameType: GameType
+        - localeId: UUID
+        - gameId: UUID
+        - status: Status
     }
 
-    enum MachineStatus {
-        ACTIVE
-        MAINTENANCE
-        OFFLINE
-    }
-
-    class GameType {
+    class GameDefinition {
         - id: UUID
-        - name: String (es. Calciobalilla, Freccette)
-        - rules: JSON
+        - name: String
+        - ruleSetVersion: String
     }
 
     class Match {
         - id: UUID
         - machineId: UUID
-        - startTime: LocalDateTime
-        - endTime: LocalDateTime
         - status: MatchStatus
-        - currentScore: Map<Team, Integer>
-        + startGame()
-        + addEvent(SensorEvent)
-        + endGame()
+        - teamAScore: int
+        - teamBScore: int
+        - startTime: Instant
+        + processEvent(Event)
     }
 
     enum MatchStatus {
-        PENDING
+        WAITING_FOR_PLAYERS
         IN_PROGRESS
         FINISHED
+        CANCELED
     }
 
     class SensorEvent {
         - eventId: UUID
         - matchId: UUID
-        - eventType: String (es. GOAL, DART_HIT)
-        - timestamp: Instant
         - payload: JSON
     }
 
     class Tournament {
         - id: UUID
-        - name: String
-        - gameType: GameType
-        - startDate: LocalDateTime
-        - endDate: LocalDateTime
-        + enrollPlayer(User)
+        - gameId: UUID
+        - currentRound: int
     }
 
-    User "1" -- "0..*" Locale : owns (if LOCALE_ADMIN)
+    User "1" -- "1" Role
+    User "1" -- "0..*" Locale : owns (LOCALE_ADMIN)
     Locale "1" *-- "0..*" Machine
-    Machine "1" -- "1" GameType
-    Machine "1" -- "0..*" Match
+    Machine "0..*" -- "1" GameDefinition
+    Match "0..*" -- "1" Machine
     Match "1" *-- "0..*" SensorEvent
-    Tournament "0..*" -- "1" GameType
-    User "0..*" -- "0..*" Tournament : enrolls
-    User "0..*" -- "0..*" Match : plays
+    Tournament "0..*" -- "1" GameDefinition
 }
-
 @enduml

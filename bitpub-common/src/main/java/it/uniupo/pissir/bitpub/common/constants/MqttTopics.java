@@ -38,6 +38,16 @@ public final class MqttTopics {
     // tournament bracket result reported by a LOCALE_ADMIN. Identity travels in the MqttCommandWrapper.
     public static final String CLOUD_TOURNAMENT_RESULT_FORMAT = "bitpub/cloud/commands/tournaments/%s/matches/%s/result";
 
+    // bitpub/edge/matches/{matchId}/sync — Cloud -> Edge full live match state when a match goes
+    // IN_PROGRESS. The Edge initializes its authoritative LocalMatchState from this push (QoS1)
+    // instead of a synchronous REST pull, so it can run autonomously while the Cloud is unreachable.
+    public static final String EDGE_MATCH_SYNC_FORMAT = "bitpub/edge/matches/%s/sync";
+
+    // bitpub/cloud/commands/matches/{matchId}/result — Edge -> Cloud final match result. Enriched
+    // payload (playerUserIds, scoreByTeam, winnerName) for persistence + stats. Replaces the former
+    // synchronous REST POST /result so an offline Edge buffers and later flushes the result.
+    public static final String CLOUD_MATCH_RESULT_FORMAT = "bitpub/cloud/commands/matches/%s/result";
+
     // bitpub/cloud/commands/system/{entity}/action — Edge -> Cloud generic CUD command for any entity
     // (users, locales, catalog, ...). Identity + body travel in the MqttCommandWrapper (MQTT has no headers).
     public static final String CLOUD_SYSTEM_ACTION_FORMAT = "bitpub/cloud/commands/system/%s/action";
@@ -93,6 +103,14 @@ public final class MqttTopics {
 
     public static String getCloudTournamentResultTopic(String tournamentId, String matchId) {
         return String.format(CLOUD_TOURNAMENT_RESULT_FORMAT, tournamentId, matchId);
+    }
+
+    public static String getEdgeMatchSyncTopic(String matchId) {
+        return String.format(EDGE_MATCH_SYNC_FORMAT, matchId);
+    }
+
+    public static String getCloudMatchResultTopic(String matchId) {
+        return String.format(CLOUD_MATCH_RESULT_FORMAT, matchId);
     }
 
     public static String getTournamentStateTopic(String tournamentId) {

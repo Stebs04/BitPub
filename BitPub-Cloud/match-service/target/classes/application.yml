@@ -24,9 +24,11 @@ mqtt:
   # Stable id + durable session so the broker queues Edge-forwarded events while this service is down.
   inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:match-service-ingest}
   command-inbound-client-id: ${MQTT_COMMAND_INBOUND_CLIENT_ID:match-service-command-ingest}
+  match-result-inbound-client-id: ${MQTT_MATCH_RESULT_INBOUND_CLIENT_ID:match-service-result-ingest}
   topic:
     cloud-sensors: bitpub/cloud/sensors/+/event
     cloud-commands: bitpub/cloud/commands/matches/+/action
+    cloud-match-results: bitpub/cloud/commands/matches/+/result
 
 # URL verso statistics-service per aggiornare la leaderboard a fine partita
 statistics:

@@ -1,44 +1,44 @@
 @startuml
 left to right direction
 skinparam packageStyle rectangle
-
-actor "Giocatore" as G
-actor "Admin Locale" as AL
-actor "Admin Gioco (Kiosk)" as K
-actor "Admin Piattaforma" as AP
-
-rectangle "BitPub System" {
-  usecase "Visualizzare Statistiche e Leaderboard" as UC1
-  usecase "Iscriversi a un Torneo" as UC2
-  usecase "Registrare/Accedere Account" as UC3
-  
-  usecase "Visualizzare Macchine Locali" as UC4
-  usecase "Avviare Partita (Autoplay/Demo)" as UC5
-  usecase "Ricevere Notifiche Real-time" as UC6
-  
-  usecase "Gestire Locali e Sensori" as UC7
-  usecase "Configurare Tornei Globali" as UC8
-  usecase "Monitorare Salute Rete Edge" as UC9
-  
-  usecase "Visualizzare Punteggio Real-time" as UC10
-  usecase "Pubblicare Annunci Promozionali" as UC11
+skinparam usecase {
+  BackgroundColor LightBlue
+  BorderColor DarkBlue
 }
 
-G --> UC1
-G --> UC2
-G --> UC3
-G --> UC6
+actor "Giocatore" as Player
+actor "LOCALE_ADMIN" as LocaleAdmin
+actor "GAME_ADMIN" as GameAdmin
+actor "PLATFORM_ADMIN" as PlatformAdmin
 
-AL --> UC4
-AL --> UC5
-AL --> UC3
+rectangle "BitPub Cloud Platform" {
+  usecase "Visualizzare Leaderboard Globale" as UC_Stats
+  usecase "Iscriversi al Torneo" as UC_Tourney
+  usecase "Visualizzare Partite in Tempo Reale" as UC_Live
+  
+  usecase "Gestire il Proprio Locale Fisico" as UC_Locale
+  usecase "Creare Nuove Macchine nel Locale" as UC_Machine
+  
+  usecase "Gestire Catalogo Giochi e Regole" as UC_Catalog
+  
+  usecase "Backfill Statistiche e Gestione Globale" as UC_Backfill
+  
+  usecase "Login / Autenticazione (JWT)" as UC_Auth
+}
 
-AP --> UC7
-AP --> UC8
-AP --> UC9
-AP --> UC3
+Player --> UC_Stats
+Player --> UC_Tourney
+Player --> UC_Live
+Player --> UC_Auth
 
-K --> UC10
-K --> UC11
+LocaleAdmin --> UC_Locale
+LocaleAdmin --> UC_Machine
+LocaleAdmin --> UC_Auth
+
+GameAdmin --> UC_Catalog
+GameAdmin --> UC_Auth
+
+PlatformAdmin --> UC_Backfill
+PlatformAdmin --> UC_Auth
 
 @enduml

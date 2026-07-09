@@ -209,6 +209,7 @@ public class MatchServiceImpl implements MatchService {
         participantRepository.saveAll(teams);
         savedMatch.setTeams(teams);
 
+        publishMatchSync(savedMatch);
         return mapToDto(savedMatch);
     }
 
@@ -315,6 +316,7 @@ public class MatchServiceImpl implements MatchService {
             Match saved = matchRepository.save(match);
 
             publishLobbyState(saved, "MATCH_START");
+            publishMatchSync(saved);
             log.info("Lobby {} STARTED: {} joined gameInstanceId {}", saved.getId(), username, gameInstanceId);
             return mapToDto(saved);
         }
@@ -460,6 +462,7 @@ public class MatchServiceImpl implements MatchService {
             match.setCurrentTurnUserId(firstPlayerId(match.getTeams().get(0)));
             match = matchRepository.save(match);
             activeMatchOpt = Optional.of(match);
+            publishMatchSync(match);
             log.info("Auto-created match {} for gameInstanceId {}", match.getId(), match.getGameInstanceId());
         }
 
@@ -721,6 +724,27 @@ public class MatchServiceImpl implements MatchService {
     private void publishLobbyState(Match match, String eventMessage) {
         String status = "WAITING_FOR_PLAYERS".equals(match.getStatus()) ? "WAITING" : "PLAYING";
         publishGameState(match, status, eventMessage);
+    }
+
+    /**
+     * Broadcasts the full live match state to the Edge over MQTT (QoS1) when a match goes IN_PROGRESS,
+     * so the Edge initializes its authoritative LocalMatchState from this push instead of a REST pull.
+     * Serializes the same MatchDto the Edge parses (id, teams+playerIds+score, gameTypeId, turn).
+     * ponytail: not RETAINED — an Edge that boots mid-match won't re-init from a stale retained message;
+     * acceptable since the continuity requirement is about the Cloud dropping (the Edge keeps its
+     * in-memory state), not the Edge restarting. Publish a retained sync if Edge restarts must recover.
+     */
+    private void publishMatchSync(Match match) {
+        try {
+            String payload = objectMapper.writeValueAsString(mapToDto(match));
+            String topic = it.uniupo.pissir.bitpub.common.constants.MqttTopics.getEdgeMatchSyncTopic(match.getId());
+            mqttOutboundChannel.send(MessageBuilder.withPayload(payload)
+                    .setHeader(MqttHeaders.TOPIC, topic)
+                    .build());
+            log.info("Published match sync for {} to Edge topic {}", match.getId(), topic);
+        } catch (Exception e) {
+            log.error("Failed to publish match sync for {}", match.getId(), e);
+        }
     }
 
     private void publishGameState(Match match, String status, String eventMessage) {

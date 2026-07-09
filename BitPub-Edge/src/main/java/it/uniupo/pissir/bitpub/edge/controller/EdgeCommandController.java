@@ -6,13 +6,12 @@ import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
 import it.uniupo.pissir.bitpub.common.mqtt.TournamentResultCommand;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
+import it.uniupo.pissir.bitpub.edge.service.MqttBufferService;
 import it.uniupo.pissir.bitpub.edge.service.RuleEngineService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.integration.mqtt.support.MqttHeaders;
-import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,9 +20,9 @@ import org.springframework.web.server.ResponseStatusException;
  * Inbound REST ingress for WebApp commands: interactive game actions and tournament match results.
  * The WebApp calls the Edge (reachable on the local network even when the cloud is briefly down);
  * the Edge validates the caller's JWT once (trusted origin) and relays the command to the Cloud
- * 100% over MQTT (QoS1). The broker durably queues the command while the Cloud subscriber is down,
- * so there is no app-level buffer or REST fallback. Everything returns 202 — the resulting state
- * reaches the WebApp on its own live MQTT topic (match-state / tournament-state).
+ * 100% over MQTT (QoS1) through the explicit offline buffer (MqttBufferService), which queues the
+ * command locally while the Cloud connection is DOWN and flushes it on reconnect. Everything returns
+ * 202 — the resulting state reaches the WebApp on its own live MQTT topic (match-state / tournament-state).
  */
 @RestController
 @RequestMapping("/edge")
@@ -33,15 +32,15 @@ public class EdgeCommandController {
 
     private final JwtUtils jwtUtils;
     private final ObjectMapper objectMapper;
-    private final MessageChannel cloudMqttOutboundChannel;
+    private final MqttBufferService mqttBuffer;
     private final RuleEngineService ruleEngine;
 
     public EdgeCommandController(JwtUtils jwtUtils, ObjectMapper objectMapper,
-                                @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel,
+                                MqttBufferService mqttBuffer,
                                 RuleEngineService ruleEngine) {
         this.jwtUtils = jwtUtils;
         this.objectMapper = objectMapper;
-        this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
+        this.mqttBuffer = mqttBuffer;
         this.ruleEngine = ruleEngine;
     }
 
@@ -58,13 +57,13 @@ public class EdgeCommandController {
 
         // Gate del turno sullo stato live locale (autoritativo sull'Edge): se non e' il turno del
         // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore/Cloud.
-        if (!ruleEngine.isPlayersTurn(matchId, actor.userId(), authHeader)) {
+        if (!ruleEngine.isPlayersTurn(matchId, actor.userId())) {
             log.info("Blocked out-of-turn action for match {} by actor {}", matchId, actor.userId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non e' il tuo turno");
         }
 
         String topic = MqttTopics.getCloudMatchActionTopic(matchId);
-        publishCommand(topic, matchId, actor, actionJson);
+        publishCommand(topic, matchId, actor, actionJson, "action for Match " + matchId);
         log.info("Game action for match {} published to cloud via MQTT {} (actor {})", matchId, topic, actor.userId());
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
@@ -83,7 +82,7 @@ public class EdgeCommandController {
         Actor actor = authenticate(authHeader);
         String topic = MqttTopics.getCloudTournamentResultTopic(tournamentId, tMatchId);
         String payload = toJson(new TournamentResultCommand(tMatchId, winnerId, stats));
-        publishCommand(topic, tournamentId, actor, payload);
+        publishCommand(topic, tournamentId, actor, payload, "result for Tournament " + tournamentId + "/" + tMatchId);
         log.info("Tournament result for {}/{} published to cloud via MQTT {} (actor {})",
                 tournamentId, tMatchId, topic, actor.userId());
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
@@ -102,7 +101,7 @@ public class EdgeCommandController {
                                                @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Actor actor = authenticate(authHeader);
         String topic = MqttTopics.getCloudSystemActionTopic(entity);
-        publishCommand(topic, entity, actor, actionJson);
+        publishCommand(topic, entity, actor, actionJson, "system action for " + entity);
         log.info("System CUD action for entity {} published to cloud via MQTT {} (actor {})", entity, topic, actor.userId());
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
@@ -111,12 +110,15 @@ public class EdgeCommandController {
 
     private record Actor(String userId, String role) {}
 
-    /** Packs identity + body into an MqttCommandWrapper and publishes it to the cloud command topic (QoS1). */
-    private void publishCommand(String topic, String targetId, Actor actor, String payloadJson) {
+    /**
+     * Packs identity + body into an MqttCommandWrapper and relays it to the cloud command topic (QoS1)
+     * through the explicit offline buffer, which queues it locally if the Cloud connection is DOWN.
+     */
+    private void publishCommand(String topic, String targetId, Actor actor, String payloadJson, String description) {
         String json = toJson(new MqttCommandWrapper(actor.userId(), actor.role(), targetId, payloadJson));
-        cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
+        mqttBuffer.send(MessageBuilder.withPayload(json)
                 .setHeader(MqttHeaders.TOPIC, topic)
-                .build());
+                .build(), description);
     }
 
     private String toJson(Object value) {

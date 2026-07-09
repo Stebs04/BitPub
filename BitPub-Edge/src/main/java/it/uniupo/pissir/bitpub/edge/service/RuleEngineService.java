@@ -6,9 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,24 +19,23 @@ import java.util.concurrent.ConcurrentHashMap;
  * Motore di gioco dell'Edge: valida i sensor event e ora tiene lo STATO LIVE autoritativo di ogni
  * partita attiva (turno, punteggi, tiri a freccette) in memoria. La logica live e' migrata qui dal
  * Cloud: l'Edge decide di chi e' il turno, aggiorna il punteggio ad ogni evento (anche i MISS),
- * alterna il turno e a fine partita riporta l'esito finale al Cloud (POST /result) per la persistenza.
- * Il roster iniziale (giocatori, ordine, turno) viene caricato una volta da match-service via REST.
+ * alterna il turno e a fine partita produce l'esito finale arricchito riportato al Cloud via MQTT.
+ * Lo stato iniziale (giocatori, ordine, turno) NON e' piu' caricato via REST: il Cloud lo pubblica
+ * su MQTT (topic edge-match-sync) quando la partita va IN_PROGRESS, cosi' l'Edge opera in autonomia
+ * anche a Cloud irraggiungibile (nessuna chiamata sincrona sul percorso caldo).
  */
 @Service
 @Slf4j
 public class RuleEngineService {
 
     private final ObjectMapper objectMapper;
-    private final RestClient matchClient;
 
-    // Stato live per matchId. getOrLoad NON memorizza i null (roster non caricabile),
-    // quindi un load fallito viene ritentato alla prossima azione con header valido.
+    // Stato live per matchId, popolato dal push MQTT del Cloud (initFromSync).
     private final Map<String, LocalMatchState> states = new ConcurrentHashMap<>();
 
-    public RuleEngineService(@Value("${bitpub.cloud.match-service-url}") String matchServiceUrl) {
+    public RuleEngineService() {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
-        this.matchClient = RestClient.create(matchServiceUrl);
     }
 
     public Optional<SensorEvent> validateAndParse(String payload) {
@@ -75,12 +72,12 @@ public class RuleEngineService {
     // ── Turno: interrogato dall'EdgeCommandController prima di inoltrare un'azione ──────────────
 
     /**
-     * true se l'azione di {@code userId} e' ammessa. Fail-open se il roster non e' caricabile
-     * (Cloud irraggiungibile o partita non live): meglio non applicare il turno che deadlockare
+     * true se l'azione di {@code userId} e' ammessa. Fail-open se lo stato live non e' presente
+     * (sync non ancora ricevuto o partita non live): meglio non applicare il turno che deadlockare
      * la partita bloccando entrambi i giocatori.
      */
-    public boolean isPlayersTurn(String matchId, String userId, String authHeader) {
-        LocalMatchState s = getOrLoad(matchId, authHeader);
+    public boolean isPlayersTurn(String matchId, String userId) {
+        LocalMatchState s = states.get(matchId);
         if (s == null || s.currentTurnUserId == null) {
             return true;
         }
@@ -100,7 +97,7 @@ public class RuleEngineService {
         if (matchId == null || matchId.isBlank()) {
             return Optional.empty(); // eventi non interattivi (es. autoplay senza matchId): nessuno stato live
         }
-        LocalMatchState s = getOrLoad(matchId, null);
+        LocalMatchState s = states.get(matchId);
         if (s == null || s.finished) {
             return Optional.empty();
         }
@@ -165,21 +162,24 @@ public class RuleEngineService {
         return st;
     }
 
-    /** A fine partita: riporta i punteggi finali al Cloud (persistenza + stats) e libera lo stato. */
-    public void reportResultToCloud(LocalMatchState s) {
-        Map<String, Integer> scores = new LinkedHashMap<>(s.scoreByTeam);
-        try {
-            matchClient.post()
-                    .uri("/api/matches/{id}/result", s.matchId)
-                    .header("Content-Type", "application/json")
-                    .body(scores)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Edge reported final result for match {} to cloud: {}", s.matchId, scores);
-        } catch (Exception e) {
-            log.error("Edge failed to report final result for match {} to cloud", s.matchId, e);
-        }
-        states.remove(s.matchId);
+    /**
+     * Payload finale ARRICCHITO verso il Cloud: oltre ai punteggi esatti (scoreByTeam) include i
+     * giocatori connessi (playerUserIds) e il vincitore (winnerName). Serializzato e pubblicato via
+     * MQTT (QoS1) dall'EventForwardingService attraverso il buffer offline, cosi' l'esito di una
+     * partita conclusa a Cloud irraggiungibile non va perso.
+     */
+    public Map<String, Object> buildResultPayload(LocalMatchState s) {
+        Map<String, Object> p = new LinkedHashMap<>();
+        p.put("matchId", s.matchId);
+        p.put("scoreByTeam", new LinkedHashMap<>(s.scoreByTeam));
+        p.put("playerUserIds", new ArrayList<>(s.playerUserIds));
+        p.put("winnerName", s.winnerName);
+        return p;
+    }
+
+    /** Libera lo stato live di una partita conclusa (chiamato dopo aver pubblicato l'esito). */
+    public void clearState(String matchId) {
+        states.remove(matchId);
     }
 
     // ── internals ──────────────────────────────────────────────────────────────────────────────
@@ -208,55 +208,44 @@ public class RuleEngineService {
         return a.equals(current) ? b : a;
     }
 
-    private LocalMatchState getOrLoad(String matchId, String authHeader) {
-        LocalMatchState s = states.get(matchId);
-        if (s == null && authHeader != null) {
-            s = loadRoster(matchId, authHeader);
-            if (s != null) {
-                states.put(matchId, s);
+    /**
+     * Inizializza (o rimpiazza) lo stato live da un push MQTT del Cloud (topic edge-match-sync).
+     * Sostituisce il vecchio loadRoster REST: nessuna chiamata sincrona, l'Edge riceve lo stato
+     * completo (giocatori, punteggi, turno) quando la partita va IN_PROGRESS. Ignora payload non
+     * IN_PROGRESS. {@code m} e' il MatchDto serializzato dal match-service.
+     */
+    public void initFromSync(JsonNode m) {
+        if (m == null) {
+            return;
+        }
+        String matchId = text(m, "id");
+        if (matchId == null || !"IN_PROGRESS".equals(text(m, "status"))) {
+            return; // tracciamo solo partite live
+        }
+        LocalMatchState s = new LocalMatchState();
+        s.matchId = matchId;
+        s.gameInstanceId = text(m, "gameInstanceId");
+        s.localeId = text(m, "localeId");
+        s.gameTypeId = text(m, "gameTypeId");
+        String gt = s.gameTypeId != null ? s.gameTypeId.toLowerCase() : "";
+        s.darts = gt.contains("freccette") || gt.contains("dart");
+
+        for (JsonNode t : m.path("teams")) {
+            String name = text(t, "name");
+            if (name == null) continue;
+            s.teamOrder.add(name);
+            s.scoreByTeam.put(name, t.path("score").asInt(0));
+            JsonNode pids = t.path("playerIds");
+            if (pids.isArray() && pids.size() > 0 && !pids.get(0).isNull()) {
+                s.playerUserIds.add(pids.get(0).asText());
             }
         }
-        return s;
-    }
-
-    /** Carica una volta il roster della partita live dal Cloud e ne inizializza lo stato locale. */
-    private LocalMatchState loadRoster(String matchId, String authHeader) {
-        try {
-            JsonNode m = matchClient.get().uri("/api/matches/{id}", matchId)
-                    .header("Authorization", authHeader)
-                    .retrieve().body(JsonNode.class);
-            if (m == null || !"IN_PROGRESS".equals(text(m, "status"))) {
-                return null; // tracciamo solo partite live
-            }
-            LocalMatchState s = new LocalMatchState();
-            s.matchId = matchId;
-            s.gameInstanceId = text(m, "gameInstanceId");
-            s.localeId = text(m, "localeId");
-            s.gameTypeId = text(m, "gameTypeId");
-            String gt = s.gameTypeId != null ? s.gameTypeId.toLowerCase() : "";
-            s.darts = gt.contains("freccette") || gt.contains("dart");
-
-            for (JsonNode t : m.path("teams")) {
-                String name = text(t, "name");
-                if (name == null) continue;
-                s.teamOrder.add(name);
-                s.scoreByTeam.put(name, t.path("score").asInt(0));
-                JsonNode pids = t.path("playerIds");
-                if (pids.isArray() && pids.size() > 0 && !pids.get(0).isNull()) {
-                    s.playerUserIds.add(pids.get(0).asText());
-                }
-            }
-            String seeded = text(m, "currentTurnUserId");
-            s.currentTurnUserId = seeded != null ? seeded
-                    : (s.playerUserIds.isEmpty() ? null : s.playerUserIds.get(0));
-            log.info("Edge loaded live state for match {} (darts={}, players={}, turn={})",
-                    matchId, s.darts, s.playerUserIds, s.currentTurnUserId);
-            return s;
-        } catch (Exception e) {
-            log.warn("Edge could not load roster for match {} from cloud ({}); turn gate open, live state skipped",
-                    matchId, e.getMessage());
-            return null;
-        }
+        String seeded = text(m, "currentTurnUserId");
+        s.currentTurnUserId = seeded != null ? seeded
+                : (s.playerUserIds.isEmpty() ? null : s.playerUserIds.get(0));
+        states.put(matchId, s);
+        log.info("Edge initialized live state from cloud sync for match {} (darts={}, players={}, turn={})",
+                matchId, s.darts, s.playerUserIds, s.currentTurnUserId);
     }
 
     private static String text(JsonNode n, String field) {

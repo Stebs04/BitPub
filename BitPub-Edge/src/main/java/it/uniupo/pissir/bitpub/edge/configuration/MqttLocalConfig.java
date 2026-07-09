@@ -80,6 +80,28 @@ public class MqttLocalConfig {
         return adapter;
     }
 
+    // ── Cloud ingress: subscribe to the Cloud match-state sync push (Cloud -> Edge). ──
+    // On IN_PROGRESS the Cloud publishes the full match state here; the Edge eagerly initializes its
+    // authoritative LocalMatchState from this push instead of a REST pull, so it runs autonomously
+    // while the Cloud is unreachable. Same broker as local in this deployment.
+
+    @Bean
+    public MessageChannel matchSyncInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer matchSyncInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(clientId + "-sync-" + java.util.UUID.randomUUID().toString(),
+                        mqttClientFactory(), "bitpub/edge/matches/+/sync");
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(matchSyncInputChannel());
+        return adapter;
+    }
+
     // ── Cloud ingress: subscribe to game ADD/REMOVE events for this locale. ──
 
     @Bean

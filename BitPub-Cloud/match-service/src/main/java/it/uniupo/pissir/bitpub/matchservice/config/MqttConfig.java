@@ -37,6 +37,12 @@ public class MqttConfig {
     @Value("${mqtt.command-inbound-client-id}")
     private String commandInboundClientId;
 
+    @Value("${mqtt.topic.cloud-match-results}")
+    private String cloudMatchResultTopic;
+
+    @Value("${mqtt.match-result-inbound-client-id}")
+    private String matchResultInboundClientId;
+
     // ── Outbound: publish game-state updates to the WebApp ──────────────────────────
 
     @Bean
@@ -116,6 +122,27 @@ public class MqttConfig {
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttCommandInboundChannel());
+        return adapter;
+    }
+
+    // ── Inbound: subscribe to Edge-forwarded final match results ─────────────────────
+    // The Edge reports the enriched final result (players, exact scores, winner) here instead of the
+    // former synchronous REST POST /result. Durable QoS1 subscriber, so a result buffered by an
+    // offline Edge and flushed on reconnect is persisted. applyFinalResult is idempotent on matchId.
+
+    @Bean
+    public MessageChannel mqttMatchResultInboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer mqttMatchResultInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(matchResultInboundClientId, mqttInboundClientFactory(), cloudMatchResultTopic);
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttMatchResultInboundChannel());
         return adapter;
     }
 }

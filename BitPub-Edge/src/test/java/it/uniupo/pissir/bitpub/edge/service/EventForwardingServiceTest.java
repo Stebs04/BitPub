@@ -7,7 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.GenericMessage;
 
 import java.util.Map;
@@ -24,13 +23,13 @@ import static org.mockito.Mockito.when;
 class EventForwardingServiceTest {
 
     @Mock private RuleEngineService ruleEngineService;
-    @Mock private MessageChannel cloudMqttOutboundChannel;
+    @Mock private MqttBufferService mqttBuffer;
 
     private EventForwardingService service;
 
     @BeforeEach
     void setUp() {
-        service = new EventForwardingService(ruleEngineService, cloudMqttOutboundChannel);
+        service = new EventForwardingService(ruleEngineService, mqttBuffer);
     }
 
     private Message<String> msg(String payload) {
@@ -47,7 +46,7 @@ class EventForwardingServiceTest {
 
         service.handleMqttMessage(msg("bad"));
 
-        verify(cloudMqttOutboundChannel, never()).send(any());
+        verify(mqttBuffer, never()).send(any(), any());
     }
 
     @Test
@@ -58,8 +57,8 @@ class EventForwardingServiceTest {
 
         service.handleMqttMessage(msg("{...}"));
 
-        verify(cloudMqttOutboundChannel, times(1)).send(any()); // solo l'ingest verso il Cloud
-        verify(ruleEngineService, never()).reportResultToCloud(any());
+        verify(mqttBuffer, times(1)).send(any(), any()); // solo l'ingest verso il Cloud
+        verify(ruleEngineService, never()).clearState(any());
     }
 
     @Test
@@ -73,11 +72,32 @@ class EventForwardingServiceTest {
         when(ruleEngineService.validateAndParse(any())).thenReturn(Optional.of(e));
         when(ruleEngineService.applyEvent(e)).thenReturn(Optional.of(state));
         when(ruleEngineService.buildStatePayload(state, "GOAL")).thenReturn(Map.of("status", "FINISHED"));
+        when(ruleEngineService.buildResultPayload(state)).thenReturn(Map.of("matchId", "m1"));
 
         service.handleMqttMessage(msg("{...}"));
 
-        // Un send per lo stato live locale + un send per l'ingest cloud.
-        verify(cloudMqttOutboundChannel, times(2)).send(any());
-        verify(ruleEngineService).reportResultToCloud(state); // fine partita: risultato al Cloud
+        // Un send per lo stato live locale + un send per l'esito finale + un send per l'ingest cloud.
+        verify(mqttBuffer, times(3)).send(any(), any());
+        verify(ruleEngineService).clearState("m1"); // fine partita: stato liberato dopo il report
+    }
+
+    @Test
+    void handleMatchSync_initializesLocalState() {
+        String syncJson = "{\"id\":\"m1\",\"status\":\"IN_PROGRESS\"}";
+
+        service.handleMatchSync(msg(syncJson));
+
+        verify(ruleEngineService).initFromSync(argThatHasId());
+    }
+
+    private static com.fasterxml.jackson.databind.JsonNode argThatHasId() {
+        return org.mockito.ArgumentMatchers.argThat(n -> n != null && "m1".equals(n.path("id").asText()));
+    }
+
+    @Test
+    void handleMatchSync_invalidJson_swallowed() {
+        service.handleMatchSync(msg("{ not json"));
+
+        verify(ruleEngineService, never()).initFromSync(any());
     }
 }

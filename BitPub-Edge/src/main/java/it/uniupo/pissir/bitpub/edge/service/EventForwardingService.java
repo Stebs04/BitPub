@@ -1,16 +1,15 @@
 package it.uniupo.pissir.bitpub.edge.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
-import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
@@ -21,22 +20,36 @@ import java.util.Optional;
 public class EventForwardingService {
 
     private final RuleEngineService ruleEngineService;
-    private final MessageChannel cloudMqttOutboundChannel;
+    private final MqttBufferService mqttBuffer;
     private final ObjectMapper objectMapper;
 
-    public EventForwardingService(RuleEngineService ruleEngineService,
-                                  @Qualifier("cloudMqttOutboundChannel") MessageChannel cloudMqttOutboundChannel) {
+    public EventForwardingService(RuleEngineService ruleEngineService, MqttBufferService mqttBuffer) {
         this.ruleEngineService = ruleEngineService;
-        this.cloudMqttOutboundChannel = cloudMqttOutboundChannel;
+        this.mqttBuffer = mqttBuffer;
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
     }
 
     /**
-     * Validated sensor events are forwarded Edge -> Cloud over MQTT (QoS1). The broker durably queues
-     * them for match-service while it is down, so no app-level buffer is needed; match-service dedups
-     * on eventId, so a QoS1 redelivery is safe. This is the only remaining Edge egress — REST fallback
-     * and the offline command buffer are gone; the Cloud is reached 100% over MQTT.
+     * Cloud -> Edge full match state push (topic bitpub/edge/matches/+/sync). Eagerly initializes the
+     * authoritative LocalMatchState so the Edge no longer pulls the roster via REST and keeps running
+     * (turn gate + live scoring) even while the Cloud is unreachable.
+     */
+    @ServiceActivator(inputChannel = "matchSyncInputChannel")
+    public void handleMatchSync(Message<String> message) {
+        try {
+            JsonNode m = objectMapper.readTree(message.getPayload());
+            ruleEngineService.initFromSync(m);
+        } catch (Exception e) {
+            log.error("Edge failed to parse match sync payload: {}", message.getPayload(), e);
+        }
+    }
+
+    /**
+     * Validated sensor events are forwarded Edge -> Cloud over MQTT (QoS1) through the explicit offline
+     * buffer, which queues them locally while the Cloud connection is DOWN and flushes on reconnect.
+     * At match end the enriched final result (players, exact scores, winner) is published the same way,
+     * so a result produced during a cloud outage is buffered instead of lost.
      */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(Message<String> message) {
@@ -52,11 +65,11 @@ public class EventForwardingService {
 
         // Stato live autoritativo sull'Edge: aggiorna turno + punteggio e pubblica SUBITO il nuovo
         // stato sul broker locale (topic match-state) cosi' il frontend dell'altro giocatore sblocca
-        // il turno all'istante. A fine partita riporta i punteggi finali al Cloud per la persistenza.
+        // il turno all'istante. A fine partita riporta l'esito finale arricchito al Cloud (via buffer).
         ruleEngineService.applyEvent(event).ifPresent(state -> {
             publishLocalState(state, event.getSensorType());
             if (state.finished) {
-                ruleEngineService.reportResultToCloud(state);
+                reportResult(state);
             }
         });
 
@@ -69,16 +82,35 @@ public class EventForwardingService {
         }
 
         String topic = MqttTopics.getCloudSensorIngestTopic(event.getGameInstanceId());
-        cloudMqttOutboundChannel.send(MessageBuilder.withPayload(json)
+        mqttBuffer.send(MessageBuilder.withPayload(json)
                 .setHeader(MqttHeaders.TOPIC, topic)
-                .build());
+                .build(), "sensor event " + event.getEventId());
         log.info("Event {} forwarded to Cloud via MQTT topic {}", event.getEventId(), topic);
+    }
+
+    /**
+     * A fine partita pubblica l'esito finale arricchito (giocatori, punteggi esatti, vincitore) sul
+     * topic edge-match-result via il buffer offline, poi libera lo stato live. Sostituisce la vecchia
+     * POST REST /result: se il Cloud e' giu' l'esito viene bufferizzato e riconsegnato al ripristino.
+     */
+    private void reportResult(RuleEngineService.LocalMatchState state) {
+        try {
+            String payload = objectMapper.writeValueAsString(ruleEngineService.buildResultPayload(state));
+            String topic = MqttTopics.getCloudMatchResultTopic(state.matchId);
+            mqttBuffer.send(MessageBuilder.withPayload(payload)
+                    .setHeader(MqttHeaders.TOPIC, topic)
+                    .build(), "result for Match " + state.matchId);
+            log.info("Edge reported final result for match {} to cloud topic {}", state.matchId, topic);
+        } catch (Exception e) {
+            log.error("Edge failed to serialize final result for match {}", state.matchId, e);
+        }
+        ruleEngineService.clearState(state.matchId);
     }
 
     /**
      * Pubblica lo stato live sul broker locale (topic match-state), con RETAINED cosi' un subscriber
      * tardivo/riconnesso riceve subito l'ultimo stato. ponytail: qui il broker locale e quello cloud
-     * sono la stessa mosquitto, quindi si riusa cloudMqttOutboundChannel; separarli solo se le due
+     * sono la stessa mosquitto, quindi si riusa il buffer/canale cloud; separarli solo se le due
      * istanze verranno davvero divise.
      */
     private void publishLocalState(RuleEngineService.LocalMatchState state, String eventMessage) {
@@ -86,10 +118,10 @@ public class EventForwardingService {
             String payload = objectMapper.writeValueAsString(ruleEngineService.buildStatePayload(state, eventMessage));
             String topic = MqttTopics.getGameStateTopic(
                     state.localeId != null ? state.localeId : "unknown", state.gameInstanceId);
-            cloudMqttOutboundChannel.send(MessageBuilder.withPayload(payload)
+            mqttBuffer.send(MessageBuilder.withPayload(payload)
                     .setHeader(MqttHeaders.TOPIC, topic)
                     .setHeader(MqttHeaders.RETAINED, true)
-                    .build());
+                    .build(), "live state for Match " + state.matchId);
             log.info("Edge published live state for match {} (turn={}) to {}",
                     state.matchId, state.currentTurnUserId, topic);
         } catch (Exception e) {

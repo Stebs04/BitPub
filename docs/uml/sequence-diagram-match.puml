@@ -1,34 +1,34 @@
 @startuml
-actor "Simulatore (Calciobalilla)" as Sim
-participant "Mosquitto Broker\n(Local)" as MQTT
-participant "BitPub Edge\n(Local App)" as Edge
-database "H2/SQLite\n(Edge DB)" as DBEdge
+skinparam style strictuml
+actor "Hardware / Simulatore" as HW
+participant "Local MQTT\nBroker" as LocalMQTT
+participant "BitPub Edge\nNode" as Edge
+database "Edge DB\n(SQLite)" as Buffer
 participant "API Gateway\n(Cloud)" as Gateway
 participant "Match Service\n(Cloud)" as Match
-participant "Notification Service\n(Cloud)" as Notification
-actor "Web App / Kiosk\n(Client)" as Client
+participant "Notification Service\n(Cloud)" as Notify
+participant "React WebApp\n(Client WS)" as WebApp
 
-== Fase 1: Generazione Evento e Inoltro Edge ==
-Sim -> MQTT: Publish: topic `locale/1/machine/123/events/goal`\n(Payload: {team: "A", time: ...})
-MQTT -> Edge: Riceve evento in Sottoscrizione
-Edge -> Edge: Valida l'evento e arricchisce i metadati
-Edge -> DBEdge: Salva evento (Offline buffer)
+HW -> LocalMQTT: Publish su `bitpub/match/{id}/event` (es. Goal)
+LocalMQTT -> Edge: Edge consuma l'evento
+Edge -> Edge: Valida Payload e id evento (Idempotency)
+Edge -> Buffer: Salva temporaneamente (Buffer offline)
 
-== Fase 2: Sincronizzazione Cloud ==
-Edge -> Gateway: POST /api/v1/matches/123/events (Event JSON)
-Gateway -> Match: Inoltra richiesta (con JWT validato o ApiKey Edge)
+Edge -> Gateway: POST /api/matches/{id}/events
+Gateway -> Match: Inoltra Evento REST
+Match -> Match: Elabora Evento (State Machine Calciobalilla/Freccette)
+Match -> Match: Aggiorna Punteggio DB e stato partita
 
-Match -> Match: Processa l'evento (Aggiorna punteggio)
-Match -> DBEdge: (Nel Cloud): Persiste stato partita su Postgres
+alt Partita Terminata
+    Match -> Match: Chiudi Match (Status = FINISHED)
+    Match -> "Statistics Service": Aggiorna Leaderboard (Asincrono)
+end
 
-== Fase 3: Notifica Real-time ==
-Match -> Notification: Publish: MatchUpdateEvent (RabbitMQ/Kafka o HTTP)
-Notification -> Client: Push tramite WebSocket/SSE (Aggiornamento UI)
-Client -> Client: Aggiorna punteggio a schermo (Kiosk/Web App)
+Match -> Notify: Invia MatchStateUpdateEvent (Cloud Internal)
+Notify -> WebApp: Push via WebSocket (Stato aggiornato)
+WebApp -> WebApp: Renderizza animazione e nuovo punteggio
 
-== Conferma Sincronizzazione (Ack) ==
-Match --> Gateway: 201 Created
+Match --> Gateway: 201 Created (Ack)
 Gateway --> Edge: 201 Created
-Edge -> DBEdge: Marca l'evento come "SYNCED" o rimuove dal buffer
-
+Edge -> Buffer: Rimuovi evento dal buffer (Sincronizzato)
 @enduml
