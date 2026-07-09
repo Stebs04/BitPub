@@ -58,7 +58,7 @@ public class MqttConfig {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(
                 clientId + "_out-" + java.util.UUID.randomUUID(), mqttClientFactory());
         handler.setAsync(true);
-        handler.setDefaultTopic("bitpub/statistics/update");
+        // Topic per-message via MqttHeaders.TOPIC (dynamic: bitpub/statistics/update/{gameTypeId}).
         return handler;
     }
 

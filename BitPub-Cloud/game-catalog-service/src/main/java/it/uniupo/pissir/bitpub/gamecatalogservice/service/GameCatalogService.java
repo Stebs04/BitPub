@@ -160,6 +160,16 @@ public class GameCatalogService {
                 .build();
 
         SensorDefinition saved = sensorDefinitionRepository.save(sensor);
+
+        // Aggiungi alla collezione in memoria + flush: publishConfig rilegge il GameType nella
+        // stessa transazione e senza questo non vedrebbe il sensore appena salvato (dirty read).
+        if (gameType.getSensors() != null) {
+            gameType.getSensors().add(saved);
+        } else {
+            gameType.setSensors(new ArrayList<>(List.of(saved)));
+        }
+        sensorDefinitionRepository.flush();
+
         publishConfig(gameTypeId);
         return mapSensorToDto(saved);
     }

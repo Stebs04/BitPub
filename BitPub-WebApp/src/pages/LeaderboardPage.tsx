@@ -70,11 +70,12 @@ const LeaderboardPage: React.FC = () => {
     fetchLeaderboard(activeTab);
   }, [activeTab, fetchLeaderboard]);
 
-  // Aggiornamento live della leaderboard: lo statistics-service pubblica la classifica del gioco
-  // su bitpub/statistics/update a ogni risultato di partita. La chiave e' il gameTypeId reale.
+  // Aggiornamento live della leaderboard: lo statistics-service pubblica la classifica di ogni gioco
+  // sul proprio topic bitpub/statistics/update/{gameTypeId}. Il wildcard '+' cattura tutti i giochi
+  // con una sola sottoscrizione; il gameTypeId nel payload instrada l'update alla sezione giusta.
   useEffect(() => {
     const unsubscribe = notificationService.subscribe(
-      'bitpub/statistics/update',
+      'bitpub/statistics/update/+',
       (payload: { gameTypeId?: string; entries?: LeaderboardEntry[] }) => {
         if (!payload.gameTypeId || !payload.entries) return;
         setData((prev) => ({ ...prev, [payload.gameTypeId!]: payload.entries! }));

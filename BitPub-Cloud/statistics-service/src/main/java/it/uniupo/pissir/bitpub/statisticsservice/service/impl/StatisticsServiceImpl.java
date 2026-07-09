@@ -246,7 +246,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                     "gameTypeId", gameTypeId,
                     "entries", getLeaderboard(gameTypeId)));
             mqttOutboundChannel.send(MessageBuilder.withPayload(json)
-                    .setHeader(MqttHeaders.TOPIC, MqttTopics.STATISTICS_UPDATE_TOPIC)
+                    .setHeader(MqttHeaders.TOPIC, MqttTopics.getStatisticsUpdateTopic(gameTypeId))
                     .build());
         } catch (Exception e) {
             log.error("Publish leaderboard update per gameType {} fallito", gameTypeId, e);

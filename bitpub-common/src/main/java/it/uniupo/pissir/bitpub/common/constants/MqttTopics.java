@@ -44,8 +44,9 @@ public final class MqttTopics {
     // bitpub/tournaments/{tournamentId}/ended — Cloud -> services/edges: tournament concluded (COMPLETED).
     public static final String TOURNAMENT_ENDED_FORMAT = "bitpub/tournaments/%s/ended";
 
-    // bitpub/statistics/update — Cloud -> WebApp live leaderboard updates (single shared topic).
-    public static final String STATISTICS_UPDATE_TOPIC = "bitpub/statistics/update";
+    // bitpub/statistics/update/{gameTypeId} — Cloud -> WebApp live leaderboard updates, one topic
+    // per game so the WebApp reconstructs each gametype section independently (no shared topic).
+    public static final String STATISTICS_UPDATE_FORMAT = "bitpub/statistics/update/%s";
 
     // bitpub/cloud/matches/result — match-service -> statistics-service completed-match results (single shared topic).
     public static final String CLOUD_MATCH_RESULT_TOPIC = "bitpub/cloud/matches/result";
@@ -100,5 +101,9 @@ public final class MqttTopics {
 
     public static String getSimulatorActionTopic(String gameInstanceId) {
         return String.format(SIMULATOR_ACTION_FORMAT, gameInstanceId);
+    }
+
+    public static String getStatisticsUpdateTopic(String gameTypeId) {
+        return String.format(STATISTICS_UPDATE_FORMAT, gameTypeId);
     }
 }
