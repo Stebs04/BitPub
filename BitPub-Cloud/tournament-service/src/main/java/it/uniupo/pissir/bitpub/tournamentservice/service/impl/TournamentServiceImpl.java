@@ -103,17 +103,20 @@ public class TournamentServiceImpl implements TournamentService {
             int winnerScore = ev.get("winnerScore") instanceof Number n ? n.intValue() : 0;
             int loserScore = ev.get("loserScore") instanceof Number n ? n.intValue() : 0;
             String tid = m.getTournament().getId();
-            if (isUserInParticipantSlot(winnerId, m.getPlayer1Id(), tid)) {
+            // Tornei a squadre: lo slot del tabellone e' identificato dal teamId, non dal primo membro.
+            // Privilegia winnerTeamId (se presente) cosi' isUserInParticipantSlot risolve lo slot corretto
+            // e i gol vengono persistiti sulla chiave giusta invece di essere rigettati.
+            boolean teamBased = Boolean.TRUE.equals(ev.get("teamBased"));
+            String winnerTeamId = ev.get("winnerTeamId") == null ? null : ev.get("winnerTeamId").toString();
+            String slotWinnerId = teamBased && winnerTeamId != null ? winnerTeamId : winnerId;
+            if (isUserInParticipantSlot(slotWinnerId, m.getPlayer1Id(), tid)) {
                 m.setPlayer1Goals(winnerScore);
                 m.setPlayer2Goals(loserScore);
-            } else if (isUserInParticipantSlot(winnerId, m.getPlayer2Id(), tid)) {
+            } else if (isUserInParticipantSlot(slotWinnerId, m.getPlayer2Id(), tid)) {
                 m.setPlayer2Goals(winnerScore);
                 m.setPlayer1Goals(loserScore);
             } else {
-                // ponytail: winnerId non combacia con uno slot (tornei a squadre: participantId=teamId ma
-                // l'evento porta l'id del primo membro). Gol non attribuibili, saltati. Per i team,
-                // propagare il teamId nel result event di match-service e mapparlo qui.
-                log.warn("Gol match {} non attribuibili: winnerId {} non e' uno slot dello scontro", bracketId, winnerId);
+                log.warn("Gol match {} non attribuibili: slot winner {} non e' uno slot dello scontro", bracketId, slotWinnerId);
                 return;
             }
             matchRepository.save(m);

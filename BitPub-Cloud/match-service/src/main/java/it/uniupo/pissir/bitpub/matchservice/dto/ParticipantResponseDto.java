@@ -11,7 +11,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TeamDto {
+public class ParticipantResponseDto {
+    private String id;
     private String name;
     private List<String> playerIds;
+    private int score;
 }

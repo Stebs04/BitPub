@@ -25,6 +25,9 @@ public interface StatisticsService {
     /** gameTypeId distinti su cui il giocatore compare (per le sue statistiche personali). */
     List<String> getGameTypeIdsForPlayer(String playerName);
 
+    /** Righe di leaderboard del giocatore su tutti i giochi, interrogate direttamente dal DB. */
+    List<LeaderboardEntryDto> getMyLeaderboardEntries(String playerName);
+
     /** Returns leaderboard entries for a specific game type, scoped to a single locale. */
     List<LeaderboardEntryDto> getLeaderboardByLocale(String gameTypeId, String localeId);
 

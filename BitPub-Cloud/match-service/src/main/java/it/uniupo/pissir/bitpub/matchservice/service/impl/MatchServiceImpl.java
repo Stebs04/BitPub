@@ -7,15 +7,15 @@ import it.uniupo.pissir.bitpub.common.exception.BitpubException;
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
 import it.uniupo.pissir.bitpub.matchservice.domain.Match;
 import it.uniupo.pissir.bitpub.matchservice.domain.SensorEventLog;
-import it.uniupo.pissir.bitpub.matchservice.domain.Team;
+import it.uniupo.pissir.bitpub.matchservice.domain.MatchParticipant;
 import it.uniupo.pissir.bitpub.matchservice.dto.GameActionRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.JoinLobbyRequestDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.MatchDto;
 import it.uniupo.pissir.bitpub.matchservice.dto.StartMatchRequestDto;
-import it.uniupo.pissir.bitpub.matchservice.dto.TeamResponseDto;
+import it.uniupo.pissir.bitpub.matchservice.dto.ParticipantResponseDto;
 import it.uniupo.pissir.bitpub.matchservice.repository.MatchRepository;
 import it.uniupo.pissir.bitpub.matchservice.repository.SensorEventLogRepository;
-import it.uniupo.pissir.bitpub.matchservice.repository.TeamRepository;
+import it.uniupo.pissir.bitpub.matchservice.repository.MatchParticipantRepository;
 import it.uniupo.pissir.bitpub.matchservice.service.MatchService;
 import it.uniupo.pissir.bitpub.matchservice.dto.GameStateDto;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 public class MatchServiceImpl implements MatchService {
 
     private final MatchRepository matchRepository;
-    private final TeamRepository teamRepository;
+    private final MatchParticipantRepository participantRepository;
     private final SensorEventLogRepository sensorEventLogRepository;
     private final ObjectMapper objectMapper;
     
@@ -191,23 +191,22 @@ public class MatchServiceImpl implements MatchService {
 
         Match savedMatch = matchRepository.save(match);
 
-        List<Team> teams = request.getTeams().stream().map(t -> {
+        List<String> names = request.getPlayerNames() != null ? request.getPlayerNames() : List.of();
+        List<MatchParticipant> teams = names.stream().map(name -> {
             List<String> playerIds = new ArrayList<>();
-            if (t.getName() != null) {
-                String userId = ensureUser(t.getName());
-                if (userId != null) {
-                    playerIds.add(userId);
-                }
+            String userId = ensureUser(name);
+            if (userId != null) {
+                playerIds.add(userId);
             }
-            return Team.builder()
-                .name(t.getName())
+            return MatchParticipant.builder()
+                .name(name)
                 .playerIds(playerIds)
                 .match(savedMatch)
                 .score(0)
                 .build();
         }).collect(Collectors.toList());
 
-        teamRepository.saveAll(teams);
+        participantRepository.saveAll(teams);
         savedMatch.setTeams(teams);
 
         return mapToDto(savedMatch);
@@ -251,7 +250,7 @@ public class MatchServiceImpl implements MatchService {
         }
 
         if (match.getTeams() != null && scoresByTeamName != null) {
-            for (Team t : match.getTeams()) {
+            for (MatchParticipant t : match.getTeams()) {
                 Integer s = scoresByTeamName.get(t.getName());
                 if (s != null) {
                     t.setScore(s);
@@ -299,13 +298,13 @@ public class MatchServiceImpl implements MatchService {
                 return mapToDto(match);
             }
 
-            Team secondTeam = Team.builder()
+            MatchParticipant secondTeam = MatchParticipant.builder()
                     .name(username)
                     .playerIds(new ArrayList<>(List.of(playerId)))
                     .score(0)
                     .match(match)
                     .build();
-            teamRepository.save(secondTeam);
+            participantRepository.save(secondTeam);
             match.getTeams().add(secondTeam);
 
             match.setStatus("IN_PROGRESS");
@@ -343,13 +342,13 @@ public class MatchServiceImpl implements MatchService {
                 .build();
         Match saved = matchRepository.save(match);
 
-        Team firstTeam = Team.builder()
+        MatchParticipant firstTeam = MatchParticipant.builder()
                 .name(username)
                 .playerIds(new ArrayList<>(List.of(playerId)))
                 .score(0)
                 .match(saved)
                 .build();
-        teamRepository.save(firstTeam);
+        participantRepository.save(firstTeam);
         saved.getTeams().add(firstTeam);
 
         publishLobbyState(saved, "WAITING_FOR_PLAYERS");
@@ -444,20 +443,20 @@ public class MatchServiceImpl implements MatchService {
             String userAId = ensureUser(teamAName);
             String userBId = ensureUser(teamBName);
 
-            match.getTeams().add(Team.builder()
+            match.getTeams().add(MatchParticipant.builder()
                 .name(teamAName)
                 .playerIds(userAId != null ? new ArrayList<>(List.of(userAId)) : new ArrayList<>())
                 .score(0)
                 .match(match)
                 .build());
-            match.getTeams().add(Team.builder()
+            match.getTeams().add(MatchParticipant.builder()
                 .name(teamBName)
                 .playerIds(userBId != null ? new ArrayList<>(List.of(userBId)) : new ArrayList<>())
                 .score(0)
                 .match(match)
                 .build());
 
-            teamRepository.saveAll(match.getTeams());
+            participantRepository.saveAll(match.getTeams());
             match.setCurrentTurnUserId(firstPlayerId(match.getTeams().get(0)));
             match = matchRepository.save(match);
             activeMatchOpt = Optional.of(match);
@@ -512,7 +511,7 @@ public class MatchServiceImpl implements MatchService {
                 .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().size() > 1);
     }
 
-    private String firstPlayerId(Team team) {
+    private String firstPlayerId(MatchParticipant team) {
         return team != null && team.getPlayerIds() != null && !team.getPlayerIds().isEmpty()
                 ? team.getPlayerIds().get(0) : null;
     }
@@ -534,7 +533,7 @@ public class MatchServiceImpl implements MatchService {
             throw new BitpubException("La partita non e' in corso", HttpStatus.CONFLICT);
         }
 
-        List<Team> teams = match.getTeams();
+        List<MatchParticipant> teams = match.getTeams();
         if (teams == null || teams.isEmpty()) {
             throw new BitpubException("Partita senza giocatori", HttpStatus.CONFLICT);
         }
@@ -542,7 +541,7 @@ public class MatchServiceImpl implements MatchService {
         // Il turno e' gia' validato dall'Edge (403 la'). Qui risolviamo solo la squadra di chi agisce
         // per etichettare il sensor event inoltrato al simulatore; se non la troviamo, ripieghiamo
         // sulla prima squadra (nessun gate di ownership nel Cloud, ora solo orchestrazione).
-        Team current = teams.stream()
+        MatchParticipant current = teams.stream()
                 .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
                 .findFirst()
                 .orElse(teams.get(0));
@@ -581,15 +580,15 @@ public class MatchServiceImpl implements MatchService {
      * to update the leaderboard for both players.
      */
     /**
-     * Team vincitore: nel modello data-driven ogni gioco somma punti verso winScoreTarget, quindi
+     * MatchParticipant vincitore: nel modello data-driven ogni gioco somma punti verso winScoreTarget, quindi
      * vince sempre chi ha il punteggio piu' alto. Parita' di punteggio = pareggio (nessun vincitore).
      */
-    private Team winnerTeam(Match match) {
-        List<Team> teams = match.getTeams();
+    private MatchParticipant winnerTeam(Match match) {
+        List<MatchParticipant> teams = match.getTeams();
         if (teams == null || teams.size() < 2) return null;
-        Team best = teams.stream().max(Comparator.comparingInt(Team::getScore)).orElse(null);
-        int max = teams.stream().mapToInt(Team::getScore).max().orElse(0);
-        int min = teams.stream().mapToInt(Team::getScore).min().orElse(0);
+        MatchParticipant best = teams.stream().max(Comparator.comparingInt(MatchParticipant::getScore)).orElse(null);
+        int max = teams.stream().mapToInt(MatchParticipant::getScore).max().orElse(0);
+        int min = teams.stream().mapToInt(MatchParticipant::getScore).min().orElse(0);
         return max == min ? null : best;
     }
 
@@ -599,9 +598,9 @@ public class MatchServiceImpl implements MatchService {
      */
     private Map<String, Object> buildResultEvent(Match match) {
         if (match.getTeams() == null || match.getTeams().size() < 2) return null;
-        Team winner = winnerTeam(match);
+        MatchParticipant winner = winnerTeam(match);
         if (winner == null) return null; // pareggio: nessun aggiornamento leaderboard
-        Team loser = match.getTeams().stream()
+        MatchParticipant loser = match.getTeams().stream()
                 .filter(t -> !t.getId().equals(winner.getId()))
                 .findFirst().orElse(null);
 
@@ -613,6 +612,11 @@ public class MatchServiceImpl implements MatchService {
         resultEvent.put("loserScore", loser != null ? loser.getScore() : 0);
         resultEvent.put("winnerId", firstPlayerId(winner));
         resultEvent.put("loserId", loser != null ? firstPlayerId(loser) : null);
+        // Id dello slot squadra (= participantId del tabellone per i tornei a squadre): permette al
+        // tournament-service di attribuire i gol allo slot corretto quando winnerId/loserId portano
+        // l'id del primo membro invece del teamId.
+        resultEvent.put("winnerTeamId", winner.getId());
+        resultEvent.put("loserTeamId", loser != null ? loser.getId() : null);
         resultEvent.put("matchId", match.getId());
         resultEvent.put("localeId", match.getLocaleId());
         resultEvent.put("teamBased", isTeamBased(match));
@@ -630,8 +634,14 @@ public class MatchServiceImpl implements MatchService {
      */
     private void notifyTournamentResult(Match match) {
         if (match.getTournamentMatchId() == null) return;
-        Team winner = winnerTeam(match);
-        String winnerId = firstPlayerId(winner);
+        MatchParticipant winner = winnerTeam(match);
+        if (winner == null) {
+            log.warn("Match {} di torneo senza vincitore (pareggio): esito non riportato", match.getId());
+            return;
+        }
+        // Per i match a squadre lo slot del tabellone e' identificato dal teamId, non dal primo
+        // membro: privilegia winner.getId() cosi' il tournament-service risolve lo slot corretto.
+        String winnerId = isTeamBased(match) ? winner.getId() : firstPlayerId(winner);
         if (winnerId == null) {
             log.warn("Match {} di torneo senza vincitore (pareggio): esito non riportato", match.getId());
             return;
@@ -729,7 +739,7 @@ public class MatchServiceImpl implements MatchService {
 
         String winnerName = null;
         if ("FINISHED".equals(status)) {
-            Team w = winnerTeam(match);
+            MatchParticipant w = winnerTeam(match);
             winnerName = w != null ? w.getName() : null;
         }
 
@@ -761,8 +771,8 @@ public class MatchServiceImpl implements MatchService {
     }
 
     private MatchDto mapToDto(Match match) {
-        List<TeamResponseDto> teamDtos = match.getTeams() == null ? List.of() : match.getTeams().stream()
-                .map(t -> TeamResponseDto.builder()
+        List<ParticipantResponseDto> teamDtos = match.getTeams() == null ? List.of() : match.getTeams().stream()
+                .map(t -> ParticipantResponseDto.builder()
                         .id(t.getId())
                         .name(t.getName())
                         .playerIds(t.getPlayerIds() != null ? new java.util.ArrayList<>(t.getPlayerIds()) : new java.util.ArrayList<>())
@@ -771,7 +781,7 @@ public class MatchServiceImpl implements MatchService {
                 .collect(Collectors.toList());
 
         // Calcola il vincitore per esporlo nel DTO
-        Team winnerTeamObj = "COMPLETED".equals(match.getStatus()) ? winnerTeam(match) : null;
+        MatchParticipant winnerTeamObj = "COMPLETED".equals(match.getStatus()) ? winnerTeam(match) : null;
         String winnerId = winnerTeamObj != null ? firstPlayerId(winnerTeamObj) : null;
 
         return MatchDto.builder()

@@ -4,12 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import { useAuthStore } from '../store/authStore';
 import { getMatchesByPlayer, getTournamentRegistrationsByPlayer, getMyLeaderboardStats } from '../services/api';
 import type { MatchRecord, TournamentRegistrationRecord, LeaderboardEntryRecord } from '../services/api';
-
-const GAME_TYPE_LABELS: Record<string, string> = {
-  foosball: 'Calciobalilla',
-  darts: 'Freccette',
-  billiards: 'Biliardo',
-};
+import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
 
 /**
  * Statistiche personali del PLAYER: aggrega dati gia' esposti dai servizi esistenti
@@ -19,6 +14,7 @@ const GAME_TYPE_LABELS: Record<string, string> = {
  */
 const PlayerStatsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
+  const gameLabels = useGameTypeLabels();
 
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [tournamentRegs, setTournamentRegs] = useState<TournamentRegistrationRecord[]>([]);
@@ -144,7 +140,7 @@ const PlayerStatsPage: React.FC = () => {
                 <tbody className="divide-y divide-white/5">
                   {perGame.map((row) => (
                     <tr key={row.gameTypeId}>
-                      <td className="py-3 px-3 font-semibold text-white">{GAME_TYPE_LABELS[row.gameTypeId] || row.gameTypeId}</td>
+                      <td className="py-3 px-3 font-semibold text-white">{gameLabels[row.gameTypeId] || row.gameTypeId}</td>
                       <td className="py-3 px-3 text-center text-emerald-400 font-bold">{row.wins}</td>
                       <td className="py-3 px-3 text-center text-red-400 font-bold">{row.losses}</td>
                       <td className="py-3 px-3 text-center text-brand-light font-bold">{row.totalPoints}</td>
@@ -197,7 +193,7 @@ const PlayerStatsPage: React.FC = () => {
 
                 return (
                   <div key={m.id} className="py-3 flex items-center justify-between text-sm gap-3">
-                    <span className="text-slate-300 font-medium min-w-[90px]">{GAME_TYPE_LABELS[m.gameTypeId] || m.gameTypeId}</span>
+                    <span className="text-slate-300 font-medium min-w-[90px]">{gameLabels[m.gameTypeId] || m.gameTypeId}</span>
                     <span className="text-slate-400 flex-1 text-center">{scoreStr}</span>
                     <span className={`text-right ${resultClass}`}>{resultLabel}</span>
                   </div>

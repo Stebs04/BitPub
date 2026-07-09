@@ -17,6 +17,9 @@ public interface LeaderboardRepository extends JpaRepository<Leaderboard, String
     /** Find a specific player's entry for a given game type. */
     Optional<Leaderboard> findByPlayerNameIgnoreCaseAndGameTypeId(String playerName, String gameTypeId);
 
+    /** Tutte le entry di un giocatore su ogni tipo di gioco (statistiche personali, una sola query). */
+    List<Leaderboard> findByPlayerNameIgnoreCase(String playerName);
+
     /** Returns top-N players across all game types (for a global leaderboard if needed). */
     List<Leaderboard> findTop10ByOrderByWinsDescTotalPointsDesc();
 

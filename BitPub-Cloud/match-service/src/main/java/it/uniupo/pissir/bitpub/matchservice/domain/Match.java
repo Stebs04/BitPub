@@ -60,7 +60,7 @@ public class Match {
     private int throwsInTurn;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Team> teams;
+    private List<MatchParticipant> teams;
     
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SensorEventLog> events;

@@ -14,5 +14,6 @@ import java.util.List;
 public class StartMatchRequestDto {
     private String gameInstanceId;
     private String gameTypeId;
-    private List<TeamDto> teams;
+    // Nomi dei giocatori/slot della partita libera (niente entita' Team: quelle vivono nei tornei).
+    private List<String> playerNames;
 }

@@ -40,6 +40,11 @@ public class TournamentRegistration {
     @Column(name = "member")
     private List<String> members;
 
+    // Collega l'iscrizione a squadre all'entita' Team strutturata (anagrafica + team_members).
+    // Nullable: null per le iscrizioni individuali. ponytail: FK per ID, popolamento a carico
+    // del flusso di registrazione a squadre quando servira' esporre il roster del Team.
+    private String teamId;
+
     @Column(nullable = false)
     private String localeId; // ID del locale da cui partecipano
 

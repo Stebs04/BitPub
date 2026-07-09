@@ -22,7 +22,8 @@ public class MatchDto {
     private boolean teamBased;
     private Instant startTime;
     private Instant endTime;
-    private List<TeamResponseDto> teams;
+    // Slot/partecipanti della partita. Field JSON resta "teams" per non rompere edge + WebApp.
+    private List<ParticipantResponseDto> teams;
     private String resultPayload;
     /** ID utente del vincitore (null se pareggio o partita non terminata). */
     private String winnerId;

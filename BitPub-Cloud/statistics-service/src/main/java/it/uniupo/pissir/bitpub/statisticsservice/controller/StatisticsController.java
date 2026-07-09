@@ -15,7 +15,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/statistics")
@@ -84,16 +83,11 @@ public class StatisticsController {
     }
 
     /**
-     * Statistiche personali del PLAYER: le sue righe di leaderboard su tutte le tipologie
-     * di gioco della demo, in un'unica chiamata (riusa il servizio leaderboard esistente,
-     * nessuna nuova query aggiunta al livello service/repository).
+     * Statistiche personali del PLAYER: le sue righe di leaderboard su tutte le tipologie di gioco,
+     * interrogate direttamente dal DB (una sola query) invece di scorrere e filtrare in memoria.
      */
     @GetMapping("/leaderboard/me/{playerName}")
     public ResponseEntity<List<LeaderboardEntryDto>> getMyStatistics(@PathVariable String playerName) {
-        List<LeaderboardEntryDto> mine = statisticsService.getGameTypeIdsForPlayer(playerName).stream()
-                .flatMap(gameTypeId -> statisticsService.getLeaderboard(gameTypeId).stream())
-                .filter(entry -> entry.getPlayerName() != null && entry.getPlayerName().equalsIgnoreCase(playerName))
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(mine);
+        return ResponseEntity.ok(statisticsService.getMyLeaderboardEntries(playerName));
     }
 }

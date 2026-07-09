@@ -6,15 +6,10 @@ import { MapPin, Server, Plus, Power, Trash2, BarChart3 } from 'lucide-react';
 import api, { deleteLocale, createLocale, addGameInstance, toggleGameInstance, getLocaleGameUsage } from '../services/api';
 import type { GameUsageRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
 
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
-
-const GAME_TYPE_LABELS: Record<string, string> = {
-  foosball: 'Calciobalilla',
-  darts: 'Freccette',
-  billiards: 'Biliardo',
-};
 
 interface GameInstance {
   id: string;
@@ -46,6 +41,7 @@ const LocalesPage: React.FC = () => {
   const role = user?.role as string | undefined;
   const isLocaleAdmin = role === LOCALE_ADMIN;
   const isPlatformAdmin = role === PLATFORM_ADMIN;
+  const gameLabels = useGameTypeLabels();
 
   const [locales, setLocales] = useState<Locale[]>([]);
   const [gameTypes, setGameTypes] = useState<GameType[]>([]);
@@ -252,7 +248,7 @@ const LocalesPage: React.FC = () => {
                   <div className="space-y-2">
                     {gameUsage[locale.id].map((g) => (
                       <div key={g.gameTypeId} className="flex items-center justify-between text-sm">
-                        <span className="text-slate-300">{GAME_TYPE_LABELS[g.gameTypeId] || g.gameTypeId}</span>
+                        <span className="text-slate-300">{gameLabels[g.gameTypeId] || g.gameTypeId}</span>
                         <span className="text-slate-500 text-xs">
                           {g.matchesPlayed} partite · {g.players} giocatori
                         </span>

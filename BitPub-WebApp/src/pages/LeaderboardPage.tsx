@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Trophy, Gamepad2, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
 import { statsApi, backfillStats, getGameTypes } from '../services/api';
 import { notificationService } from '../services/notificationService';
+import { upsertGameTypeLabel } from '../hooks/useGameTypeLabels';
 import { useAuthStore } from '../store/authStore';
 
 interface LeaderboardEntry {
@@ -49,6 +50,27 @@ const LeaderboardPage: React.FC = () => {
         setActiveTab(prev => prev || loaded[0]?.id || '');
       })
       .catch(() => setTabs([]));
+  }, []);
+
+  // Nuovo gioco creato dal GAME_ADMIN: il catalog-service pubblica il GameType su bitpub/config/games/{id}.
+  // Aggiunge/aggiorna la relativa tab (e la cache condivisa delle label) senza ricaricare la pagina.
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe(
+      'bitpub/config/games/+',
+      (payload: { id?: string; name?: string }, topic: string) => {
+        const id = payload.id ?? topic.split('/')[3];
+        if (!id) return;
+        const label = payload.name || id;
+        setTabs(prev =>
+          prev.some(t => t.id === id)
+            ? prev.map(t => (t.id === id ? { id, label } : t))
+            : [...prev, { id, label }]
+        );
+        setActiveTab(prev => prev || id);
+        upsertGameTypeLabel(id, label);
+      }
+    );
+    return unsubscribe;
   }, []);
 
   const fetchLeaderboard = useCallback(async (gameTypeId: string) => {

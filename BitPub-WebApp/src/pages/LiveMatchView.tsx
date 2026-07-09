@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Activity, Wifi, WifiOff, Trophy, Zap, Square } from 'lucide-react';
+import { Activity, Wifi, WifiOff, Trophy, Zap, Square, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api, { endMatch } from '../services/api';
 import { notificationService } from '../services/notificationService';
+import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
 
 interface GameState {
   matchId: string;
@@ -72,6 +74,8 @@ const getEventColor = (type: string): string => {
  */
 const LiveMatchView: React.FC = () => {
   const user = useAuthStore((state) => state.user);
+  const gameLabels = useGameTypeLabels();
+  const navigate = useNavigate();
 
   // Un LOCALE_ADMIN monitora solo le partite del proprio locale: si sottoscrive
   // esclusivamente al topic MQTT del proprio localeId invece che al wildcard globale.
@@ -158,6 +162,13 @@ const LiveMatchView: React.FC = () => {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/')}
+            aria-label="Torna alla dashboard"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 transition-all active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-xl">
             <Activity className="w-6 h-6 text-white" />
           </div>
@@ -186,6 +197,7 @@ const LiveMatchView: React.FC = () => {
               key={instanceId}
               instanceId={instanceId}
               state={state}
+              label={gameLabels[state.gameTypeId ?? instanceId] ?? (state.gameTypeId ?? instanceId)}
               canEndMatch={canEndMatch}
               onEndMatch={handleEndMatch}
             />
@@ -207,7 +219,7 @@ const LiveMatchView: React.FC = () => {
           {eventLog.map(log => (
             <div key={log.id} className="flex gap-3 items-start">
               <span className="text-slate-600 shrink-0 w-16">{log.time}</span>
-              <span className="text-slate-500 shrink-0 uppercase text-[10px] font-bold w-20 truncate pt-px">[{log.gameTypeId}]</span>
+              <span className="text-slate-500 shrink-0 uppercase text-[10px] font-bold w-20 truncate pt-px">[{gameLabels[log.gameTypeId] ?? log.gameTypeId}]</span>
               <span className={log.color}>{log.message}</span>
             </div>
           ))}
@@ -222,11 +234,13 @@ const LiveMatchView: React.FC = () => {
 function ScoreCard({
   instanceId,
   state,
+  label,
   canEndMatch,
   onEndMatch,
 }: {
   instanceId: string;
   state: GameState;
+  label: string;
   canEndMatch: boolean;
   onEndMatch: (matchId: string) => void;
 }) {
@@ -243,7 +257,7 @@ function ScoreCard({
         {/* Title */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{state.gameTypeId ?? instanceId}</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{label}</p>
             <p className="text-sm text-slate-400 font-mono">{instanceId}</p>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
