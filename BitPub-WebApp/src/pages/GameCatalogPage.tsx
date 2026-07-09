@@ -9,6 +9,7 @@ import {
   updateGameType,
   addSensorToGameType,
   deleteSensor,
+  deleteGameType,
   type GameTypeRecord,
   type SensorDefinitionRecord,
 } from '../services/api';
@@ -145,6 +146,18 @@ const GameCatalogPage: React.FC = () => {
       alert(msg);
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteGameType = async () => {
+    if (!selected) return;
+    if (!window.confirm(`Eliminare il gioco "${selected.name}" e tutti i suoi eventi?`)) return;
+    try {
+      await deleteGameType(selected.id);
+      await fetchGameTypes(false);
+    } catch (err) {
+      console.error('Errore eliminazione gioco:', err);
+      alert('Errore nell’eliminazione del gioco.');
     }
   };
 
@@ -320,6 +333,13 @@ const GameCatalogPage: React.FC = () => {
                         title="Modifica nome/descrizione"
                       >
                         <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={handleDeleteGameType}
+                        className="text-slate-400 hover:text-red-400"
+                        title="Elimina gioco"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

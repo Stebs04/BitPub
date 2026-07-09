@@ -122,6 +122,19 @@ services:
     networks:
       - bitpub-network
 
+  demo-control-panel:
+    build: ./BitPub-Simulators/demo-control-panel
+    container_name: bitpub-demo-control-panel
+    ports:
+      - "8090:8090"
+    environment:
+      - SERVER_PORT=8090
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+    depends_on:
+      - mosquitto
+    networks:
+      - bitpub-network
+
   tournament-service:
     build: ./BitPub-Cloud/tournament-service
     container_name: bitpub-tournament

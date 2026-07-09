@@ -16,7 +16,7 @@ import java.util.List;
  * abbia machine da poter aggiungere al proprio locale senza dover prima passare da GAME_ADMIN.
  * Idempotente: salta i tipi gia' presenti (findByName), non tocca eventuali dati creati a mano.
  */
-@Component
+// @Component  // ponytail: seed demo disabilitato - all'avvio si creano solo i 4 utenti base
 @RequiredArgsConstructor
 public class GameCatalogDataSeeder implements CommandLineRunner {
 

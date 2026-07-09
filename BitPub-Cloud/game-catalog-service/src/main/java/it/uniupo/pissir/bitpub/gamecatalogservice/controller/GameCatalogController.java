@@ -45,6 +45,13 @@ public class GameCatalogController {
         return gameCatalogService.updateGameType(id, request);
     }
 
+    @DeleteMapping("/games/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('GAME_ADMIN')")
+    public void deleteGameType(@PathVariable String id) {
+        gameCatalogService.deleteGameType(id);
+    }
+
     @DeleteMapping("/games/{gameTypeId}/sensors/{sensorId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('GAME_ADMIN')")

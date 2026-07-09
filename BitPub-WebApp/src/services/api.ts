@@ -129,6 +129,7 @@ export const addSensorToGameType = (gameTypeId: string, payload: AddSensorPayloa
   api.post<SensorDefinitionRecord>(`/catalog/games/${gameTypeId}/sensors`, payload);
 export const deleteSensor = (gameTypeId: string, sensorId: string) =>
   api.delete(`/catalog/games/${gameTypeId}/sensors/${sensorId}`);
+export const deleteGameType = (id: string) => api.delete(`/catalog/games/${id}`);
 
 // ── Esplorazione locali / matchmaking PLAYER ────────────────────────────────────
 export interface GameInstanceRecord {

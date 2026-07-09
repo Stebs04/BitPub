@@ -24,7 +24,7 @@ import java.util.Map;
  * Attende (con retry) che user-service e game-catalog-service siano raggiungibili, dato che
  * l'ordine di startup dei container non e' garantito.
  */
-@Component
+// @Component  // ponytail: seed demo disabilitato - all'avvio si creano solo i 4 utenti base
 @RequiredArgsConstructor
 @Slf4j
 public class LocaleDataSeeder implements CommandLineRunner {

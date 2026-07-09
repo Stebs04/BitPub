@@ -109,8 +109,28 @@ public class GameCatalogService {
             throw new BitpubException("Sensor does not belong to the specified GameType", HttpStatus.BAD_REQUEST);
         }
 
+        // Rimuovi dalla collezione in memoria + flush: publishConfig rilegge il GameType nella
+        // stessa transazione e senza questo vedrebbe il sensore appena cancellato (dirty read).
+        GameType gameType = sensor.getGameType();
+        if (gameType.getSensors() != null) {
+            gameType.getSensors().remove(sensor);
+        }
         sensorDefinitionRepository.delete(sensor);
+        sensorDefinitionRepository.flush();
         publishConfig(gameTypeId);
+    }
+
+    /**
+     * Rimuove un tipo di gioco dal catalogo e pulisce la config retained sull'edge
+     * pubblicando un payload vuoto su bitpub/config/games/{id} (cancella il messaggio retained).
+     */
+    @Transactional
+    public void deleteGameType(String id) {
+        GameType gameType = gameTypeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("GameType", "id", id));
+
+        gameTypeRepository.delete(gameType);
+        configPublisher.publish("", MqttTopics.getGameConfigTopic(id));
     }
 
     public GameTypeDto getGameTypeById(String id) {
