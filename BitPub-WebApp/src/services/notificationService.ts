@@ -9,7 +9,7 @@ type MessageHandler = (payload: any, topic: string) => void;
 type ConnectionHandler = (connected: boolean) => void;
 
 // Confronta un topic MQTT concreto con un pattern di sottoscrizione contenente '+' (singolo livello).
-function topicMatches(pattern: string, topic: string): boolean {
+export function topicMatches(pattern: string, topic: string): boolean {
   const patternParts = pattern.split('/');
   const topicParts = topic.split('/');
   if (patternParts.length !== topicParts.length) return false;
