@@ -152,6 +152,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - STATISTICS_SERVICE_URL=http://statistics-service:8087
+      - LOCALE_SERVICE_URL=http://locale-service:8083
       - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
