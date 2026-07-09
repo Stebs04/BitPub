@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.userservice.controller.UserControllerTest
--------------------------------------------------------------------------------
-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.996 s -- in it.uniupo.pissir.bitpub.userservice.controller.UserControllerTest

@@ -7,6 +7,7 @@ import api, { deleteLocale, createLocale, addGameInstance, toggleGameInstance, g
 import type { GameUsageRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
+import { pollUntil } from '../utils/poll';
 
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
@@ -48,21 +49,27 @@ const LocalesPage: React.FC = () => {
   const [localeAdmins, setLocaleAdmins] = useState<UserOption[]>([]);
   const [gameUsage, setGameUsage] = useState<Record<string, GameUsageRecord[]>>({});
   const [loading, setLoading] = useState(true);
+  // ponytail: un solo lock a livello di pagina blocca ogni mutazione durante il polling
+  // post-Edge. Basta per una pagina admin; passare a lock per-locale se serve concorrenza.
+  const [busy, setBusy] = useState(false);
 
   const [newLocaleName, setNewLocaleName] = useState('');
   const [newLocaleAddress, setNewLocaleAddress] = useState('');
   const [newLocaleAdminId, setNewLocaleAdminId] = useState('');
   const [newInstance, setNewInstance] = useState<Record<string, { localInstanceId: string; gameTypeId: string }>>({});
 
-  const fetchLocales = useCallback(async () => {
-    if (!user) return;
+  const fetchLocales = useCallback(async (): Promise<Locale[]> => {
+    if (!user) return [];
     try {
       const res = isLocaleAdmin
         ? await api.get<Locale[]>(`/locales/by-admin/${user.id}`)
         : await api.get<Locale[]>('/locales');
-      setLocales(res.data || []);
+      const data = res.data || [];
+      setLocales(data);
+      return data;
     } catch (error) {
       console.error('Error fetching locales:', error);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -90,46 +97,63 @@ const LocalesPage: React.FC = () => {
   const handleCreateLocale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLocaleName || !newLocaleAddress || !newLocaleAdminId) return;
+    const prevLen = locales.length;
+    setBusy(true);
     try {
       await createLocale({ name: newLocaleName, address: newLocaleAddress, adminId: newLocaleAdminId });
       setNewLocaleName('');
       setNewLocaleAddress('');
       setNewLocaleAdminId('');
-      // 202 dall'Edge: l'operazione MQTT si riflette sul DB cloud in modo asincrono, rileggo dopo un breve delay.
-      setTimeout(fetchLocales, 500);
+      // Edge 202: attendo che il nuovo locale compaia nel DB cloud (eventual-consistent).
+      await pollUntil(fetchLocales, (d) => d.length > prevLen);
     } catch (error) {
       console.error('Error creating locale:', error);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleAddGameInstance = async (localeId: string) => {
     const form = newInstance[localeId];
     if (!form?.localInstanceId || !form?.gameTypeId) return;
+    const prevLen = locales.find((l) => l.id === localeId)?.games?.length || 0;
+    setBusy(true);
     try {
       await addGameInstance(localeId, form);
       setNewInstance(prev => ({ ...prev, [localeId]: { localInstanceId: '', gameTypeId: '' } }));
-      setTimeout(fetchLocales, 500);
+      await pollUntil(fetchLocales, (d) => (d.find((l) => l.id === localeId)?.games?.length || 0) > prevLen);
     } catch (error) {
       console.error('Error adding game instance:', error);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleDeleteLocale = async (localeId: string, localeName: string) => {
     if (!window.confirm(`Eliminare definitivamente il locale "${localeName}" e tutti i suoi dispositivi?`)) return;
+    const prevLen = locales.length;
+    setBusy(true);
     try {
       await deleteLocale(localeId);
-      setTimeout(fetchLocales, 500);
+      await pollUntil(fetchLocales, (d) => d.length < prevLen);
     } catch (error) {
       console.error('Error deleting locale:', error);
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleToggleGameInstance = async (localeId: string, instance: GameInstance) => {
+    const next = !instance.active;
+    setBusy(true);
     try {
-      await toggleGameInstance(localeId, instance.id, !instance.active);
-      setTimeout(fetchLocales, 500);
+      await toggleGameInstance(localeId, instance.id, next);
+      await pollUntil(fetchLocales, (d) =>
+        d.find((l) => l.id === localeId)?.games?.find((g) => g.id === instance.id)?.active === next);
     } catch (error) {
       console.error('Error toggling game instance:', error);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -172,8 +196,8 @@ const LocalesPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <Button type="submit" className="shrink-0">
-                <Plus className="w-4 h-4 mr-2" /> Crea Locale
+              <Button type="submit" className="shrink-0" disabled={busy}>
+                <Plus className="w-4 h-4 mr-2" /> {busy ? 'Attendere...' : 'Crea Locale'}
               </Button>
             </form>
           </CardContent>
@@ -199,7 +223,8 @@ const LocalesPage: React.FC = () => {
                   {isPlatformAdmin && (
                     <button
                       onClick={() => handleDeleteLocale(locale.id, locale.name)}
-                      className="text-slate-400 hover:text-red-400"
+                      disabled={busy}
+                      className="text-slate-400 hover:text-red-400 disabled:opacity-40"
                       title="Elimina locale"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -224,7 +249,8 @@ const LocalesPage: React.FC = () => {
                       {isLocaleAdmin && (
                         <button
                           onClick={() => handleToggleGameInstance(locale.id, game)}
-                          className="text-slate-400 hover:text-white"
+                          disabled={busy}
+                          className="text-slate-400 hover:text-white disabled:opacity-40"
                           title="Attiva/disattiva dispositivo simulato"
                         >
                           <Power className="w-4 h-4" />
@@ -279,8 +305,8 @@ const LocalesPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  <Button size="sm" className="shrink-0" onClick={() => handleAddGameInstance(locale.id)}>
-                    <Plus className="w-4 h-4 mr-2" /> Aggiungi
+                  <Button size="sm" className="shrink-0" onClick={() => handleAddGameInstance(locale.id)} disabled={busy}>
+                    <Plus className="w-4 h-4 mr-2" /> {busy ? 'Attendere...' : 'Aggiungi'}
                   </Button>
                 </div>
               )}

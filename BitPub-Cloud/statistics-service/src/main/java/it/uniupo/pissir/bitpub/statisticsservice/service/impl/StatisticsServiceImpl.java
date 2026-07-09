@@ -201,6 +201,9 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     /** Upsert delle righe leaderboard (vincitore + eventuale perdente) per un singolo match. */
     private void applyToLeaderboard(MatchResultEvent event) {
+        // I match di torneo hanno tournamentMatchId valorizzato: esclusi dalla classifica pubblica.
+        if (event.getTournamentMatchId() != null) return;
+
         Leaderboard winner = leaderboardRepository
                 .findByPlayerNameIgnoreCaseAndGameTypeId(event.getWinnerName(), event.getGameTypeId())
                 .orElseGet(() -> Leaderboard.builder()
@@ -263,10 +266,14 @@ public class StatisticsServiceImpl implements StatisticsService {
     @Transactional
     public int rebuildLeaderboard(List<MatchResultEvent> events) {
         leaderboardRepository.deleteAll();
-        if (events != null) {
-            events.forEach(this::applyToLeaderboard);
-        }
-        return events != null ? events.size() : 0;
+        if (events == null) return 0;
+        events.forEach(this::applyToLeaderboard);
+        // Broadcast MQTT per ogni gioco toccato, cosi' la UI in ascolto si risincronizza dopo il backfill.
+        events.stream()
+                .map(MatchResultEvent::getGameTypeId)
+                .distinct()
+                .forEach(this::publishLeaderboardUpdate);
+        return events.size();
     }
 
     /** Increment-or-create an AggregateStatistic by 1. */

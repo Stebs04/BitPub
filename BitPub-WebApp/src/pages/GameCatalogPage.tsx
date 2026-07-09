@@ -13,6 +13,7 @@ import {
   type GameTypeRecord,
   type SensorDefinitionRecord,
 } from '../services/api';
+import { pollUntil } from '../utils/poll';
 
 // Preset di eventi simulati piu' comuni: velocizza la definizione del catalogo
 // senza costringere il GAME_ADMIN a ricordare le stringhe MQTT a memoria.
@@ -60,9 +61,11 @@ const GameCatalogPage: React.FC = () => {
         return data.length > 0 ? data[0].id : null;
       });
       setError(null);
+      return data;
     } catch (err) {
       console.error('Errore caricamento catalogo:', err);
       setError('Impossibile caricare il catalogo giochi.');
+      return [] as GameTypeRecord[];
     } finally {
       setLoading(false);
     }
@@ -77,14 +80,18 @@ const GameCatalogPage: React.FC = () => {
   const handleCreateGameType = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newDescription.trim()) return;
+    const name = newName.trim();
+    const prevLen = gameTypes.length;
     setCreating(true);
     try {
-      const res = await createGameType({ name: newName.trim(), description: newDescription.trim(), winScoreTarget: newWinScoreTarget });
+      await createGameType({ name, description: newDescription.trim(), winScoreTarget: newWinScoreTarget });
       setNewName('');
       setNewDescription('');
       setNewWinScoreTarget(10);
-      await fetchGameTypes();
-      if (res.data?.id) setSelectedId(res.data.id);
+      // Edge 202: attendo che il nuovo tipo compaia nel DB cloud prima di selezionarlo.
+      const data = await pollUntil(fetchGameTypes, (d) => d.length > prevLen);
+      const created = data.find((g) => g.name === name);
+      if (created) setSelectedId(created.id);
     } catch (err: any) {
       const msg = err?.response?.status === 409
         ? 'Esiste gia’ un tipo di gioco con questo nome.'
@@ -98,9 +105,11 @@ const GameCatalogPage: React.FC = () => {
   const handleAddSensor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected || !sensorForm.type.trim() || !sensorForm.description.trim()) return;
+    const gameTypeId = selected.id;
+    const prevLen = selected.sensors?.length || 0;
     setAddingSensor(true);
     try {
-      await addSensorToGameType(selected.id, {
+      await addSensorToGameType(gameTypeId, {
         type: sensorForm.type.trim().toUpperCase().replace(/\s+/g, '_'),
         description: sensorForm.description.trim(),
         actuator: sensorForm.actuator,
@@ -108,7 +117,7 @@ const GameCatalogPage: React.FC = () => {
         successProbability: sensorForm.successProbability,
       });
       setSensorForm(emptySensorForm);
-      await fetchGameTypes();
+      await pollUntil(fetchGameTypes, (d) => (d.find((g) => g.id === gameTypeId)?.sensors?.length || 0) > prevLen);
     } catch (err) {
       console.error('Errore aggiunta evento:', err);
       alert('Errore nell’aggiunta dell’evento simulato.');
@@ -134,11 +143,17 @@ const GameCatalogPage: React.FC = () => {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selected || !editName.trim() || !editDescription.trim()) return;
+    const gameTypeId = selected.id;
+    const name = editName.trim();
+    const description = editDescription.trim();
     setSavingEdit(true);
     try {
-      await updateGameType(selected.id, { name: editName.trim(), description: editDescription.trim(), winScoreTarget: editWinScoreTarget });
+      await updateGameType(gameTypeId, { name, description, winScoreTarget: editWinScoreTarget });
       setEditing(false);
-      await fetchGameTypes();
+      await pollUntil(fetchGameTypes, (d) => {
+        const g = d.find((x) => x.id === gameTypeId);
+        return g?.name === name && g?.description === description;
+      });
     } catch (err: any) {
       const msg = err?.response?.status === 409
         ? 'Esiste gia’ un tipo di gioco con questo nome.'
@@ -152,9 +167,10 @@ const GameCatalogPage: React.FC = () => {
   const handleDeleteGameType = async () => {
     if (!selected) return;
     if (!window.confirm(`Eliminare il gioco "${selected.name}" e tutti i suoi eventi?`)) return;
+    const prevLen = gameTypes.length;
     try {
       await deleteGameType(selected.id);
-      await fetchGameTypes(false);
+      await pollUntil(() => fetchGameTypes(false), (d) => d.length < prevLen);
     } catch (err) {
       console.error('Errore eliminazione gioco:', err);
       alert('Errore nell’eliminazione del gioco.');
@@ -164,9 +180,11 @@ const GameCatalogPage: React.FC = () => {
   const handleDeleteSensor = async (sensor: SensorDefinitionRecord) => {
     if (!selected) return;
     if (!window.confirm(`Rimuovere l’evento "${sensor.type}"?`)) return;
+    const gameTypeId = selected.id;
+    const prevLen = selected.sensors?.length || 0;
     try {
-      await deleteSensor(selected.id, sensor.id);
-      await fetchGameTypes();
+      await deleteSensor(gameTypeId, sensor.id);
+      await pollUntil(fetchGameTypes, (d) => (d.find((g) => g.id === gameTypeId)?.sensors?.length || 0) < prevLen);
     } catch (err) {
       console.error('Errore rimozione evento:', err);
       alert('Errore nella rimozione dell’evento.');
