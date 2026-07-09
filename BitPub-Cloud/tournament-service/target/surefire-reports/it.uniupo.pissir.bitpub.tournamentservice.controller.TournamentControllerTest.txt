@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: it.uniupo.pissir.bitpub.tournamentservice.controller.TournamentControllerTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.878 s -- in it.uniupo.pissir.bitpub.tournamentservice.controller.TournamentControllerTest
