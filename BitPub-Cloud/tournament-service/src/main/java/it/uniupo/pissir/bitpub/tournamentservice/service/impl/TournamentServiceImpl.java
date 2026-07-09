@@ -46,6 +46,7 @@ public class TournamentServiceImpl implements TournamentService {
 
     private final TournamentRepository tournamentRepository;
     private final TournamentRegistrationRepository registrationRepository;
+    private final it.uniupo.pissir.bitpub.tournamentservice.repository.TeamRepository teamRepository;
     private final TournamentMatchRepository matchRepository;
     private final TournamentRankingRepository rankingRepository;
     private final TournamentRankingService rankingService;
@@ -272,16 +273,30 @@ public class TournamentServiceImpl implements TournamentService {
             throw new IllegalArgumentException("Participant already registered to this tournament");
         }
 
+        // Iscrizione a squadre: crea l'entita' Team strutturata (name + membri via team_members)
+        // e collega l'iscrizione al suo id. Individuale: nessun Team, teamId resta null.
+        String teamId = null;
+        if (dto.isTeam()) {
+            it.uniupo.pissir.bitpub.tournamentservice.domain.Team team =
+                    it.uniupo.pissir.bitpub.tournamentservice.domain.Team.builder()
+                    .name(dto.getParticipantName())
+                    .tournamentId(tournamentId)
+                    .members(dto.getMembers())
+                    .build();
+            teamId = teamRepository.save(team).getId();
+        }
+
         TournamentRegistration registration = TournamentRegistration.builder()
                 .tournament(tournament)
                 .participantId(dto.getParticipantId())
                 .participantName(dto.getParticipantName())
                 .team(dto.isTeam())
                 .members(dto.getMembers())
+                .teamId(teamId)
                 .localeId(dto.getLocaleId())
                 .registeredAt(Instant.now())
                 .build();
-        
+
         registration = registrationRepository.save(registration);
 
         // Avvio automatico: al raggiungimento di maxParticipants il tabellone si genera da solo
@@ -518,6 +533,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .participantName(reg.getParticipantName())
                 .team(reg.isTeam())
                 .members(reg.getMembers())
+                .teamId(reg.getTeamId())
                 .localeId(reg.getLocaleId())
                 .registeredAt(reg.getRegisteredAt())
                 .matchesPlayed(played)

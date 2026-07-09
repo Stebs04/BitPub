@@ -15,6 +15,7 @@ public class TournamentRegistrationDto {
     private String participantName;
     private boolean team;          // true = iscrizione a squadre
     private List<String> members;  // membri della squadra (o singolo giocatore)
+    private String teamId;         // id dell'entita' Team (solo iscrizioni a squadre; null altrimenti)
     private String localeId;
     private Instant registeredAt;
 
