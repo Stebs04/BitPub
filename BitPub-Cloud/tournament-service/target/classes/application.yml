@@ -24,5 +24,14 @@ mqtt:
   inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:tournament-service-result-ingest}
   # Stable id for the completed-match result stream (tournament-isolated goals ingest).
   match-result-client-id: ${MQTT_MATCH_RESULT_CLIENT_ID:tournament-service-match-result-ingest}
+  # Stable id for the Edge-forwarded tournament CUD command stream (system-action topic).
+  system-action-client-id: ${MQTT_SYSTEM_ACTION_CLIENT_ID:tournament-service-command-ingest}
   topic:
     cloud-results: bitpub/cloud/commands/tournaments/+/matches/+/result
+    system-action: bitpub/cloud/commands/system/tournament/action
+
+# Locale-service lookup: resolve the LOCALE_ADMIN's own localeId for MQTT-forwarded CUD commands,
+# which (unlike the gateway REST path) don't carry the X-User-Locale-Id header.
+locale:
+  service:
+    url: ${LOCALE_SERVICE_URL:http://localhost:8083}

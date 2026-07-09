@@ -132,14 +132,21 @@ export interface AddSensorPayload {
 
 export const getGameTypes = () => api.get<GameTypeRecord[]>('/catalog/games');
 export const getGameTypeById = (id: string) => api.get<GameTypeRecord>(`/catalog/games/${id}`);
-export const createGameType = (payload: CreateGameTypePayload) => api.post<GameTypeRecord>('/catalog/games', payload);
-export const updateGameType = (id: string, payload: CreateGameTypePayload) => api.put<GameTypeRecord>(`/catalog/games/${id}`, payload);
+// Gestione catalogo (GAME_ADMIN): le mutazioni non colpiscono piu' il gateway direttamente ma passano
+// dall'Edge, che valida il JWT e le inoltra al cloud 100% via MQTT (topic system/catalog/action). Sono
+// fire-and-forget (202): l'esito arriva ricaricando la lista; un errore (es. nome duplicato) e' loggato
+// dal listener, non ritornato al client. Le letture restano REST sul gateway.
+export const createGameType = (payload: CreateGameTypePayload) =>
+  edgeApi.post('/system/catalog/action', { action: 'CREATE_GAME_TYPE', ...payload });
+export const updateGameType = (id: string, payload: CreateGameTypePayload) =>
+  edgeApi.post('/system/catalog/action', { action: 'UPDATE_GAME_TYPE', id, ...payload });
+export const deleteGameType = (id: string) =>
+  edgeApi.post('/system/catalog/action', { action: 'DELETE_GAME_TYPE', id });
 export const getSensorsByGameType = (gameTypeId: string) => api.get<SensorDefinitionRecord[]>(`/catalog/games/${gameTypeId}/sensors`);
 export const addSensorToGameType = (gameTypeId: string, payload: AddSensorPayload) =>
-  api.post<SensorDefinitionRecord>(`/catalog/games/${gameTypeId}/sensors`, payload);
+  edgeApi.post('/system/catalog/action', { action: 'ADD_SENSOR', gameTypeId, ...payload });
 export const deleteSensor = (gameTypeId: string, sensorId: string) =>
-  api.delete(`/catalog/games/${gameTypeId}/sensors/${sensorId}`);
-export const deleteGameType = (id: string) => api.delete(`/catalog/games/${id}`);
+  edgeApi.post('/system/catalog/action', { action: 'DELETE_SENSOR', gameTypeId, sensorId });
 
 // ── Esplorazione locali / matchmaking PLAYER ────────────────────────────────────
 export interface GameInstanceRecord {
@@ -328,12 +335,16 @@ export const registerToTournament = (tournamentId: string, payload: RegisterPayl
 export const getTournamentRankings = (tournamentId: string) =>
   api.get<TournamentRankingRecord[]>(`/tournaments/${tournamentId}/rankings`);
 
-// Gestione tornei (PLATFORM_ADMIN / LOCALE_ADMIN)
+// Gestione tornei (LOCALE_ADMIN): come per utenti/locali/catalogo, le CUD passano dall'Edge via MQTT
+// (topic system/tournament/action), non piu' dal gateway REST. Il locale del torneo lo determina il
+// tournament-service dal LOCALE_ADMIN (il localeIds inviato qui e' ignorato). Fire-and-forget (202):
+// ricaricare la lista per vedere l'esito; un rifiuto (es. torneo con iscritti) e' loggato dal listener.
 export const createTournament = (payload: CreateTournamentPayload) =>
-  api.post<TournamentRecord>('/tournaments', payload);
+  edgeApi.post('/system/tournament/action', { action: 'CREATE_TOURNAMENT', ...payload });
 export const updateTournament = (id: string, payload: CreateTournamentPayload) =>
-  api.put<TournamentRecord>(`/tournaments/${id}`, payload);
-export const deleteTournament = (id: string) => api.delete(`/tournaments/${id}`);
+  edgeApi.post('/system/tournament/action', { action: 'UPDATE_TOURNAMENT', id, ...payload });
+export const deleteTournament = (id: string) =>
+  edgeApi.post('/system/tournament/action', { action: 'DELETE_TOURNAMENT', id });
 export const startTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/start`);
 export const endTournament = (id: string) => api.put<TournamentRecord>(`/tournaments/${id}/end`);
 

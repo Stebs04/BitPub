@@ -35,6 +35,12 @@ public class MqttConfig {
     @Value("${mqtt.match-result-client-id}")
     private String matchResultClientId;
 
+    @Value("${mqtt.system-action-client-id}")
+    private String systemActionClientId;
+
+    @Value("${mqtt.topic.system-action}")
+    private String systemActionTopic;
+
     // ── Outbound: publish live TournamentDto updates to the WebApp (bitpub/tournaments/{id}/state) ──
 
     @Bean
@@ -112,6 +118,27 @@ public class MqttConfig {
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttMatchResultInboundChannel());
+        return adapter;
+    }
+
+    // ── Inbound: durable subscriber to Edge-forwarded tournament CUD commands (system-action topic) ──
+    // So the WebApp manages tournaments through the Edge instead of the gateway REST directly — same
+    // pattern as user/locale services. Distinct clientId = own durable subscription. See
+    // SystemActionCommandListener. Reuses the durable (cleanSession=false) inbound factory.
+
+    @Bean
+    public MessageChannel systemActionInboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer systemActionInbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(systemActionClientId, mqttInboundClientFactory(), systemActionTopic);
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(systemActionInboundChannel());
         return adapter;
     }
 }
