@@ -20,3 +20,9 @@ bitpub:
   jwt:
     secret: 1234567890123456789012345678901234567890123456789012345678901234
     expirationMs: 86400000
+  mqtt:
+    cloud:
+      broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+      # Stable id + durable session so the broker queues Edge-forwarded commands while this service is down.
+      inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:user-service-command-ingest}
+      system-action-topic: bitpub/cloud/commands/system/users/action

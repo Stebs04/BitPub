@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import { MapPin, Server, Plus, Power, Trash2, BarChart3 } from 'lucide-react';
-import api, { deleteLocale, getLocaleGameUsage } from '../services/api';
+import api, { deleteLocale, createLocale, addGameInstance, toggleGameInstance, getLocaleGameUsage } from '../services/api';
 import type { GameUsageRecord } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -95,11 +95,12 @@ const LocalesPage: React.FC = () => {
     e.preventDefault();
     if (!newLocaleName || !newLocaleAddress || !newLocaleAdminId) return;
     try {
-      await api.post('/locales', { name: newLocaleName, address: newLocaleAddress, adminId: newLocaleAdminId });
+      await createLocale({ name: newLocaleName, address: newLocaleAddress, adminId: newLocaleAdminId });
       setNewLocaleName('');
       setNewLocaleAddress('');
       setNewLocaleAdminId('');
-      fetchLocales();
+      // 202 dall'Edge: l'operazione MQTT si riflette sul DB cloud in modo asincrono, rileggo dopo un breve delay.
+      setTimeout(fetchLocales, 500);
     } catch (error) {
       console.error('Error creating locale:', error);
     }
@@ -109,9 +110,9 @@ const LocalesPage: React.FC = () => {
     const form = newInstance[localeId];
     if (!form?.localInstanceId || !form?.gameTypeId) return;
     try {
-      await api.post(`/locales/${localeId}/games`, form);
+      await addGameInstance(localeId, form);
       setNewInstance(prev => ({ ...prev, [localeId]: { localInstanceId: '', gameTypeId: '' } }));
-      fetchLocales();
+      setTimeout(fetchLocales, 500);
     } catch (error) {
       console.error('Error adding game instance:', error);
     }
@@ -121,7 +122,7 @@ const LocalesPage: React.FC = () => {
     if (!window.confirm(`Eliminare definitivamente il locale "${localeName}" e tutti i suoi dispositivi?`)) return;
     try {
       await deleteLocale(localeId);
-      setLocales((prev) => prev.filter((l) => l.id !== localeId));
+      setTimeout(fetchLocales, 500);
     } catch (error) {
       console.error('Error deleting locale:', error);
     }
@@ -129,8 +130,8 @@ const LocalesPage: React.FC = () => {
 
   const handleToggleGameInstance = async (localeId: string, instance: GameInstance) => {
     try {
-      await api.patch(`/locales/${localeId}/games/${instance.id}/status?active=${!instance.active}`);
-      fetchLocales();
+      await toggleGameInstance(localeId, instance.id, !instance.active);
+      setTimeout(fetchLocales, 500);
     } catch (error) {
       console.error('Error toggling game instance:', error);
     }

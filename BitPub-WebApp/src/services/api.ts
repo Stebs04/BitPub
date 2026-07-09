@@ -73,16 +73,24 @@ export interface GlobalStats {
   activeTournaments: number;
 }
 
-// Gestione utenti (PLATFORM_ADMIN)
-export const createUser = (payload: CreateUserPayload) => api.post('/users', payload);
+// Gestione utenti (PLATFORM_ADMIN). Le operazioni CUD passano dall'Edge (come le azioni di gioco):
+// l'Edge valida il JWT e le inoltra al cloud 100% via MQTT (topic system/users/action). L'Edge
+// risponde 202 senza l'oggetto aggiornato -> chi chiama deve rifare la fetch dopo un breve delay.
+export const createUser = (payload: CreateUserPayload) => edgeApi.post('/system/users/action', { action: 'CREATE', ...payload });
 export const getAllUsers = () => api.get<UserRecord[]>('/users');
-export const updateUserRole = (id: string, role: string) => api.patch<UserRecord>(`/users/${id}/role`, null, { params: { role } });
-export const updateUser = (id: string, payload: { username: string; email: string }) => api.patch<UserRecord>(`/users/${id}`, payload);
-export const updateUserPassword = (id: string, newPassword: string) => api.patch<UserRecord>(`/users/${id}/password`, { newPassword });
-export const deleteUser = (id: string) => api.delete(`/users/${id}`);
+export const updateUserRole = (id: string, role: string) => edgeApi.post('/system/users/action', { action: 'UPDATE_ROLE', id, role });
+export const updateUser = (id: string, payload: { username: string; email: string }) => edgeApi.post('/system/users/action', { action: 'UPDATE', id, ...payload });
+export const updateUserPassword = (id: string, newPassword: string) => edgeApi.post('/system/users/action', { action: 'UPDATE_PASSWORD', id, newPassword });
+export const deleteUser = (id: string) => edgeApi.post('/system/users/action', { action: 'DELETE', id });
 
-// Gestione locali (PLATFORM_ADMIN)
-export const deleteLocale = (id: string) => api.delete(`/locales/${id}`);
+// Gestione locali (PLATFORM_ADMIN / LOCALE_ADMIN): stesso pattern, topic system/locales/action.
+export const createLocale = (payload: { name: string; address: string; adminId: string }) =>
+  edgeApi.post('/system/locales/action', { action: 'CREATE_LOCALE', ...payload });
+export const deleteLocale = (id: string) => edgeApi.post('/system/locales/action', { action: 'DELETE_LOCALE', id });
+export const addGameInstance = (localeId: string, payload: { localInstanceId: string; gameTypeId: string }) =>
+  edgeApi.post('/system/locales/action', { action: 'ADD_GAME_INSTANCE', localeId, ...payload });
+export const toggleGameInstance = (localeId: string, gameInstanceId: string, active: boolean) =>
+  edgeApi.post('/system/locales/action', { action: 'TOGGLE_GAME_INSTANCE', localeId, gameInstanceId, active });
 
 // Statistiche globali della piattaforma (PLATFORM_ADMIN)
 export const getGlobalStats = () => statsApi.get<GlobalStats>('/global');

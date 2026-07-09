@@ -56,7 +56,8 @@ const UserManagementPage: React.FC = () => {
       setPassword('');
       setEmail('');
       setRole(ROLES[0]);
-      fetchUsers();
+      // 202 dall'Edge: l'operazione MQTT si riflette sul DB cloud in modo asincrono, rileggo dopo un breve delay.
+      setTimeout(fetchUsers, 500);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Errore durante la creazione utente.');
     } finally {
@@ -68,7 +69,7 @@ const UserManagementPage: React.FC = () => {
     setPendingRoleId(userId);
     try {
       await updateUserRole(userId, newRole);
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+      setTimeout(fetchUsers, 500);
     } catch (err: any) {
       setListError(err?.response?.data?.message || 'Errore durante la modifica del ruolo.');
     } finally {
@@ -85,9 +86,9 @@ const UserManagementPage: React.FC = () => {
 
   const handleSaveEdit = async (userId: string) => {
     try {
-      const res = await updateUser(userId, { username: editUsername, email: editEmail });
-      setUsers((prev) => prev.map((u) => (u.id === userId ? res.data : u)));
+      await updateUser(userId, { username: editUsername, email: editEmail });
       setEditingId(null);
+      setTimeout(fetchUsers, 500);
     } catch (err: any) {
       setListError(err?.response?.data?.message || 'Errore durante la modifica utente.');
     }
@@ -108,7 +109,7 @@ const UserManagementPage: React.FC = () => {
     if (!window.confirm(`Eliminare definitivamente l'utente "${targetUsername}"?`)) return;
     try {
       await deleteUser(userId);
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setTimeout(fetchUsers, 500);
     } catch (err: any) {
       setListError(err?.response?.data?.message || "Errore durante l'eliminazione dell'utente.");
     }

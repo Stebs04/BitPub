@@ -59,10 +59,12 @@ services:
       - "8082:8082"
     depends_on:
       - postgres
+      - mosquitto
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/bitpub_db
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
 
@@ -73,6 +75,7 @@ services:
       - "8083:8083"
     depends_on:
       - postgres
+      - mosquitto
       - user-service
       - game-catalog-service
     environment:
@@ -81,6 +84,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - USER_SERVICE_URL=http://user-service:8082
       - CATALOG_SERVICE_URL=http://game-catalog-service:8084
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     networks:
       - bitpub-network
 

@@ -27,3 +27,6 @@ bitpub:
       client-id: ${MQTT_CLIENT_ID:locale-service-${random.uuid}}
       # Base topic; per-message topic is bitpub/locales/games/{localeId}
       topic-games: bitpub/locales/games/+
+      # Inbound Edge-forwarded locale CUD commands (durable QoS1 subscriber).
+      inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:locale-service-command-ingest}
+      system-action-topic: bitpub/cloud/commands/system/locales/action
