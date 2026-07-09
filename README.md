@@ -42,6 +42,7 @@ Il progetto è stato sviluppato in modo collaborativo, distribuendo il carico di
    - [Come creare i Tornei](#4-come-creare-i-tornei)
    - [Come giocare alle Partite](#5-come-giocare-alle-partite)
 5. [Ecosistema dei Microservizi](#-ecosistema-dei-microservizi)
+6. [Documenti di Relazione e Diagrammi](#-documenti-di-relazione-e-diagrammi)
 
 ---
 
@@ -177,3 +178,26 @@ Ecco l'elenco dei servizi presenti, il responsabile tecnico e le porte associate
 | `statistics-service` | 8087 | Leaderboard globali e aggregazioni dati | Stefano B. |
 | `notification-service` | 8088 | Server WebSocket per le notifiche push | Stefano B. |
 | `bitpub-edge` | 8089 | Nodo Edge di prossimità per i buffer MQTT | Timothy G. |
+
+---
+
+## 📄 Documenti di Relazione e Diagrammi
+
+Il progetto include documentazione estesa e diagrammi UML/architetturali disponibili nella cartella `docs/`.
+
+### Documenti di Relazione
+I documenti di relazione completi (.pdf e .odt) si trovano nella cartella `docs/Documenti Relazione/`:
+* [Documento di Visione](docs/Documenti%20Relazione/BitPub%20Documento%20di%20visione.pdf)
+* [Documento dei Requisiti](docs/Documenti%20Relazione/Documento%20dei%20requisiti%20BitPub.pdf)
+* [Documento di Progettazione](docs/Documenti%20Relazione/BitPub%20documento%20di%20progettazione.pdf)
+* [Documento di Implementazione](docs/Documenti%20Relazione/BitPub%20Documento%20di%20Implementazione.pdf)
+* [Relazione Tecnica di Progetto](docs/Documenti%20Relazione/Relazione%20Tecnica%20di%20Progetto.pdf)
+
+### Diagrammi di Progetto
+Tutti i diagrammi si trovano nella cartella `docs/diagrammi progetto/`:
+* **Diagramma Architetturale:** [Visualizza](docs/diagrammi%20progetto/Diagramma%20architetturale/Diagramma%20architetturale.png)
+* **Diagramma dei Casi d'Uso:** [Visualizza](docs/diagrammi%20progetto/Diagramma%20dei%20casi%20d'uso/Diagramma%20dei%20casi%20d'uso.png)
+* **Diagramma dei Package:** [Visualizza](docs/diagrammi%20progetto/Diagramma%20dei%20package/diagramma%20dei%20package.png)
+* **Diagramma di Deployment:** [Visualizza](docs/diagrammi%20progetto/Diagramma%20deployment/diagramma%20di%20deployment.png)
+* **Diagrammi delle Classi:** [Logiche](docs/diagrammi%20progetto/Diagramma%20delle%20classi/diagramma%20delle%20classi.png) | [Software](docs/diagrammi%20progetto/Diagramma%20classi%20software/Diagramma%20delle%20classi%20software.png)
+* **Diagrammi di Sequenza e Attività:** Presenti nelle rispettive sottocartelle suddivisi per caso d'uso.
