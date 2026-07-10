@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.dto;
 
 import lombok.AllArgsConstructor;
@@ -6,9 +7,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Richiesta del PLAYER per entrare in lobby su una gameInstance specifica.
- * Lo username viaggia nel body (e non come header) perche' il gateway non
- * inoltra ancora un claim X-Username; playerId arriva invece da X-User-Id.
+ * DTO per la richiesta da parte di un giocatore di accedere alla lobby di una specifica istanza di gioco.
+ * Il nome utente (username) è contenuto nel corpo della richiesta in quanto il gateway non supporta 
+ * nativamente l'inoltro di un claim dedicato; l'identificativo del giocatore, invece, viene estratto 
+ * in modo sicuro dall'header X-User-Id.
  */
 @Data
 @Builder
@@ -17,7 +19,7 @@ import lombok.NoArgsConstructor;
 public class JoinLobbyRequestDto {
     private String gameInstanceId;
     private String username;
-    // Se valorizzato, la lobby e' una partita di torneo: solo i due giocatori abbinati
-    // in questo scontro del tabellone possono connettersi. Null = partita libera.
+    // Quando valorizzato, identifica una partita di torneo: l'accesso è riservato esclusivamente 
+    // ai due giocatori previsti dal tabellone per questo scontro. Un valore nullo indica una partita libera.
     private String tournamentMatchId;
 }

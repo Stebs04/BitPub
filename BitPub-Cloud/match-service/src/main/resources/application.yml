@@ -1,3 +1,5 @@
+# Autore: Timothy Giolito 20054431
+# Configurazione di default per il servizio delle partite
 server:
   port: 8085
 

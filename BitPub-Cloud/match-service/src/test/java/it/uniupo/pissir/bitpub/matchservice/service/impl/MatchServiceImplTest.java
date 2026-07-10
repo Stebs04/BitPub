@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,7 +50,8 @@ class MatchServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new MatchServiceImpl(matchRepository, participantRepository, sensorEventLogRepository, new ObjectMapper());
-        // mqttOutboundChannel e' un campo @Autowired/@Qualifier, non passa dal costruttore.
+        // Essendo mqttOutboundChannel qualificato con @Autowired/@Qualifier, non è gestito dal costruttore;
+        // l'iniezione avviene tramite manipolazione reflection per favorire il testing isolato.
         ReflectionTestUtils.setField(service, "mqttOutboundChannel", mqttOutboundChannel);
     }
 
@@ -64,7 +66,7 @@ class MatchServiceImplTest {
                 .teams(new ArrayList<>(List.of(teams))).build();
     }
 
-    // ── Scenario matchmaking: WAITING_FOR_PLAYERS -> IN_PROGRESS al 2° giocatore ──
+    // ── Verifica Transizioni Matchmaking: da WAITING_FOR_PLAYERS a IN_PROGRESS ──
     @Test
     void joinLobby_secondPlayer_transitionsToInProgress() {
         Match waiting = match("m1", "WAITING_FOR_PLAYERS", team("tA", "alice", 0, "pA"));
@@ -77,8 +79,8 @@ class MatchServiceImplTest {
 
         assertThat(dto.getStatus()).isEqualTo("IN_PROGRESS");
         assertThat(dto.getTeams()).hasSize(2);
-        assertThat(dto.getCurrentTurnUserId()).isEqualTo("pA"); // turno seminato sul creatore lobby
-        verify(mqttOutboundChannel, atLeastOnce()).send(any()); // stato live pubblicato
+        assertThat(dto.getCurrentTurnUserId()).isEqualTo("pA"); // Il turno inaugurale viene concesso al creatore della lobby
+        verify(mqttOutboundChannel, atLeastOnce()).send(any()); // Certifica la pubblicazione dello stato live sul broker
     }
 
     @Test
@@ -94,7 +96,7 @@ class MatchServiceImplTest {
         verify(participantRepository, never()).save(any());
     }
 
-    // ── endMatch ──
+    // ── Validazione Funzione endMatch ──
     @Test
     void endMatch_completesAndComputesWinner() {
         Match m = match("m1", "IN_PROGRESS", team("tA", "alice", 10, "pA"), team("tB", "bob", 5, "pB"));
@@ -104,7 +106,7 @@ class MatchServiceImplTest {
         MatchDto dto = service.endMatch("m1");
 
         assertThat(dto.getStatus()).isEqualTo("COMPLETED");
-        assertThat(dto.getWinnerId()).isEqualTo("pA"); // punteggio piu' alto
+        assertThat(dto.getWinnerId()).isEqualTo("pA"); // Accertamento del punteggio maggiore
         verify(mqttOutboundChannel, atLeastOnce()).send(any());
     }
 
@@ -118,7 +120,7 @@ class MatchServiceImplTest {
         verify(matchRepository, never()).save(any());
     }
 
-    // ── applyFinalResult ──
+    // ── Validazione Funzione applyFinalResult ──
     @Test
     void applyFinalResult_appliesScoresByTeamName_andCompletes() {
         Match m = match("m1", "IN_PROGRESS", team("tA", "RED", 0, "pA"), team("tB", "BLUE", 0, "pB"));
@@ -141,11 +143,11 @@ class MatchServiceImplTest {
 
         MatchDto dto = service.applyFinalResult("m1", Map.of("RED", 2, "BLUE", 2));
 
-        assertThat(dto.getWinnerId()).isNull(); // pareggio: nessun vincitore, niente leaderboard
+        assertThat(dto.getWinnerId()).isNull(); // In caso di pareggio si omette il vincitore e la classifica non viene alterata
         verify(mqttOutboundChannel, never()).send(any());
     }
 
-    // ── processGameAction ──
+    // ── Validazione Funzione processGameAction ──
     @Test
     void processGameAction_matchNotInProgress_conflict() {
         Match m = match("m1", "COMPLETED", team("tA", "alice", 0, "pA"));
@@ -173,10 +175,10 @@ class MatchServiceImplTest {
 
         service.processGameAction("m1", "pA", GameActionRequestDto.builder().sensorType("GOAL").eventId("e1").build());
 
-        verify(mqttOutboundChannel).send(any()); // inoltrato al GenericSimulator
+        verify(mqttOutboundChannel).send(any()); // Riscontro dell'avvenuto inoltro al simulatore tramite MQTT
     }
 
-    // ── processSensorEvent ──
+    // ── Validazione Funzione processSensorEvent ──
     @Test
     void processSensorEvent_duplicateEventId_skips() {
         SensorEvent event = SensorEvent.builder().eventId(UUID.randomUUID()).gameInstanceId("gi1").sensorType("GOAL").build();
@@ -199,10 +201,10 @@ class MatchServiceImplTest {
         service.processSensorEvent(event);
 
         assertThat(m.getStatus()).isEqualTo("COMPLETED");
-        verify(sensorEventLogRepository).save(any()); // evento sempre loggato
+        verify(sensorEventLogRepository).save(any()); // L'evento simulato deve essere tracciato integralmente
     }
 
-    // ── startMatch guard ──
+    // ── Validazione Controlli su startMatch ──
     @Test
     void startMatch_existingInProgress_throwsIllegalState() {
         when(matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc("gi1", "IN_PROGRESS"))

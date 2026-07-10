@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.dto;
 
 import lombok.AllArgsConstructor;
@@ -18,17 +19,18 @@ public class MatchDto {
     private String localeId;
     private String gameTypeId;
     private String status;
-    /** true = partita a squadre (registra il Team), false = individuale. */
+    /** Flag booleano: true per partite a squadre (dove si registrano i team), false per le individuali. */
     private boolean teamBased;
     private Instant startTime;
     private Instant endTime;
-    // Slot/partecipanti della partita. Field JSON resta "teams" per non rompere edge + WebApp.
+    // Rappresenta le fazioni o partecipanti della partita. Il campo viene serializzato come "teams" 
+    // per preservare la retrocompatibilità con i componenti Edge e WebApp.
     private List<ParticipantResponseDto> teams;
     private String resultPayload;
-    /** ID utente del vincitore (null se pareggio o partita non terminata). */
+    /** Identificativo utente del vincitore (nullo nel caso di pareggio o partita non terminata). */
     private String winnerId;
 
-    // Stato del gameplay a turni (esposto al frontend per abilitare/disabilitare i controlli).
+    // Stato di avanzamento dei turni (fornito al client per l'abilitazione dei relativi controlli interfaccia).
     private String currentTurnUserId;
     private boolean breakDone;
     private String solidTeamId;

@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +23,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// GlobalExceptionHandler importato: mappa BitpubException sui codici HTTP (400/403) usati dal controller.
+// Viene incluso il GlobalExceptionHandler al fine di validare la mappatura delle eccezioni 
+// customizzate (BitpubException) nei codici di stato HTTP appropriati (es. 400/403).
 @WebMvcTest(MatchController.class)
 @Import(GlobalExceptionHandler.class)
 class MatchControllerTest {

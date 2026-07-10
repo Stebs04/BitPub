@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -64,12 +65,13 @@ public class MatchServiceImpl implements MatchService {
     private String tournamentServiceUrl;
 
     /**
-     * Partita di torneo: solo i due giocatori abbinati nello scontro del tabellone possono
-     * connettersi. Chiede a tournament-service; fail-closed (403) se la verifica non riesce.
+     * Verifica l'appartenenza di un utente a un match di torneo.
+     * L'accesso è ristretto esclusivamente ai due giocatori associati allo scontro nel tabellone.
+     * Viene effettuata una verifica sul servizio tornei, con rifiuto in caso di esito negativo o errore.
      */
     private void assertTournamentPairing(String tournamentMatchId, String playerId) {
         if (tournamentMatchId == null) {
-            return; // partita libera, nessun abbinamento da rispettare
+            return; // In caso di partita libera, non sussistono vincoli di abbinamento
         }
         Boolean allowed;
         try {
@@ -88,8 +90,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Resolves the owning locale for a gameInstance by calling locale-service.
-     * Needed to scope LOCALE_ADMIN access to matches of their own locale.
+     * Recupera l'identificativo del locale di appartenenza per l'istanza di gioco, 
+     * consultando il servizio locale (locale-service). Necessario per circoscrivere l'accesso
+     * degli amministratori (LOCALE_ADMIN) esclusivamente alle partite della loro sede.
      */
     private String resolveLocaleId(String gameInstanceId) {
         Map info = fetchGameInstanceInfo(gameInstanceId);
@@ -97,9 +100,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Fetches the full GameInstanceDto (localeId, gameTypeId, active) from locale-service.
-     * Used by the PLAYER matchmaking flow to validate the machine is switched on and to
-     * know which gameTypeId/localeId to stamp on the lobby match.
+     * Recupera le informazioni complete dell'istanza di gioco (localeId, gameTypeId, stato attivo)
+     * dal servizio dedicato. Viene impiegato nella procedura di matchmaking per accertarsi che la postazione
+     * sia operativa e per popolare i dati della lobby.
      */
     private Map fetchGameInstanceInfo(String gameInstanceId) {
         try {
@@ -115,11 +118,11 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * A LOCALE_ADMIN may only access matches of the locale they are assigned to.
-     * PLATFORM_ADMIN and other roles are left unrestricted (read-only monitoring is not
-     * gated for players/other admins, only LOCALE_ADMIN is scoped down).
-     * Prefers the locale claim forwarded by the gateway (callerLocaleId); falls back to
-     * resolving it via locale-service if the caller's token predates the claim.
+     * Implementa i vincoli di sicurezza: un amministratore di locale (LOCALE_ADMIN) può accedere
+     * solo ed esclusivamente alle partite relative al proprio locale. Gli amministratori globali (PLATFORM_ADMIN)
+     * e i giocatori mantengono l'accesso in lettura incondizionato.
+     * Privilegia il parametro estratto dal token JWT inoltrato dal gateway e, in assenza, 
+     * invoca il servizio locale per risolverlo tramite l'ID utente.
      */
     public void assertMatchLocaleAccess(String matchLocaleId, String callerId, String callerRole, String callerLocaleId) {
         if (!"LOCALE_ADMIN".equals(callerRole)) {
@@ -131,7 +134,7 @@ public class MatchServiceImpl implements MatchService {
         }
     }
 
-    /** Returns the localeId of the locale owned by the given adminId, or null if none. */
+    /** Restituisce l'identificativo del locale associato all'amministratore, se presente. */
     public String resolveAdminLocaleId(String adminId) {
         if (adminId == null) {
             return null;
@@ -175,7 +178,7 @@ public class MatchServiceImpl implements MatchService {
     @Override
     @Transactional
     public MatchDto startMatch(StartMatchRequestDto request) {
-        // Verifica se c'è già un match in corso per quella gameInstance
+        // Validazione: controlla se per l'istanza specificata è già presente una partita in corso
         Optional<Match> existingMatch = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(request.getGameInstanceId(), "IN_PROGRESS");
         if (existingMatch.isPresent()) {
             throw new IllegalStateException("A match is already in progress for game instance: " + request.getGameInstanceId());
@@ -229,9 +232,9 @@ public class MatchServiceImpl implements MatchService {
         match.setTeamBased(isTeamBased(match));
         Match saved = matchRepository.save(match);
 
-        // Il vincitore e' calcolato da winnerTeam() in base al punteggio piu' alto
-        // (piu' basso a freccette, dove si parte da 501 e si scende a 0).
-        notifyStatisticsService(saved); // pubblica su bitpub/cloud/matches/result: stats E avanzamento torneo
+        // Il vincitore viene calcolato automaticamente tramite la funzione winnerTeam() 
+        // valutando il punteggio migliore a seconda della natura del gioco.
+        notifyStatisticsService(saved); // Propaga i dati per le statistiche e per il torneo tramite topic dedicato
         publishGameState(saved, "FINISHED", "MATCH_END");
 
         return mapToDto(saved);
@@ -243,8 +246,8 @@ public class MatchServiceImpl implements MatchService {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Match", "id", matchId));
 
-        // Idempotente: l'Edge fa un POST best-effort e puo' ritentare; una partita gia' chiusa non
-        // va ri-notificata (l'ingest stats e' comunque idempotente sul matchId).
+        // Controllo di idempotenza: i nodi Edge inoltrano aggiornamenti best-effort ed eventuali duplicati 
+        // devono essere ignorati se la partita risulta già finalizzata.
         if ("COMPLETED".equals(match.getStatus())) {
             return mapToDto(match);
         }
@@ -264,17 +267,18 @@ public class MatchServiceImpl implements MatchService {
         match.setTeamBased(isTeamBased(match));
         Match saved = matchRepository.save(match);
 
-        notifyStatisticsService(saved); // stats E avanzamento torneo via bitpub/cloud/matches/result (durevole)
-        // Nessun broadcast di stato: la FINISHED live la pubblica l'Edge sul topic match-state.
+        notifyStatisticsService(saved); // Propaga asincronamente i risultati per l'aggiornamento statistiche e tornei
+        // Nessuna pubblicazione di stato: il termine della partita (FINISHED) è gestito in modo autoritativo dall'Edge.
 
         return mapToDto(saved);
     }
 
     /**
-     * PLAYER matchmaking: se esiste gia' una lobby WAITING_FOR_PLAYERS su questa gameInstance,
-     * vi aggiunge il chiamante come secondo giocatore e la porta IN_PROGRESS (match "STARTED"),
-     * pubblicando lo stato aggiornato via MQTT cosi' che entrambi i client vedano la transizione
-     * in tempo reale. Altrimenti crea una nuova lobby in attesa del secondo giocatore.
+     * Procedura di matchmaking lato giocatore: se è già presente una lobby in attesa 
+     * (WAITING_FOR_PLAYERS) per questa postazione di gioco, vi inserisce il chiamante come 
+     * secondo partecipante e ne aggiorna lo stato a IN_PROGRESS ("STARTED"). Contestualmente,
+     * notifica l'avanzamento tramite MQTT affinché entrambi i client elaborino la transizione 
+     * simultaneamente. In assenza di lobby, provvede all'inizializzazione di una nuova sessione.
      */
     @Override
     @Transactional
@@ -282,7 +286,7 @@ public class MatchServiceImpl implements MatchService {
         String gameInstanceId = request.getGameInstanceId();
         String username = request.getUsername();
 
-        // Torneo: verifica che il chiamante sia uno dei due giocatori abbinati nel tabellone.
+        // Gestione Torneo: si assicura che il richiedente corrisponda a uno dei due giocatori attesi dallo scontro.
         assertTournamentPairing(request.getTournamentMatchId(), playerId);
 
         Optional<Match> waiting = matchRepository.findFirstByGameInstanceIdAndStatusOrderByStartTimeDesc(gameInstanceId, "WAITING_FOR_PLAYERS");
@@ -290,7 +294,8 @@ public class MatchServiceImpl implements MatchService {
         if (waiting.isPresent()) {
             Match match = waiting.get();
 
-            // Reconnect idempotente: lo stesso giocatore che ripolla/riapre la pagina non deve duplicarsi in team.
+            // Meccanismo idempotente per la riconnessione: evita che la duplicazione di richieste 
+            // generi molteplici inserimenti dello stesso giocatore nella medesima squadra.
             boolean alreadyIn = match.getTeams() != null && match.getTeams().stream()
                     .anyMatch(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId));
             if (alreadyIn) {
@@ -308,8 +313,8 @@ public class MatchServiceImpl implements MatchService {
 
             match.setStatus("IN_PROGRESS");
             match.setStartTime(Instant.now());
-            // Semina il turno iniziale sul primo giocatore (team A, chi ha creato la lobby). L'Edge
-            // legge questo valore alla prima azione e da qui in poi e' lui a farlo avanzare live.
+            // Inizializza il turno assegnandolo al primo giocatore (squadra A, creatore della lobby).
+            // A partire da questa operazione iniziale, l'Edge si farà carico di aggiornarlo ad ogni successiva interazione.
             match.setCurrentTurnUserId(firstPlayerId(match.getTeams().get(0)));
             Match saved = matchRepository.save(match);
 
@@ -319,15 +324,16 @@ public class MatchServiceImpl implements MatchService {
             return mapToDto(saved);
         }
 
-        // Nessuna lobby in attesa: verifica che la gameInstance sia una macchina attiva del locale.
+        // Qualora non ci siano lobby in attesa: convalida lo stato operativo della postazione interrogando il relativo servizio.
         Map info = fetchGameInstanceInfo(gameInstanceId);
         boolean active = info != null && Boolean.TRUE.equals(info.get("active"));
         if (info == null || !active) {
             throw new BitpubException("Il gioco selezionato non e' attivo in questo momento", HttpStatus.CONFLICT);
         }
         String localeId = info.get("localeId") != null ? info.get("localeId").toString() : null;
-        // Il locale-service passa a volte l'UUID del catalogo, a volte il nome: normalizza al token
-        // stabile del frontend, ripiegando sul localInstanceId (es. "calciobalilla-1") se serve.
+        // Poiché il servizio locale può fornire alternativamente l'UUID o il nome del catalogo, 
+        // è necessario normalizzare il dato sul formato atteso dal frontend,
+        // con un fallback sul parametro localInstanceId (es. "calciobalilla-1").
         String rawGameType = info.get("gameTypeId") != null ? info.get("gameTypeId").toString() : null;
         String localInstanceId = info.get("localInstanceId") != null ? info.get("localInstanceId").toString() : null;
         String gameTypeId = rawGameType != null ? rawGameType : localInstanceId;
@@ -337,7 +343,7 @@ public class MatchServiceImpl implements MatchService {
                 .localeId(localeId)
                 .gameTypeId(gameTypeId)
                 .status("WAITING_FOR_PLAYERS")
-                .tournamentMatchId(request.getTournamentMatchId()) // null = partita libera
+                .tournamentMatchId(request.getTournamentMatchId()) // Un valore null denota una partita libera (non classificata)
                 .teams(new ArrayList<>())
                 .build();
         Match saved = matchRepository.save(match);
@@ -388,8 +394,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Player match history — used by the dashboard/stats views. No repository finder
-     * exists for team playerIds (element-collection), so filter in-memory.
+     * Storico delle partite del giocatore, destinato alle dashboard e alle visualizzazioni statistiche.
+     * Vista la mancanza di un selettore specifico nel repository per la collezione integrata (element-collection)
+     * contenente i playerIds, il filtraggio viene applicato in memoria.
      */
     @Transactional(readOnly = true)
     public List<MatchDto> getMatchesByPlayer(String playerId) {
@@ -406,7 +413,7 @@ public class MatchServiceImpl implements MatchService {
     public void processSensorEvent(SensorEvent event) {
         String eventId = event.getEventId().toString();
 
-        // Verifica Idempotenza
+        // Validazione della chiave di idempotenza per garantire un solo processo per evento
         if (sensorEventLogRepository.existsByEventId(eventId)) {
             log.warn("Event {} already processed, skipping.", eventId);
             return;
@@ -432,7 +439,7 @@ public class MatchServiceImpl implements MatchService {
                 .build();
             match = matchRepository.save(match);
 
-            // Extract player names from MQTT payload if provided by the simulator
+            // Estrapolazione delle etichette per i giocatori dal payload MQTT inviato dal simulatore
             String teamAName = "RED";
             String teamBName = "BLUE";
             if (event.getPayload() != null) {
@@ -468,16 +475,16 @@ public class MatchServiceImpl implements MatchService {
             match = activeMatchOpt.get();
             String type = event.getSensorType();
 
-            // Solo persistenza: la logica live (turno, punteggio, broadcast stato) e' passata all'Edge.
-            // Il punteggio finale e la chiusura interattiva arrivano dall'Edge via applyFinalResult
-            // (POST /result). Qui resta solo la chiusura da MATCH_END esplicito (autoplay/simulatore),
-            // guardata su COMPLETED cosi' che un MATCH_END successivo al report dell'Edge non ri-notifichi.
+            // Funzione di sola persistenza: la logica esecutiva (turni, punteggio, broadcasting) è delegata 
+            // al nodo Edge locale. La definizione del punteggio e la corretta terminazione del processo arrivano 
+            // tramite l'endpoint dedicato ai risultati (applyFinalResult). In questa sezione si intercetta soltanto la
+            // chiusura formale (MATCH_END) indotta dal simulatore o dall'autoplay, proteggendola con uno stato COMPLETED.
             if ("MATCH_END".equals(type) && !"COMPLETED".equals(match.getStatus())) {
                 match.setStatus("COMPLETED");
                 match.setEndTime(Instant.now());
                 match.setTeamBased(isTeamBased(match));
                 matchRepository.save(match);
-                notifyStatisticsService(match); // stats E avanzamento torneo via bitpub/cloud/matches/result
+                notifyStatisticsService(match); // Pubblicazione per l'aggiornamento simultaneo di statistiche e tornei
             }
         } else {
             log.info("No active match found for gameInstanceId {}. Event will just be logged.", event.getGameInstanceId());
@@ -500,10 +507,10 @@ public class MatchServiceImpl implements MatchService {
                 .build();
 
         sensorEventLogRepository.save(logEntry);
-        // Nessun broadcast di stato qui: lo pubblica l'Edge sul topic match-state (autoritativo live).
+        // Nessuna trasmissione dello stato: si affida all'Edge il compito di annunciare l'evento sul topic autoritativo match-state.
     }
 
-    // ── Azioni di gioco (RNG delegato al GenericSimulator) ───────────────────────
+    // ── Logica di esecuzione delle azioni di gioco (RNG delegato al GenericSimulator) ───
 
     /** Partita a squadre se almeno un team ha piu' di un giocatore; altrimenti individuale. */
     private boolean isTeamBased(Match match) {
@@ -517,11 +524,11 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Azione interattiva del giocatore. Il match-service NON calcola piu' l'esito: individua la
-     * squadra di chi agisce e inoltra la richiesta al GenericSimulator via MQTT
-     * (bitpub/simulators/{gameInstanceId}/action). Il simulatore tira l'RNG sulla successProbability
-     * del sensore e ripubblica il sensor event risultante (con scoreIncrement) o un MISS, che rientra
-     * da processSensorEvent e aggiorna il punteggio. Ritorna lo stato corrente (aggiornato in async).
+     * Interazione manuale del giocatore. Il match-service declina l'esecuzione attiva: individua 
+     * esclusivamente la squadra di appartenenza e innesca la comunicazione col GenericSimulator 
+     * tramite MQTT (sul topic bitpub/simulators/{gameInstanceId}/action). Il simulatore produce
+     * la valutazione RNG e trasmette nuovamente l'evento, innescando l'aggiornamento del punteggio.
+     * La funzione si chiude riportando lo stato asincrono corrente.
      */
     @Override
     @Transactional(readOnly = true)
@@ -538,9 +545,9 @@ public class MatchServiceImpl implements MatchService {
             throw new BitpubException("Partita senza giocatori", HttpStatus.CONFLICT);
         }
 
-        // Il turno e' gia' validato dall'Edge (403 la'). Qui risolviamo solo la squadra di chi agisce
-        // per etichettare il sensor event inoltrato al simulatore; se non la troviamo, ripieghiamo
-        // sulla prima squadra (nessun gate di ownership nel Cloud, ora solo orchestrazione).
+        // L'autorizzazione per i turni è demandata all'Edge. Nel contesto Cloud si accerta solamente
+        // a chi associare l'azione e l'etichetta del pacchetto generato per il simulatore;
+        // qualora l'identità non sia deducibile, si adotta un approccio fall-back verso la prima squadra disponibile.
         MatchParticipant current = teams.stream()
                 .filter(t -> t.getPlayerIds() != null && t.getPlayerIds().contains(playerId))
                 .findFirst()
@@ -558,7 +565,7 @@ public class MatchServiceImpl implements MatchService {
         request.put("matchId", match.getId());
         request.put("sensorType", sensorType);
         request.put("team", current.getName());
-        request.put("eventId", action.getEventId()); // idempotenza propagata al sensor event
+        request.put("eventId", action.getEventId()); // Estende l'identificativo idempotente al nuovo evento simulato
 
         try {
             String body = objectMapper.writeValueAsString(request);
@@ -576,12 +583,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Determines the winner team (highest score) and notifies the statistics-service
-     * to update the leaderboard for both players.
-     */
-    /**
-     * MatchParticipant vincitore: nel modello data-driven ogni gioco somma punti verso winScoreTarget, quindi
-     * vince sempre chi ha il punteggio piu' alto. Parita' di punteggio = pareggio (nessun vincitore).
+     * Individua il partecipante vincitore sulla base della natura del gioco. Nel nostro paradigma data-driven,
+     * ogni disciplina accumula punti per raggiungere il target configurato; si premia dunque il valore massimo.
+     * Il pareggio numerico implica la mancanza di un vincitore assoluto.
      */
     private MatchParticipant winnerTeam(Match match) {
         List<MatchParticipant> teams = match.getTeams();
@@ -593,13 +597,14 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Costruisce l'evento-risultato per la leaderboard, o null se il match non ha un vincitore
-     * (meno di 2 team o pareggio di punteggio): un pareggio non muove la classifica.
+     * Crea un oggetto evento per l'aggiornamento della classifica. Restituisce nullo se la 
+     * partita si conclude in parità (e.g. meno di due team o punteggi speculari), in quanto 
+     * un pareggio non innesca spostamenti in leaderboard.
      */
     private Map<String, Object> buildResultEvent(Match match) {
         if (match.getTeams() == null || match.getTeams().size() < 2) return null;
         MatchParticipant winner = winnerTeam(match);
-        if (winner == null) return null; // pareggio: nessun aggiornamento leaderboard
+        if (winner == null) return null; // Pareggio: nessun progresso sulla classifica
         MatchParticipant loser = match.getTeams().stream()
                 .filter(t -> !t.getId().equals(winner.getId()))
                 .findFirst().orElse(null);
@@ -612,26 +617,24 @@ public class MatchServiceImpl implements MatchService {
         resultEvent.put("loserScore", loser != null ? loser.getScore() : 0);
         resultEvent.put("winnerId", firstPlayerId(winner));
         resultEvent.put("loserId", loser != null ? firstPlayerId(loser) : null);
-        // Id dello slot squadra (= participantId del tabellone per i tornei a squadre): permette al
-        // tournament-service di attribuire i gol allo slot corretto quando winnerId/loserId portano
-        // l'id del primo membro invece del teamId.
+        // Include l'identificativo del team nello scontro per supportare il tournament-service 
+        // nell'allocazione dei goal attribuiti, specialmente per team multi-giocatore.
         resultEvent.put("winnerTeamId", winner.getId());
         resultEvent.put("loserTeamId", loser != null ? loser.getId() : null);
         resultEvent.put("matchId", match.getId());
         resultEvent.put("localeId", match.getLocaleId());
         resultEvent.put("teamBased", isTeamBased(match));
-        // Bracket slot (null se non e' una partita di torneo): il tournament-service lo usa per
-        // attribuire i gol al torneo corretto, isolandoli dalla leaderboard globale.
+        // Riferimento opzionale del bracket match: essenziale per convogliare i dati al tournament-service
+        // e separare il progresso torneistico dalle statistiche di utilizzo globali.
         resultEvent.put("tournamentMatchId", match.getTournamentMatchId());
         return resultEvent;
     }
 
     /**
-     * Pubblica il risultato del match concluso su MQTT (bitpub/cloud/matches/result); lo statistics-service
-     * lo consuma in modo asincrono e durevole (QoS1). Sostituisce la vecchia POST REST sincrona: se lo
-     * statistics-service e' giu', il broker accoda il risultato e lo riconsegna al riavvio, quindi le
-     * partite concluse finiscono comunque in classifica senza dover ricorrere al backfill manuale.
-     * L'ingest e' idempotente sul matchId, quindi una riconsegna QoS1 non raddoppia i conteggi.
+     * Inoltra sul topic MQTT asincrono l'esito della partita (QoS1). Questo approccio rimpiazza la 
+     * tradizionale chiamata REST, assicurando che in caso d'irraggiungibilità dello statistics-service 
+     * il broker accodi i risultati per la successiva elaborazione. Questa garanzia preserva lo stato 
+     * del database eliminando la necessità di operazioni costanti di riallineamento manuale.
      */
     private void notifyStatisticsService(Match match) {
         Map<String, Object> resultEvent = buildResultEvent(match);
@@ -649,10 +652,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Backfill: ricostruisce la leaderboard dallo storico dei match gia' conclusi. Serve a
-     * recuperare i match terminati mentre lo statistics-service era irraggiungibile (l'invio
-     * live e' fire-and-forget). Invio in un'unica chiamata batch: lo statistics-service azzera
-     * e ricostruisce in transazione, quindi l'operazione e' ripetibile senza doppi conteggi.
+     * Meccanismo di compensazione retroattiva (backfill) per i match archiviati. Interviene come garanzia di
+     * ripristino per quelle rare eccezioni di smarrimento o interruzione dei task.
+     * Operazione aggregata a livello transazionale sullo statistics-service.
      */
     @Transactional(readOnly = true)
     public int backfillStatistics() {
@@ -678,9 +680,9 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Publishes lobby transitions (WAITING_FOR_PLAYERS / MATCH_START) triggered by the
-     * PLAYER matchmaking flow, reusing the same GameStateDto/topic the Kiosk view already
-     * consumes so the transition from waiting-room to live match is instantaneous.
+     * Propaga in broadcast ai canali asincroni il cambiamento di stato delle lobby.
+     * L'interfaccia client Kiosk attinge da questi per assicurare transizioni visive 
+     * immediate al subentro dei giocatori.
      */
     private void publishLobbyState(Match match, String eventMessage) {
         String status = "WAITING_FOR_PLAYERS".equals(match.getStatus()) ? "WAITING" : "PLAYING";
@@ -688,12 +690,11 @@ public class MatchServiceImpl implements MatchService {
     }
 
     /**
-     * Broadcasts the full live match state to the Edge over MQTT (QoS1) when a match goes IN_PROGRESS,
-     * so the Edge initializes its authoritative LocalMatchState from this push instead of a REST pull.
-     * Serializes the same MatchDto the Edge parses (id, teams+playerIds+score, gameTypeId, turn).
-     * ponytail: not RETAINED — an Edge that boots mid-match won't re-init from a stale retained message;
-     * acceptable since the continuity requirement is about the Cloud dropping (the Edge keeps its
-     * in-memory state), not the Edge restarting. Publish a retained sync if Edge restarts must recover.
+     * Notifica in maniera estesa i nodi Edge via MQTT qualora un match avvii il suo iter, 
+     * permettendo alle periferiche di costruire un LocalMatchState reattivo partendo da tale flusso push
+     * senza dover appesantire le interfacce REST.
+     * In assenza di clausole di ritenzione estreme, accoglie il vincolo architetturale in base al quale
+     * una macchina operativa conserverà lo stato nella memoria RAM.
      */
     private void publishMatchSync(Match match) {
         try {
@@ -765,7 +766,7 @@ public class MatchServiceImpl implements MatchService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Calcola il vincitore per esporlo nel DTO
+        // Esecuzione calcolo vincitore e integrazione delle rispettive proprietà per il DTO finale
         MatchParticipant winnerTeamObj = "COMPLETED".equals(match.getStatus()) ? winnerTeam(match) : null;
         String winnerId = winnerTeamObj != null ? firstPlayerId(winnerTeamObj) : null;
 

@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.domain;
 
 import jakarta.persistence.*;
@@ -6,9 +7,9 @@ import lombok.*;
 import java.util.List;
 
 /**
- * Uno slot di una partita libera (lato/giocatore), con nome, membri e punteggio corrente.
- * NON e' una squadra di torneo: i veri Team con anagrafica vivono nel tournament-service.
- * Qui e' solo il partecipante alla singola partita.
+ * Rappresenta un partecipante in una partita (un giocatore o una squadra).
+ * Si differenzia dalle entità Team di torneo, gestite dal tournament-service.
+ * Questa entità serve unicamente per modellare l'assegnazione e i punteggi all'interno della singola partita.
  */
 @Entity
 @Table(name = "match_participants")
@@ -24,17 +25,17 @@ public class MatchParticipant {
     private String id;
 
     @Column(nullable = false)
-    private String name; // Es. "Mario Rossi" (individuale) o "RED"/"BLUE"
+    private String name; // Nome rappresentativo del partecipante (es. "Mario Rossi" per individuali o "RED"/"BLUE" per squadre)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "match_id", nullable = false)
     private Match match;
 
-    // Relazione coi giocatori, memorizziamo solo gli ID
+    // Relazione con i giocatori; al fine di garantire un basso accoppiamento, vengono memorizzati esclusivamente gli ID
     @ElementCollection
     @CollectionTable(name = "participant_players", joinColumns = @JoinColumn(name = "participant_id"))
     @Column(name = "user_id")
     private List<String> playerIds;
 
-    private int score; // Punteggio corrente
+    private int score; // Punteggio corrente accumulato dal partecipante
 }

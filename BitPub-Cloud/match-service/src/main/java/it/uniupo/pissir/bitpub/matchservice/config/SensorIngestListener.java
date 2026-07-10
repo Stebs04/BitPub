@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,9 +11,9 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 /**
- * Consumes Edge-forwarded sensor events from the Cloud ingest MQTT topic and feeds them into the
- * existing {@link MatchServiceImpl#processSensorEvent} pipeline (which updates scores and republishes
- * the game state to the WebApp topic). Replaces the former REST POST /api/matches/events ingress.
+ * Listener dedicato all'elaborazione degli eventi provenienti dai sensori inoltrati via MQTT.
+ * Inserisce i dati nel flusso del {@link MatchServiceImpl#processSensorEvent}, il quale aggiorna
+ * i punteggi e notifica i cambiamenti di stato alla WebApp.
  */
 @Component
 @RequiredArgsConstructor
@@ -22,16 +23,17 @@ public class SensorIngestListener {
     private final MatchServiceImpl matchService;
     private final ObjectMapper objectMapper;
 
+    // Intercetta i messaggi in arrivo sul canale di ingresso MQTT relativo ai sensori
     @ServiceActivator(inputChannel = "mqttInboundChannel")
     public void onSensorEvent(Message<String> message) {
         try {
             SensorEvent event = objectMapper.readValue(message.getPayload(), SensorEvent.class);
-            log.info("Received sensor event via MQTT: type={}, gameInstanceId={}",
+            log.info("Evento sensore ricevuto via MQTT: tipo={}, partita={}",
                     event.getSensorType(), event.getGameInstanceId());
             matchService.processSensorEvent(event);
         } catch (Exception e) {
-            // Swallow so a poison message doesn't wedge the QoS1 queue; idempotency covers replays.
-            log.error("Failed to process inbound sensor event: {}", message.getPayload(), e);
+            // Un'eccezione viene intercettata senza bloccare il flusso per garantire l'elaborazione dei messaggi successivi
+            log.error("Errore durante l'elaborazione dell'evento sensore: {}", message.getPayload(), e);
         }
     }
 }

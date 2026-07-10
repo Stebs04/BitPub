@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.domain;
 
 import jakarta.persistence.*;
@@ -20,42 +21,44 @@ public class Match {
     private String id;
 
     @Column(nullable = false)
-    private String gameInstanceId; // Riferimento all'istanza fisica (da locale-service)
+    private String gameInstanceId; // Riferimento all'istanza fisica fornita dal servizio locale (locale-service)
 
-    // Locale di appartenenza della gameInstance, risolto da locale-service alla creazione del match.
-    // Usato per limitare l'accesso dei LOCALE_ADMIN alle sole partite del proprio locale.
+    // Identificativo del locale a cui appartiene l'istanza di gioco, risolto tramite locale-service
+    // al momento della creazione della partita. Viene impiegato per garantire che gli amministratori di locale
+    // (LOCALE_ADMIN) possano accedere esclusivamente alle partite del proprio locale.
     private String localeId;
 
     @Column(nullable = false)
-    private String gameTypeId; // Es. ID per "Calciobalilla"
+    private String gameTypeId; // Identificativo della tipologia di gioco (es. "Calciobalilla", "Biliardo")
 
     @Column(nullable = false)
-    private String status; // CREATED, IN_PROGRESS, COMPLETED, CANCELLED
+    private String status; // Stato della partita: CREATED, IN_PROGRESS, COMPLETED, CANCELLED
 
-    // Individuale (un giocatore per team) vs a squadre (piu' giocatori per team).
-    // Derivato dalla composizione dei team (playerIds.size() > 1) e persistito qui per
-    // distinzione esplicita a livello entity e propagazione allo statistics-service.
-    // Nelle partite a squadre e' la SQUADRA (Team.name) a essere registrata, non i singoli.
+    // Distingue tra partita individuale (un giocatore per squadra) e a squadre.
+    // L'impostazione deriva dal numero di membri (playerIds.size() > 1) e viene persistita
+    // per renderla esplicita a livello di entità e per propagarla correttamente allo statistics-service.
+    // Nelle partite a squadre, il nome del team viene registrato, a differenza dei punteggi individuali.
     @Column(columnDefinition = "boolean not null default false")
     private boolean teamBased;
 
     private Instant startTime;
     private Instant endTime;
 
-    // ID utente a cui spetta il turno corrente. Assegnato casualmente allo START del match
-    // e aggiornato ad ogni azione di gioco.
+    // Identificativo dell'utente a cui spetta il turno corrente. L'assegnazione avviene casualmente
+    // all'inizio della partita e viene aggiornata in base alle azioni di gioco registrate.
     private String currentTurnUserId;
 
-    // Biliardo: la spaccata iniziale assegna casualmente "Piene" (solid) e "Spezzate" (striped)
-    // ai due team. breakDone segna se la spaccata e' gia' avvenuta.
-    // columnDefinition con DEFAULT esplicito: senza, Hibernate genera "ADD COLUMN ... NOT NULL"
-    // senza default, che Postgres rifiuta se la tabella "matches" contiene gia' righe.
+    // Configurazione specifica per il biliardo: la prima spaccata assegna in modo casuale le palline
+    // "Piene" (solid) e "Spezzate" (striped) ai due team. Il flag "breakDone" indica l'avvenuta spaccata.
+    // Utilizziamo un columnDefinition con "default false" esplicito per evitare problemi di retrocompatibilità
+    // con record esistenti durante la generazione del database tramite Hibernate in Postgres.
     @Column(columnDefinition = "boolean not null default false")
     private boolean breakDone;
-    private String solidTeamId;   // team a cui sono state assegnate le Piene
-    private String stripedTeamId; // team a cui sono state assegnate le Spezzate
+    private String solidTeamId;   // Identificativo della squadra associata alle palline Piene
+    private String stripedTeamId; // Identificativo della squadra associata alle palline Spezzate
 
-    // Freccette: conteggio dei tiri effettuati nel turno corrente (il turno passa dopo 3 tiri).
+    // Configurazione specifica per le freccette: contatore dei tiri effettuati durante il turno corrente.
+    // Il turno viene ceduto al raggiungimento del terzo tiro.
     @Column(columnDefinition = "integer not null default 0")
     private int throwsInTurn;
 
@@ -65,12 +68,12 @@ public class Match {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SensorEventLog> events;
     
-    // Campo JSONB o simile per il risultato finale (es. punteggi)
+    // Memorizza il risultato finale della partita sotto forma di stringa JSON (ad es. per i punteggi finali)
     @Column(columnDefinition = "TEXT")
     private String resultPayload;
 
-    // Se valorizzato, questa partita e' lo scontro del tabellone (bracket match) con questo id.
-    // Nullable: le partite libere non appartengono a nessun torneo. Serve a riportare vincitore
-    // e statistiche al tournament-service e a recuperare le statistiche del torneo.
+    // Quando valorizzato, indica che questa partita è associata a un incontro del torneo (bracket match).
+    // È "nullable" in quanto le partite libere (casual) non appartengono ad alcun torneo.
+    // Questo campo è essenziale per la comunicazione dei vincitori e delle statistiche verso il tournament-service.
     private String tournamentMatchId;
 }

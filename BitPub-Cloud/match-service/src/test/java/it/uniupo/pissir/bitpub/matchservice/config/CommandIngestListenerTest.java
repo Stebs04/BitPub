@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,7 +55,8 @@ class CommandIngestListenerTest {
         when(matchService.processGameAction(any(), any(), any()))
                 .thenThrow(new BitpubException("not your turn", HttpStatus.FORBIDDEN));
 
-        // Un rifiuto legittimo non deve propagare (non ri-nacka il messaggio QoS1).
+        // Un rifiuto legittimo dell'azione non deve propagare eccezioni
+        // che innescherebbero un re-inoltro improprio del messaggio (QoS 1) da parte del broker.
         assertThatCode(() -> listener().onGameAction(new GenericMessage<>(payload))).doesNotThrowAnyException();
     }
 

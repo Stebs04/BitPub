@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,10 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Consumes Edge-forwarded interactive game actions from the Cloud command MQTT topic and feeds them
- * into {@link MatchServiceImpl#processGameAction} (which validates turn ownership and republishes the
- * new state to the WebApp match-state topic). Replaces the former REST POST /api/matches/{id}/action.
- * The caller identity travels in the wrapper because MQTT has no HTTP headers.
+ * Componente per il consumo delle azioni interattive inoltrate dal livello Edge sul topic MQTT.
+ * Le azioni vengono inoltrate a {@link MatchServiceImpl#processGameAction}, che verifica i turni e
+ * ripubblica il nuovo stato della partita verso la WebApp.
+ * L'identità del chiamante viene trasmessa nel wrapper poiché MQTT non dispone di header HTTP nativi.
  */
 @Component
 @RequiredArgsConstructor
@@ -29,44 +30,54 @@ public class CommandIngestListener {
     private final MatchServiceImpl matchService;
     private final ObjectMapper objectMapper;
 
+    // Metodo attivato all'arrivo di un messaggio sul canale MQTT in ingresso dedicato ai comandi
     @ServiceActivator(inputChannel = "mqttCommandInboundChannel")
     public void onGameAction(Message<String> message) {
         try {
+            // Deserializzazione del wrapper e del comando inviato
             MqttCommandWrapper wrapper = objectMapper.readValue(message.getPayload(), MqttCommandWrapper.class);
             GameActionRequestDto action = objectMapper.readValue(wrapper.payload(), GameActionRequestDto.class);
+            
+            // Elaborazione dell'azione all'interno del servizio di partita
             matchService.processGameAction(wrapper.targetId(), wrapper.actorUserId(), action);
-            log.info("Processed game action via MQTT: match={}, actor={}", wrapper.targetId(), wrapper.actorUserId());
+            log.info("Azione di gioco elaborata tramite MQTT: partita={}, attore={}", wrapper.targetId(), wrapper.actorUserId());
+            
         } catch (BitpubException e) {
-            // Genuine rejection (403 not-your-turn, 409 not in progress). Log, don't crash the subscriber
-            // or nack the QoS1 message — retrying would only replay the same rejected action.
-            log.info("Rejected game action via MQTT ({}): {}", e.getStatus(), e.getMessage());
+            // Rifiuto dell'azione (ad esempio, per turno non valido). L'eccezione viene loggata 
+            // ma non propaga, per evitare crash del listener o continui retry dello stesso errore logico.
+            log.info("Azione di gioco rifiutata tramite MQTT ({}): {}", e.getStatus(), e.getMessage());
         } catch (Exception e) {
-            // Poison message — swallow so it doesn't wedge the queue; idempotency covers replays.
-            log.error("Failed to process inbound game command: {}", message.getPayload(), e);
+            // Eventuali messaggi corrotti vengono scartati per non bloccare la coda di elaborazione
+            log.error("Impossibile elaborare il comando in ingresso: {}", message.getPayload(), e);
         }
     }
 
     /**
-     * Consumes the Edge-forwarded final match result (topic bitpub/cloud/commands/matches/+/result)
-     * and persists it via {@link MatchServiceImpl#applyFinalResult}. Replaces the former REST POST
-     * /result. The enriched payload carries scoreByTeam (used to persist), plus playerUserIds/winnerName
-     * for logging/traceability. applyFinalResult is idempotent on matchId, so a QoS1 redelivery (or an
-     * Edge buffer flush) is safe.
+     * Consuma i risultati finali della partita inoltrati dal livello Edge e li persiste tramite
+     * {@link MatchServiceImpl#applyFinalResult}. Sostituisce la vecchia chiamata REST. 
+     * L'operazione è idempotente basandosi sull'identificativo della partita, quindi eventuali 
+     * riconsegne dovute a QoS 1 sono sicure.
      */
     @ServiceActivator(inputChannel = "mqttMatchResultInboundChannel")
     public void onMatchResult(Message<String> message) {
         try {
+            // Estrazione del payload e dei punteggi dal risultato finale
             JsonNode node = objectMapper.readTree(message.getPayload());
             String matchId = node.path("matchId").asText(null);
+            
             Map<String, Integer> scores = new LinkedHashMap<>();
             node.path("scoreByTeam").fields()
                     .forEachRemaining(e -> scores.put(e.getKey(), e.getValue().asInt()));
+                    
+            // Applica il risultato finale sullo stato della partita
             matchService.applyFinalResult(matchId, scores);
-            log.info("Applied Edge match result via MQTT: match={}, scores={}, winner={}",
+            
+            log.info("Risultato finale applicato via MQTT: partita={}, punteggi={}, vincitore={}",
                     matchId, scores, node.path("winnerName").asText(null));
+                    
         } catch (Exception e) {
-            // Poison message — swallow so it doesn't wedge the queue; idempotency covers replays.
-            log.error("Failed to process inbound match result: {}", message.getPayload(), e);
+            // Messaggio corrotto o malformato scartato per prevenire il blocco del listener
+            log.error("Impossibile elaborare il risultato della partita: {}", message.getPayload(), e);
         }
     }
 }

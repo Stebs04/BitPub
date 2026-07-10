@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,11 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
+/**
+ * Configurazione per la comunicazione MQTT tra il microservizio e il broker.
+ * Definisce i canali di ingresso e uscita per la gestione degli eventi di gioco,
+ * risultati e azioni interattive.
+ */
 @Configuration
 @Slf4j
 public class MqttConfig {
@@ -43,7 +49,7 @@ public class MqttConfig {
     @Value("${mqtt.match-result-inbound-client-id}")
     private String matchResultInboundClientId;
 
-    // ── Outbound: publish game-state updates to the WebApp ──────────────────────────
+    // ── Uscita: pubblicazione degli aggiornamenti di stato verso la WebApp ─────────
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -71,12 +77,10 @@ public class MqttConfig {
         return messageHandler;
     }
 
-    // ── Inbound: subscribe to Edge-forwarded sensor events ──────────────────────────
-    // Durable session (cleanSession=false + stable clientId) so the broker queues QoS1 events
-    // while match-service is down and redelivers them on reconnect — this replaces the Edge's
-    // app-level sensor buffer. processSensorEvent is idempotent on eventId, so redelivery is safe.
-    // ponytail: broker holds the queue in memory; enable mosquitto `persistence true` if the queue
-    // must survive a broker restart too.
+    // ── Ingresso: iscrizione agli eventi dei sensori inoltrati dall'Edge ─────────
+    // L'utilizzo di una sessione duratura (cleanSession=false e clientId fisso) assicura 
+    // l'accodamento degli eventi da parte del broker in caso di indisponibilità del servizio,
+    // garantendo l'elaborazione degli eventi al ripristino della connessione.
 
     @Bean
     public MqttPahoClientFactory mqttInboundClientFactory() {
@@ -105,9 +109,9 @@ public class MqttConfig {
         return adapter;
     }
 
-    // ── Inbound: subscribe to Edge-forwarded interactive game actions ────────────────
-    // Separate durable subscriber (distinct clientId, own channel) from the sensor one so the
-    // CommandIngestListener parses only command payloads. Same QoS1 durable-queue guarantee.
+    // ── Ingresso: iscrizione alle azioni interattive inoltrate dall'Edge ─────────
+    // Subscriber isolato per una gestione indipendente dei payload di comando, preservando 
+    // le garanzie fornite dalla coda durevole (QoS 1).
 
     @Bean
     public MessageChannel mqttCommandInboundChannel() {
@@ -125,10 +129,9 @@ public class MqttConfig {
         return adapter;
     }
 
-    // ── Inbound: subscribe to Edge-forwarded final match results ─────────────────────
-    // The Edge reports the enriched final result (players, exact scores, winner) here instead of the
-    // former synchronous REST POST /result. Durable QoS1 subscriber, so a result buffered by an
-    // offline Edge and flushed on reconnect is persisted. applyFinalResult is idempotent on matchId.
+    // ── Ingresso: iscrizione ai risultati finali inoltrati dall'Edge ─────────────
+    // Il nodo Edge invia i dati aggregati di fine partita tramite questo topic in alternativa
+    // alla precedente sincronizzazione via REST. L'idempotenza del gestore consente riconsegne sicure.
 
     @Bean
     public MessageChannel mqttMatchResultInboundChannel() {

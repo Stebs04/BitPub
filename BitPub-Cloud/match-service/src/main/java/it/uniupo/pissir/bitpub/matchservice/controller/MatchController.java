@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.controller;
 
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
@@ -27,9 +28,10 @@ public class MatchController {
         return new ResponseEntity<>(match, HttpStatus.CREATED);
     }
 
-    // Se il chiamante e' un LOCALE_ADMIN, la lista viene sempre limitata al proprio locale
-    // (dal claim JWT X-User-Locale-Id inoltrato dal gateway, o in fallback via user-id ->
-    // locale-service se il token non lo contiene ancora), a prescindere dal parametro localeId passato.
+    // Recupera la lista delle partite attive. Se l'utente richiedente ha il ruolo di LOCALE_ADMIN,
+    // la lista verrà filtrata in modo da includere esclusivamente le partite del proprio locale.
+    // L'identificativo del locale viene prelevato dal claim JWT X-User-Locale-Id oppure, in caso
+    // di assenza, tramite interrogazione al servizio locale utilizzando l'ID utente.
     @GetMapping("/active")
     public ResponseEntity<List<MatchDto>> getActiveMatches(
             @RequestParam(required = false) String localeId,
@@ -62,9 +64,11 @@ public class MatchController {
     }
 
     /**
-     * Matchmaking PLAYER: entra in lobby su una gameInstance. Se e' il primo giocatore,
-     * crea la lobby in stato WAITING_FOR_PLAYERS; se e' il secondo, la partita passa
-     * IN_PROGRESS in tempo reale (evento propagato via MQTT sul topic di match-state).
+     * Consente a un giocatore di unirsi alla fase di pre-partita (lobby) di un gioco specifico.
+     * Nel caso sia il primo giocatore ad accedere, la lobby viene creata nello stato di attesa 
+     * (WAITING_FOR_PLAYERS). Qualora si unisca il secondo giocatore, la partita passa 
+     * immediatamente allo stato di esecuzione (IN_PROGRESS), e l'evento viene propagato via MQTT 
+     * agli iscritti.
      */
     @PostMapping("/lobby")
     public ResponseEntity<MatchDto> joinLobby(@RequestBody JoinLobbyRequestDto request,
@@ -76,7 +80,7 @@ public class MatchController {
         return ResponseEntity.ok(match);
     }
 
-    /** Ritorna la lobby in attesa di un secondo giocatore su una gameInstance, se presente. */
+    /** Restituisce i dettagli di una lobby in attesa di giocatori per un'istanza di gioco, se disponibile. */
     @GetMapping("/lobby/{gameInstanceId}")
     public ResponseEntity<MatchDto> getWaitingLobby(@PathVariable String gameInstanceId) {
         return matchService.getWaitingLobby(gameInstanceId)
@@ -85,9 +89,10 @@ public class MatchController {
     }
 
     /**
-     * Termina subito una partita in corso (LOCALE_ADMIN del locale o PLATFORM_ADMIN).
-     * Il vincitore e' calcolato dal match-service in base al punteggio piu' alto
-     * (piu' basso a freccette, dove si parte da 501 e si scende a 0).
+     * Interrompe forzatamente una partita in corso. L'operazione è riservata agli amministratori 
+     * (LOCALE_ADMIN del locale interessato o PLATFORM_ADMIN).
+     * Il vincitore viene calcolato automaticamente dal servizio sulla base del punteggio migliore
+     * (ad esempio, il punteggio più alto o, nel caso delle freccette, il punteggio minore a partire da 501).
      */
     @PostMapping("/{id}/end")
     public ResponseEntity<MatchDto> endMatch(@PathVariable String id,
@@ -103,9 +108,11 @@ public class MatchController {
     }
 
     /**
-     * Esito finale riportato dall'Edge (autoritativo sul punteggio live). Body = { "TeamName": score }.
-     * Applica i punteggi, chiude la partita e notifica statistiche/torneo. Idempotente sul matchId.
-     * Chiamata interna Edge -> Cloud (non passa dal gateway): nessun ruolo richiesto.
+     * Registra l'esito finale fornito dal nodo Edge, che è da considerarsi autoritativo rispetto ai 
+     * punteggi aggiornati in tempo reale. Il corpo della richiesta deve contenere una mappa con 
+     * il formato { "NomeSquadra": punteggio }. Questa procedura aggiorna i punteggi definitivi, 
+     * chiude la sessione di gioco e attiva la notifica per il calcolo delle statistiche o del torneo.
+     * Operazione interna eseguita dall'Edge verso il Cloud, pertanto non prevede restrizioni di ruolo.
      */
     @PostMapping("/{id}/result")
     public ResponseEntity<MatchDto> reportResult(@PathVariable String id,
@@ -114,8 +121,9 @@ public class MatchController {
     }
 
     /**
-     * Backfill statistiche (PLATFORM_ADMIN): ricostruisce la leaderboard dallo storico dei match
-     * gia' conclusi, recuperando quelli terminati mentre lo statistics-service era irraggiungibile.
+     * Ricostruisce lo storico e le classifiche a partire dalle partite già concluse.
+     * Operazione riservata agli amministratori di piattaforma (PLATFORM_ADMIN), particolarmente utile
+     * per il recupero di dati nel caso in cui il servizio di statistiche sia risultato temporaneamente non disponibile.
      */
     @PostMapping("/admin/backfill-stats")
     public ResponseEntity<Integer> backfillStats(

@@ -1,3 +1,4 @@
+// Autore: Timothy Giolito 20054431
 package it.uniupo.pissir.bitpub.matchservice.dto;
 
 import lombok.AllArgsConstructor;
@@ -6,18 +7,20 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Azione di gioco inviata dal frontend al match-service. Modello data-driven: l'azione identifica
- * solo QUALE sensore il giocatore ha premuto (sensorType, es. "GOAL", "BALL_POCKETED", "DART_HIT").
- * Il match-service inoltra l'azione al GenericSimulator, che decide l'esito con l'RNG configurato.
+ * DTO rappresentante un'azione di gioco inoltrata dal frontend al servizio di gestione partite.
+ * Modello basato sui dati: la richiesta specifica unicamente l'identificativo del sensore 
+ * attivato dal giocatore (es. "GOAL", "BALL_POCKETED", "DART_HIT").
+ * Il servizio provvede successivamente ad inoltrare l'evento al simulatore, che valuterà 
+ * l'esito finale dell'azione applicando logiche di generazione causale (RNG).
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class GameActionRequestDto {
-    private String sensorType; // tipo di sensore/evento premuto dal giocatore
+    private String sensorType; // Tipologia del sensore o evento attivato dall'utente
 
-    // Idempotency key set by the Edge/WebApp: propagata al sensor event risultante cosi' che
-    // processSensorEvent scarti eventuali repliche (QoS1) dello stesso tiro.
+    // Chiave di idempotenza impostata dal nodo Edge o dalla WebApp: viene propagata all'evento 
+    // generato per consentire al metodo di elaborazione di scartare eventuali duplicati dello stesso tiro.
     private String eventId;
 }
