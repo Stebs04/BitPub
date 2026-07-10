@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useEffect, useRef, useState } from 'react';
 import PlayFlow from '../components/PlayFlow';
 import { notificationService } from '../services/notificationService';
@@ -33,6 +36,7 @@ import type {
   GameTypeRecord,
 } from '../services/api';
 
+// Configurazione dello stato visivo per i vari stati del torneo
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   UPCOMING: { label: 'In arrivo', className: 'bg-slate-500/20 text-slate-300 border-slate-500/30' },
   ACTIVE: { label: 'In corso', className: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
@@ -54,11 +58,13 @@ const TournamentsPage: React.FC = () => {
   // Scontro che l'utente sta giocando dal tabellone: apre <PlayFlow> in overlay con verifica
   // dell'avversario (tournamentMatchId). null = nessuna partita in corso dalla pagina tornei.
   const [playCtx, setPlayCtx] = useState<{ matchId: string; gameTypeId: string } | null>(null);
+  
   // I tornei sono gestiti solo dal LOCALE_ADMIN (per il proprio locale). Il PLATFORM_ADMIN
   // vede solo elenco e classifiche. Il PLAYER si iscrive.
   const isManager = role === 'LOCALE_ADMIN';
   const isPlayer = role === 'PLAYER';
 
+  // Stati relativi a dati, UI e modulo
   const [tournaments, setTournaments] = useState<TournamentRecord[]>([]);
   const [gameTypes, setGameTypes] = useState<GameTypeRecord[]>([]);
   const [myRegistrations, setMyRegistrations] = useState<TournamentRegistrationRecord[]>([]);
@@ -85,6 +91,9 @@ const TournamentsPage: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState('');
   const [registeringId, setRegisteringId] = useState<string | null>(null);
 
+  /**
+   * Richiede la lista completa dei tornei
+   */
   const loadTournaments = () => getAllTournaments().then((res) => setTournaments(res.data || []));
 
   // Optimistic: aggiunge la registration al torneo cosi' il contatore "Iscritti" sale subito,
@@ -96,6 +105,7 @@ const TournamentsPage: React.FC = () => {
       )
     );
 
+  // Caricamento asincrono iniziale
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -153,6 +163,9 @@ const TournamentsPage: React.FC = () => {
   const registeredTournamentIds = new Set(myRegistrations.map((r) => r.tournamentId));
   const hasEntrants = (t: TournamentRecord) => (t.registrations?.length ?? 0) > 0;
 
+  /**
+   * Gestisce l'apertura e chiusura della classifica per un torneo
+   */
   const toggleRankings = async (tournamentId: string) => {
     if (expandedId === tournamentId) {
       setExpandedId(null);
@@ -168,6 +181,9 @@ const TournamentsPage: React.FC = () => {
   };
 
   // ── Iscrizione singolo giocatore ──────────────────────────────────────────────
+  /**
+   * Registra il giocatore corrente al torneo
+   */
   const handleRegisterPlayer = async (tournamentId: string) => {
     if (!user || !selectedLocaleId) return;
     setError(null);
@@ -190,6 +206,9 @@ const TournamentsPage: React.FC = () => {
   };
 
   // ── Iscrizione squadra ────────────────────────────────────────────────────────
+  /**
+   * Registra una squadra intera al torneo includendo il creatore
+   */
   const handleRegisterTeam = async (tournamentId: string) => {
     if (!user || !selectedLocaleId || !teamName.trim()) return;
     setError(null);
@@ -219,12 +238,19 @@ const TournamentsPage: React.FC = () => {
 
   // ── CRUD manager ────────────────────────────────────────────────────────────────
   const startCreate = () => { setEditingId(null); setForm(EMPTY_FORM); };
+  
+  /**
+   * Apre il modulo in modalità modifica per un torneo esistente
+   */
   const startEdit = (t: TournamentRecord) => {
     setEditingId(t.id);
     setForm({ name: t.name, gameTypeId: t.gameTypeId, teamBased: t.teamBased, maxParticipants: t.maxParticipants ?? 8 });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  /**
+   * Salva il nuovo torneo o le modifiche a quello corrente
+   */
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.gameTypeId) return;
@@ -244,6 +270,9 @@ const TournamentsPage: React.FC = () => {
     }
   };
 
+  /**
+   * Elimina un torneo se non ci sono iscritti
+   */
   const handleDelete = async (t: TournamentRecord) => {
     if (!window.confirm(`Eliminare il torneo "${t.name}"?`)) return;
     setError(null);
@@ -256,16 +285,27 @@ const TournamentsPage: React.FC = () => {
     }
   };
 
+  /**
+   * Chiude un torneo attivo
+   */
   const handleEnd = async (id: string) => {
     try { await endTournament(id); await loadTournaments(); }
     catch (err: any) { setError(err?.response?.data?.message || 'Chiusura non riuscita.'); }
   };
+
+  /**
+   * Invia la richiesta per generare il tabellone
+   */
   const handleGenerateBracket = async (id: string) => {
     setError(null);
     try { await generateTournamentBracket(id); await loadTournaments(); }
     catch (err: any) { setError(err?.response?.data?.message || 'Generazione tabellone non riuscita.'); }
   };
+
   // ponytail: window.prompt per le statistiche invece di una modale dedicata — sufficiente per l'esito.
+  /**
+   * Memorizza l'esito del match e i relativi punteggi
+   */
   const handleSetWinner = async (tournamentId: string, match: TournamentMatchRecord, winnerId: string) => {
     const stats = window.prompt('Statistiche / punteggio dello scontro (opzionale):', match.score || '') ?? undefined;
     setError(null);
@@ -273,6 +313,7 @@ const TournamentsPage: React.FC = () => {
     catch (err: any) { setError(err?.response?.data?.message || 'Salvataggio esito non riuscito.'); }
   };
 
+  // Vista di caricamento
   if (loading) {
     return (
       <div className="p-8 animate-slide-up">
@@ -307,6 +348,7 @@ const TournamentsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Visualizzazione errori */}
       {error && (
         <div className="glass-panel border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-300 text-sm">
           {error}
@@ -394,6 +436,7 @@ const TournamentsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Lista Tornei */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {tournaments.map((t) => {
           const isRegistered = registeredTournamentIds.has(t.id);
@@ -480,6 +523,7 @@ const TournamentsPage: React.FC = () => {
                     )
                   )}
 
+                  {/* Pulsanti per generazione tabellone e chiusura torneo */}
                   {canGenerate && (
                     <Button size="sm" onClick={() => handleGenerateBracket(t.id)}>
                       <Swords className="w-4 h-4 mr-1" /> Genera Tabellone

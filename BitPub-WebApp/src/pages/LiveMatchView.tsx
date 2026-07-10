@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useEffect, useRef, useState } from 'react';
 import { Activity, Wifi, WifiOff, Trophy, Zap, Square, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,11 +41,13 @@ const GAME_COLORS: Record<string, string> = {
   unknown: 'from-slate-600 to-slate-500',
 };
 
+// Funzione per ottenere il colore del tema in base al tipo di gioco
 const getGameGradient = (gameTypeId: string = '') => {
   const key = Object.keys(GAME_COLORS).find(k => gameTypeId.toLowerCase().includes(k));
   return key ? GAME_COLORS[key] : GAME_COLORS.unknown;
 };
 
+// Funzione per convertire il tipo di evento in un messaggio leggibile
 const getEventLabel = (type: string, state: GameState): string => {
   switch (type) {
     case 'MATCH_START': return `🏁 Partita iniziata: ${state.teamAName} vs ${state.teamBName}`;
@@ -138,7 +143,7 @@ const LiveMatchView: React.FC = () => {
     };
   }, [matchStateTopic]);
 
-  // Auto-scroll log
+  // Gestione dell'aggiornamento automatico dello scroll per il log degli eventi
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [eventLog]);
@@ -147,6 +152,7 @@ const LiveMatchView: React.FC = () => {
   // Solo chi gestisce il locale (o la piattaforma) puo' forzare la fine di una partita.
   const canEndMatch = user?.role === 'LOCALE_ADMIN' || user?.role === 'PLATFORM_ADMIN';
 
+  // Termina la partita in corso e calcola il vincitore
   const handleEndMatch = async (matchId: string) => {
     if (!window.confirm('Terminare subito questa partita? Il vincitore sara\' calcolato in base al punteggio attuale.')) return;
     try {

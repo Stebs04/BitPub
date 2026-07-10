@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React from 'react';
 import { Loader2, Gamepad2 } from 'lucide-react';
 import type { SensorDefinitionRecord } from '../services/api';
@@ -18,6 +21,7 @@ const CONTROL_EVENTS = new Set(['MATCH_START', 'MATCH_END']);
  * l'azione al backend, che delega l'esito (RNG) al GenericSimulator.
  */
 const GameControlPanel: React.FC<Props> = ({ sensors, finished, sending, onAction }) => {
+  // Blocca i controlli se la partita è finita o stiamo già inviando un'azione
   const locked = finished || sending;
   const playable = (sensors || []).filter((s) => !s.actuator && !CONTROL_EVENTS.has(s.type.toUpperCase()));
 

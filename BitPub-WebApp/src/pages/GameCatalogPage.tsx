@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
@@ -34,12 +37,14 @@ const GameCatalogPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Stato per il modulo di creazione nuovo gioco
   // Form nuovo tipo di gioco
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newWinScoreTarget, setNewWinScoreTarget] = useState(10);
   const [creating, setCreating] = useState(false);
 
+  // Stato per il modulo di aggiunta nuovo sensore (evento simulato)
   // Form nuovo evento simulato (sensore) per il tipo selezionato
   const [sensorForm, setSensorForm] = useState(emptySensorForm);
   const [addingSensor, setAddingSensor] = useState(false);
@@ -51,6 +56,7 @@ const GameCatalogPage: React.FC = () => {
   const [editWinScoreTarget, setEditWinScoreTarget] = useState(10);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Funzione per caricare i tipi di gioco dal server
   const fetchGameTypes = useCallback(async (preserveSelection = true) => {
     try {
       const res = await getGameTypes();
@@ -77,6 +83,7 @@ const GameCatalogPage: React.FC = () => {
 
   const selected = gameTypes.find((g) => g.id === selectedId) || null;
 
+  // Gestione della creazione di un nuovo tipo di gioco
   const handleCreateGameType = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim() || !newDescription.trim()) return;
@@ -191,6 +198,7 @@ const GameCatalogPage: React.FC = () => {
     }
   };
 
+  // Mostra indicatore di caricamento se i dati non sono pronti
   if (loading) {
     return (
       <div className="p-8 animate-slide-up">

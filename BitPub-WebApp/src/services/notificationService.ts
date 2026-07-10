@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 // Client MQTT-over-WebSocket condiviso per le notifiche in tempo reale del broker Mosquitto
 // (porta 9001, vedi mosquitto.conf). Sostituisce il precedente stub SSE/WS verso
 // notification-service, che non espone alcun endpoint reale: qui ci si aggancia direttamente
@@ -8,7 +11,9 @@ const MQTT_WS_URL = 'ws://localhost:9001';
 type MessageHandler = (payload: any, topic: string) => void;
 type ConnectionHandler = (connected: boolean) => void;
 
-// Confronta un topic MQTT concreto con un pattern di sottoscrizione contenente '+' (singolo livello).
+/**
+ * Confronta un topic MQTT concreto con un pattern di sottoscrizione contenente '+' (singolo livello).
+ */
 export function topicMatches(pattern: string, topic: string): boolean {
   const patternParts = pattern.split('/');
   const topicParts = topic.split('/');
@@ -16,6 +21,9 @@ export function topicMatches(pattern: string, topic: string): boolean {
   return patternParts.every((p, i) => p === '+' || p === topicParts[i]);
 }
 
+/**
+ * Servizio per la gestione della connessione MQTT e delle relative sottoscrizioni
+ */
 class NotificationService {
   private ws: WebSocket | null = null;
   private pingInterval: ReturnType<typeof setInterval> | null = null;
@@ -26,6 +34,9 @@ class NotificationService {
   private packetId = 1;
   private disposed = false;
 
+  /**
+   * Codifica una stringa per il payload MQTT
+   */
   private encodeString(str: string): Uint8Array {
     const encoded = new TextEncoder().encode(str);
     const buf = new Uint8Array(2 + encoded.length);
@@ -35,6 +46,9 @@ class NotificationService {
     return buf;
   }
 
+  /**
+   * Costruisce un pacchetto di connessione MQTT
+   */
   private buildConnectPacket(clientId: string): Uint8Array {
     const protocol = this.encodeString('MQTT');
     const cid = this.encodeString(clientId);
@@ -43,6 +57,9 @@ class NotificationService {
     return new Uint8Array([0x10, remainingLength, ...varHeader, ...cid]);
   }
 
+  /**
+   * Costruisce un pacchetto di sottoscrizione MQTT
+   */
   private buildSubscribePacket(topic: string, packetId: number): Uint8Array {
     const topicData = this.encodeString(topic);
     const varHeader = new Uint8Array([packetId >> 8, packetId & 0xff]);
@@ -51,21 +68,33 @@ class NotificationService {
     return new Uint8Array([0x82, remainingLength, ...varHeader, ...payload]);
   }
 
+  /**
+   * Costruisce un pacchetto PINGREQ MQTT
+   */
   private buildPingReq(): Uint8Array {
     return new Uint8Array([0xc0, 0]);
   }
 
+  /**
+   * Invia un pacchetto binario sul WebSocket
+   */
   private send(data: Uint8Array): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer);
     }
   }
 
+  /**
+   * Imposta lo stato di connessione e avvisa i listener registrati
+   */
   private setConnected(value: boolean) {
     this.connected = value;
     this.connectionListeners.forEach((listener) => listener(value));
   }
 
+  /**
+   * Gestisce l'elaborazione dei pacchetti in arrivo dal WebSocket
+   */
   private handlePacket(data: Uint8Array) {
     const type = (data[0] >> 4) & 0xf;
     if (type === 2) {
@@ -80,6 +109,9 @@ class NotificationService {
     }
   }
 
+  /**
+   * Elabora un pacchetto PUBLISH e invoca gli handler in ascolto
+   */
   private handlePublish(data: Uint8Array) {
     try {
       let idx = 1;
@@ -163,10 +195,16 @@ class NotificationService {
     return () => this.connectionListeners.delete(handler);
   }
 
+  /**
+   * Ritorna lo stato attuale della connessione
+   */
   isConnected(): boolean {
     return this.connected;
   }
 
+  /**
+   * Chiude la connessione e rilascia le risorse allocate
+   */
   disconnect(): void {
     this.disposed = true;
     if (this.pingInterval) clearInterval(this.pingInterval);

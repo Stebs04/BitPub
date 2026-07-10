@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useEffect, useState, useCallback } from 'react';
 import { Trophy, Gamepad2, RefreshCw, Medal, DatabaseBackup } from 'lucide-react';
 import { statsApi, backfillStats, getGameTypes } from '../services/api';
@@ -73,6 +76,7 @@ const LeaderboardPage: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  // Funzione per recuperare i dati della classifica dal server
   const fetchLeaderboard = useCallback(async (gameTypeId: string) => {
     if (!gameTypeId) return;
     setLoading(true);
@@ -107,6 +111,7 @@ const LeaderboardPage: React.FC = () => {
     return unsubscribe;
   }, []);
 
+  // Funzione per la rigenerazione delle statistiche della classifica
   const handleBackfill = async () => {
     setBackfilling(true);
     try {
@@ -122,6 +127,7 @@ const LeaderboardPage: React.FC = () => {
   const currentEntries = data[activeTab] ?? [];
   const currentTab = tabs.find(t => t.id === activeTab);
 
+  // Renderizzazione della pagina e della tabella della classifica
   return (
     <div className="p-6 md:p-8 animate-slide-up">
       {/* Page header */}

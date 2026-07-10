@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React from 'react';
 import { Trophy, Play } from 'lucide-react';
 import type { TournamentMatchRecord } from '../services/api';

@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useEffect, useState } from 'react';
 import { BarChart3, Trophy, Swords, Target } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
@@ -16,18 +19,22 @@ const PlayerStatsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const gameLabels = useGameTypeLabels();
 
+  // Stati per memorizzare i dati recuperati dalle API
   const [matches, setMatches] = useState<MatchRecord[]>([]);
   const [tournamentRegs, setTournamentRegs] = useState<TournamentRegistrationRecord[]>([]);
+  
   // Rendimento per gioco: preso dalla leaderboard globale (stessa logica della classifica),
   // filtrata sul giocatore loggato. La leaderboard e' indicizzata per (playerName, gameTypeId),
   // quindi una sola riga per gioco: niente duplicati lato client.
   const [perGame, setPerGame] = useState<LeaderboardEntryRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Caricamento asincrono dei dati alla montatura del componente
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
+    // Recupero parallelo per ottimizzare i tempi
     Promise.all([
       getMatchesByPlayer(user.id),
       getTournamentRegistrationsByPlayer(user.id),
@@ -54,6 +61,8 @@ const PlayerStatsPage: React.FC = () => {
     if (!m.winnerId) return 'draw';
     return m.winnerId === user?.id ? 'win' : 'loss';
   };
+
+  // Calcolo totale vittorie e sconfitte
   const totals = matches.reduce(
     (acc, m) => {
       const o = outcome(m);
@@ -63,6 +72,8 @@ const PlayerStatsPage: React.FC = () => {
     },
     { wins: 0, losses: 0 }
   );
+  
+  // Calcolo della percentuale di vittoria (Win Rate)
   const decided = totals.wins + totals.losses;
   const winRate = decided > 0 ? Math.round((totals.wins / decided) * 100) : 0;
 
@@ -70,6 +81,7 @@ const PlayerStatsPage: React.FC = () => {
   const activeRegs = tournamentRegs.filter((r) => r.tournamentStatus !== 'COMPLETED');
   const completedRegs = tournamentRegs.filter((r) => r.tournamentStatus === 'COMPLETED');
 
+  // Vista di caricamento
   if (loading) {
     return (
       <div className="p-8 animate-slide-up">
@@ -81,6 +93,7 @@ const PlayerStatsPage: React.FC = () => {
 
   return (
     <div className="p-6 md:p-8 animate-slide-up space-y-8">
+      {/* Intestazione pagina */}
       <div className="flex items-center gap-3">
         <div className="bg-gradient-to-br from-brand to-brand-light p-2.5 rounded-xl">
           <BarChart3 className="w-6 h-6 text-white" />
@@ -91,7 +104,7 @@ const PlayerStatsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Tiles riepilogo */}
+      {/* Tiles riepilogo metriche globali */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <p className="text-slate-400 text-sm mb-1">Partite Giocate</p>
@@ -115,7 +128,7 @@ const PlayerStatsPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Statistiche per gioco */}
+      {/* Statistiche dettagliate per gioco */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -156,7 +169,7 @@ const PlayerStatsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Storico partite */}
+      {/* Storico di tutte le partite giocate */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -169,7 +182,7 @@ const PlayerStatsPage: React.FC = () => {
           ) : (
           <div className="divide-y divide-white/5 max-h-[480px] overflow-y-auto">
               {matches.map((m) => {
-                // Determina il team del giocatore corrente
+                // Determina il team del giocatore corrente e quello avversario
                 const myTeam = m.teams?.find((t) => t.playerIds?.includes(user?.id ?? ''));
                 const oppTeam = m.teams?.find((t) => !t.playerIds?.includes(user?.id ?? ''));
 
@@ -188,6 +201,7 @@ const PlayerStatsPage: React.FC = () => {
                   }
                 }
 
+                // Genera la stringa del punteggio in base alla composizione dei team
                 const scoreStr = myTeam && oppTeam
                   ? `${myTeam.score} – ${oppTeam.score}`
                   : m.teams?.map((t) => `${t.name} ${t.score}`).join(' vs ') ?? '—';
@@ -205,6 +219,7 @@ const PlayerStatsPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Sezione tornei in corso o imminenti */}
       {activeRegs.length > 0 && (
         <Card>
           <CardHeader>
@@ -227,6 +242,7 @@ const PlayerStatsPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Sezione storico tornei conclusi */}
       {completedRegs.length > 0 && (
         <Card>
           <CardHeader>

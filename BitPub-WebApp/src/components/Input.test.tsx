@@ -1,8 +1,15 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Input from './Input';
 
+/**
+ * Suite di test per il componente Input.
+ * Controlla il rendering dell'etichetta, dell'errore e la gestione dell'evento onChange.
+ */
 describe('Input', () => {
   it('renders a label bound to the field', () => {
     render(<Input label="Username" />);

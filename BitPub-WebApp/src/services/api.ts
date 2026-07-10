@@ -1,5 +1,12 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import axios from 'axios';
 
+/**
+ * Interceptor per l'autenticazione. Aggiunge il token Bearer
+ * alle richieste se presente nel sessionStorage.
+ */
 const authInterceptor = (config: any) => {
   // ponytail: sessionStorage per isolamento tab / incognito
   const token = sessionStorage.getItem('bitpub_token');
@@ -9,6 +16,10 @@ const authInterceptor = (config: any) => {
   return config;
 };
 
+/**
+ * Interceptor per gli errori. Gestisce i casi di Unauthorized (401)
+ * rimuovendo il token e forzando il login.
+ */
 const on401 = (error: any) => {
   if (error?.response?.status === 401) {
     sessionStorage.removeItem('bitpub_token');
@@ -50,6 +61,8 @@ export const statsApi = axios.create({
 statsApi.interceptors.request.use(authInterceptor);
 statsApi.interceptors.response.use(undefined, on401);
 
+// ── Interfacce base ─────────────────────────────────────────────────────────────
+
 export interface CreateUserPayload {
   username: string;
   password: string;
@@ -73,7 +86,8 @@ export interface GlobalStats {
   activeTournaments: number;
 }
 
-// Gestione utenti (PLATFORM_ADMIN). Le operazioni CUD passano dall'Edge (come le azioni di gioco):
+// ── Gestione utenti (PLATFORM_ADMIN) ─────────────────────────────────────────────
+// Le operazioni CUD passano dall'Edge (come le azioni di gioco):
 // l'Edge valida il JWT e le inoltra al cloud 100% via MQTT (topic system/users/action). L'Edge
 // risponde 202 senza l'oggetto aggiornato -> chi chiama deve rifare la fetch dopo un breve delay.
 export const createUser = (payload: CreateUserPayload) => edgeApi.post('/system/users/action', { action: 'CREATE', ...payload });
@@ -83,7 +97,8 @@ export const updateUser = (id: string, payload: { username: string; email: strin
 export const updateUserPassword = (id: string, newPassword: string) => edgeApi.post('/system/users/action', { action: 'UPDATE_PASSWORD', id, newPassword });
 export const deleteUser = (id: string) => edgeApi.post('/system/users/action', { action: 'DELETE', id });
 
-// Gestione locali (PLATFORM_ADMIN / LOCALE_ADMIN): stesso pattern, topic system/locales/action.
+// ── Gestione locali (PLATFORM_ADMIN / LOCALE_ADMIN) ──────────────────────────────
+// Stesso pattern, topic system/locales/action.
 export const createLocale = (payload: { name: string; address: string; adminId: string }) =>
   edgeApi.post('/system/locales/action', { action: 'CREATE_LOCALE', ...payload });
 export const deleteLocale = (id: string) => edgeApi.post('/system/locales/action', { action: 'DELETE_LOCALE', id });
@@ -94,7 +109,7 @@ export const toggleGameInstance = (localeId: string, gameInstanceId: string, act
 export const deleteGameInstance = (localeId: string, gameInstanceId: string) =>
   edgeApi.post('/system/locales/action', { action: 'DELETE_GAME_INSTANCE', localeId, gameInstanceId });
 
-// Statistiche globali della piattaforma (PLATFORM_ADMIN)
+// ── Statistiche globali della piattaforma (PLATFORM_ADMIN) ───────────────────────
 export const getGlobalStats = () => statsApi.get<GlobalStats>('/global');
 
 // ── Catalogo giochi (GAME_ADMIN) ───────────────────────────────────────────────

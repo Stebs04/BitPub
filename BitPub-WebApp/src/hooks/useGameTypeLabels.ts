@@ -1,3 +1,7 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
+
 import { useEffect, useState } from 'react';
 import { getGameTypes } from '../services/api';
 
@@ -8,6 +12,7 @@ let cache: Record<string, string> | null = null;
 let inflight: Promise<Record<string, string>> | null = null;
 const listeners = new Set<(m: Record<string, string>) => void>();
 
+// Gestisce il caricamento dei tipi di gioco interrogando le API backend se non sono presenti in cache
 function load(): Promise<Record<string, string>> {
   if (cache) return Promise.resolve(cache);
   if (!inflight) {

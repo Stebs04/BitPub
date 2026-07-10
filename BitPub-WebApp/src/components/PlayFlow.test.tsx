@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -23,6 +26,10 @@ const localeWithGame = {
   games: [{ id: 'gi1', localInstanceId: 'pool-1', gameTypeId: 'pool', localeId: 'loc1', active: true }],
 };
 
+/**
+ * Suite di test per il flusso di gioco (PlayFlow).
+ * Verifica le interazioni della lobby, l'unione a una partita e la ricezione di messaggi MQTT.
+ */
 describe('PlayFlow', () => {
   beforeEach(() => {
     vi.clearAllMocks();

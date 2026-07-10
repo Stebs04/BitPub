@@ -1,24 +1,36 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
+/**
+ * Pagina di login per l'accesso all'applicazione
+ */
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
 
+  // Stati per i campi del form e i messaggi di errore
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
+  /**
+   * Gestisce l'invio del form di login per autenticare l'utente
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     try {
+      // Esegue la richiesta di login verso il backend
       const res = await api.post('/auth/login', { username, password });
       const { token, id, role, localeId } = res.data;
 
+      // Aggiorna lo stato di autenticazione e reindirizza alla home
       login(token, {
         id,
         username,

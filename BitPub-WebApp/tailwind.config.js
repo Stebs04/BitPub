@@ -1,10 +1,18 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
+
 /** @type {import('tailwindcss').Config} */
+// Esporta la configurazione per Tailwind CSS
 export default {
+  // Definisce i file da scansionare per generare le classi di utilità
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // Personalizza il tema visivo dell'applicazione
   theme: {
+    // Estende i valori predefiniti di Tailwind con colori e animazioni personalizzate
     extend: {
       colors: {
         brand: {
@@ -17,10 +25,12 @@ export default {
           pink: '#ec4899',
         }
       },
+      // Definisce le animazioni utilizzate nell'interfaccia utente
       animation: {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
       },
+      // Imposta i fotogrammi chiave per le animazioni personalizzate
       keyframes: {
         fadeIn: {
           '0%': { opacity: '0' },

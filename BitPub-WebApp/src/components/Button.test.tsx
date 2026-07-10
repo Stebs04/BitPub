@@ -1,8 +1,15 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Button from './Button';
 
+/**
+ * Suite di test per il componente Button.
+ * Verifica il rendering e la corretta gestione degli eventi di click.
+ */
 describe('Button', () => {
   it('renders children', () => {
     render(<Button>Click me</Button>);

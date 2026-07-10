@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
@@ -9,9 +12,11 @@ import { useAuthStore } from '../store/authStore';
 import { useGameTypeLabels } from '../hooks/useGameTypeLabels';
 import { pollUntil } from '../utils/poll';
 
+// Costanti per i ruoli amministrativi
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
 
+// Definizione delle interfacce per la tipizzazione dei dati
 interface GameInstance {
   id: string;
   localInstanceId: string;
@@ -37,27 +42,37 @@ interface UserOption {
   username: string;
 }
 
+/**
+ * Componente per la gestione dei locali e delle relative macchine da gioco
+ */
 const LocalesPage: React.FC = () => {
+  // Gestione dello stato di autenticazione e permessi
   const user = useAuthStore((state) => state.user);
   const role = user?.role as string | undefined;
   const isLocaleAdmin = role === LOCALE_ADMIN;
   const isPlatformAdmin = role === PLATFORM_ADMIN;
   const gameLabels = useGameTypeLabels();
 
+  // Stati locali per i dati e l'interfaccia
   const [locales, setLocales] = useState<Locale[]>([]);
   const [gameTypes, setGameTypes] = useState<GameType[]>([]);
   const [localeAdmins, setLocaleAdmins] = useState<UserOption[]>([]);
   const [gameUsage, setGameUsage] = useState<Record<string, GameUsageRecord[]>>({});
   const [loading, setLoading] = useState(true);
+  
   // ponytail: un solo lock a livello di pagina blocca ogni mutazione durante il polling
   // post-Edge. Basta per una pagina admin; passare a lock per-locale se serve concorrenza.
   const [busy, setBusy] = useState(false);
 
+  // Stati per la creazione di nuovi locali e macchine
   const [newLocaleName, setNewLocaleName] = useState('');
   const [newLocaleAddress, setNewLocaleAddress] = useState('');
   const [newLocaleAdminId, setNewLocaleAdminId] = useState('');
   const [newInstance, setNewInstance] = useState<Record<string, { localInstanceId: string; gameTypeId: string }>>({});
 
+  /**
+   * Recupera la lista dei locali in base al ruolo dell'utente
+   */
   const fetchLocales = useCallback(async (): Promise<Locale[]> => {
     if (!user) return [];
     try {
@@ -75,6 +90,7 @@ const LocalesPage: React.FC = () => {
     }
   }, [user, isLocaleAdmin]);
 
+  // Caricamento iniziale dei dati
   useEffect(() => {
     fetchLocales();
     if (isLocaleAdmin) {
@@ -94,6 +110,9 @@ const LocalesPage: React.FC = () => {
     });
   }, [locales]);
 
+  /**
+   * Gestisce la creazione di un nuovo locale
+   */
   const handleCreateLocale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLocaleName || !newLocaleAddress || !newLocaleAdminId) return;
@@ -121,6 +140,9 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Gestisce l'aggiunta di una nuova macchina in un locale specifico
+   */
   const handleAddGameInstance = async (localeId: string) => {
     const form = newInstance[localeId];
     if (!form?.localInstanceId || !form?.gameTypeId) return;
@@ -146,6 +168,9 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Gestisce l'eliminazione di un locale
+   */
   const handleDeleteLocale = async (localeId: string, localeName: string) => {
     if (!window.confirm(`Eliminare definitivamente il locale "${localeName}" e tutti i suoi dispositivi?`)) return;
     const prevLen = locales.length;
@@ -160,6 +185,9 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Gestisce la rimozione di una macchina da gioco
+   */
   const handleDeleteGameInstance = async (localeId: string, instance: GameInstance) => {
     if (!confirm(`Eliminare la macchina "${instance.localInstanceId}"?`)) return;
     setBusy(true);
@@ -174,6 +202,9 @@ const LocalesPage: React.FC = () => {
     }
   };
 
+  /**
+   * Gestisce l'attivazione e la disattivazione di una macchina da gioco
+   */
   const handleToggleGameInstance = async (localeId: string, instance: GameInstance) => {
     const next = !instance.active;
     setBusy(true);
@@ -204,6 +235,7 @@ const LocalesPage: React.FC = () => {
         <h1 className="text-3xl font-bold text-white">Gestione Locali</h1>
       </div>
 
+      {/* Form di creazione visibile solo ai PLATFORM_ADMIN */}
       {isPlatformAdmin && (
         <Card className="mb-8">
           <CardHeader>
@@ -241,6 +273,7 @@ const LocalesPage: React.FC = () => {
         </div>
       )}
 
+      {/* Lista dei locali */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {locales.map((locale) => (
           <Card key={locale.id}>
@@ -266,6 +299,8 @@ const LocalesPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-slate-400 mb-4">{locale.address}</p>
+              
+              {/* Lista delle macchine da gioco */}
               <div className="space-y-3">
                 {(locale.games || []).map((game) => (
                   <div key={game.id} className="flex items-center justify-between gap-3 text-slate-300 bg-white/5 p-3 rounded-lg">
@@ -325,6 +360,7 @@ const LocalesPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Form di aggiunta macchina visibile solo ai LOCALE_ADMIN */}
               {isLocaleAdmin && (
                 <div className="mt-4 pt-4 border-t border-white/5 flex flex-col md:flex-row gap-3 items-end">
                   <Input

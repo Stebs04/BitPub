@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -8,6 +11,10 @@ function sensor(over: Partial<SensorDefinitionRecord>): SensorDefinitionRecord {
   return { id: 'x', type: 'GOAL', description: '', actuator: false, scoreIncrement: 1, successProbability: 1, ...over };
 }
 
+/**
+ * Suite di test per il componente GameControlPanel.
+ * Verifica che vengano renderizzati solo gli eventi giocabili e che le interazioni funzionino.
+ */
 describe('GameControlPanel', () => {
   it('renders one button per playable sensor, excluding actuators and control events', () => {
     const sensors = [

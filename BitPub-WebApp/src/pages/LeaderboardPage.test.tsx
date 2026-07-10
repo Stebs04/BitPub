@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import LeaderboardPage from './LeaderboardPage';
@@ -15,6 +18,7 @@ vi.mock('../services/notificationService', () => ({
 }));
 vi.mock('../hooks/useGameTypeLabels', () => ({ upsertGameTypeLabel: vi.fn() }));
 
+// Voce di classifica di esempio per i test
 const entry = {
   id: 'e1', playerName: 'alice', gameTypeId: 'foosball',
   wins: 3, losses: 1, totalPoints: 30, matchesPlayed: 4, lastUpdated: null,
@@ -28,12 +32,14 @@ describe('LeaderboardPage', () => {
     (statsApi.get as any).mockResolvedValue({ data: [entry] });
   });
 
+  // Verifica il caricamento delle schede dei giochi e la visualizzazione della classifica
   it('loads catalog tabs and shows the leaderboard rows', async () => {
     render(<LeaderboardPage />);
     expect(await screen.findByText('alice')).toBeInTheDocument();
     expect(screen.getAllByText('Calcio Balilla').length).toBeGreaterThan(0);
   });
 
+  // Verifica l'aggiornamento in tempo reale al ricevimento di un messaggio MQTT
   it('updates live when a statistics MQTT message arrives', async () => {
     (statsApi.get as any).mockResolvedValue({ data: [] });   // parte vuota
     render(<LeaderboardPage />);

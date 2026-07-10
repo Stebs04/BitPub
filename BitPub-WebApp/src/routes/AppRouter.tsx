@@ -11,8 +11,13 @@ import PlayerStatsPage from '../pages/PlayerStatsPage';
 import TournamentsPage from '../pages/TournamentsPage';
 import GamesPage from '../pages/GamesPage';
 import Layout from '../components/Layout';
+/**
+ * Autore: Luca Franzon 20054744
+ */
+
 import { useAuthStore } from '../store/authStore';
 
+// Protegge le rotte impedendo l'accesso agli utenti non autenticati
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   if (!isAuthenticated) {
@@ -21,6 +26,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Verifica che l'utente abbia il ruolo di amministratore di piattaforma
 const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const isPlatformAdmin = useAuthStore((state) => state.isPlatformAdmin());
   if (!isPlatformAdmin) {
@@ -29,6 +35,7 @@ const PlatformAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Limita l'accesso esclusivamente agli amministratori di gioco
 const GameAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const role = useAuthStore((state) => state.user?.role);
   if (role !== 'GAME_ADMIN') {
@@ -55,6 +62,7 @@ const NonPlayerRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Reindirizza l'utente alla home se ha già effettuato l'accesso
 const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   if (isAuthenticated) {
@@ -63,6 +71,7 @@ const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) =>
   return <>{children}</>;
 };
 
+// Gestisce la navigazione e definisce tutte le rotte dell'applicazione
 const AppRouter: React.FC = () => {
   return (
     <BrowserRouter>

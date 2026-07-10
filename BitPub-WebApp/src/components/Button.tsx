@@ -1,7 +1,13 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+/**
+ * Unisce le classi CSS in modo condizionale, risolvendo i conflitti tramite tailwind-merge.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -11,6 +17,9 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
 }
 
+/**
+ * Componente bottone personalizzato che supporta diverse varianti e dimensioni.
+ */
 const Button: React.FC<ButtonProps> = ({ 
   className, 
   variant = 'primary', 

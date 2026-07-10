@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -15,7 +18,7 @@ vi.mock('../services/notificationService', () => ({
 }));
 vi.mock('../hooks/useGameTypeLabels', () => ({ useGameTypeLabels: () => ({}) }));
 
-// jsdom non implementa scrollIntoView (usato dall'auto-scroll del log)
+// Mock della funzione di scroll del log (non implementata in jsdom)
 Element.prototype.scrollIntoView = vi.fn();
 
 function renderAs(role: string) {
@@ -29,12 +32,13 @@ describe('LiveMatchView', () => {
     (api.get as any).mockResolvedValue({ data: [] });
   });
 
+  // Verifica lo stato iniziale quando non ci sono partite attive
   it('shows the empty state before any match arrives', () => {
     renderAs('PLATFORM_ADMIN');
     expect(screen.getByText(/Nessuna partita attiva/i)).toBeInTheDocument();
   });
 
-  // Scenario 4: un messaggio MQTT di stato live aggiorna la ScoreCard in tempo reale.
+  // Verifica l'aggiornamento della scheda punteggio all'arrivo di un evento live MQTT
   it('renders a live score card when an MQTT state message arrives', () => {
     renderAs('PLATFORM_ADMIN');
     const handler = (notificationService.subscribe as any).mock.calls[0][1];
@@ -53,6 +57,7 @@ describe('LiveMatchView', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
+  // Verifica che il LOCALE_ADMIN senza locale non si iscriva ai topic MQTT
   it('does not subscribe for a LOCALE_ADMIN with no locale assigned', () => {
     useAuthStore.getState().login('tok', { id: 'u1', username: 'sam', role: 'LOCALE_ADMIN', localeId: null });
     render(<MemoryRouter><LiveMatchView /></MemoryRouter>);

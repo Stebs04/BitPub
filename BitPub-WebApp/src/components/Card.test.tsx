@@ -1,7 +1,14 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Card, CardTitle, CardContent } from './Card';
 
+/**
+ * Suite di test per i componenti della Card.
+ * Si assicura che il contenuto venga renderizzato correttamente e che le classi CSS vengano propagate.
+ */
 describe('Card', () => {
   it('renders children and forwards className', () => {
     render(<Card className="extra"><span>body</span></Card>);

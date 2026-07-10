@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useEffect, useState } from 'react';
 import api, { matchApi, getGlobalStats } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -6,6 +9,7 @@ import { Activity } from 'lucide-react';
 const LOCALE_ADMIN = 'LOCALE_ADMIN';
 const PLATFORM_ADMIN = 'PLATFORM_ADMIN';
 
+// Interfaccia per le tessere statistiche della dashboard
 interface StatTile {
   label: string;
   value: number;
@@ -24,9 +28,11 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Recupera i dati della dashboard in base al ruolo dell'utente
     const fetchDashboardData = async () => {
       try {
         if (role === 'PLAYER') {
+          // Statistiche per il giocatore (partite, vittorie, tornei)
           const [matchesRes, tournamentsRes] = await Promise.all([
             matchApi.get(`/by-player/${user.id}`),
             api.get(`/tournaments/by-player/${user.id}`),
@@ -82,6 +88,7 @@ const DashboardPage: React.FC = () => {
     fetchDashboardData();
   }, [user, role]);
 
+  // Mostra stato di caricamento se i dati non sono pronti
   if (loading) {
     return (
       <div className="p-8 animate-slide-up">

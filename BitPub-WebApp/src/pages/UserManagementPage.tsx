@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
@@ -9,17 +12,25 @@ import { useAuthStore } from '../store/authStore';
 // NOTE: bitpub-common Role enum values (verbatim strings expected by the backend)
 const ROLES = ['PLAYER', 'LOCALE_ADMIN', 'GAME_ADMIN', 'PLATFORM_ADMIN'];
 
+/**
+ * Pagina per la gestione degli utenti (creazione, modifica ruolo/dati, eliminazione).
+ * Destinata agli amministratori di piattaforma.
+ */
 const UserManagementPage: React.FC = () => {
   const currentUser = useAuthStore((state) => state.user);
 
+  // Stato per la lista utenti e gestione del caricamento
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  
+  // Stato per le operazioni inline (modifica ruolo, modifica dati utente)
   const [pendingRoleId, setPendingRoleId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editUsername, setEditUsername] = useState('');
   const [editEmail, setEditEmail] = useState('');
 
+  // Stato per il form di creazione nuovo utente
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
@@ -28,6 +39,9 @@ const UserManagementPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  /**
+   * Recupera la lista completa degli utenti dal backend
+   */
   const fetchUsers = useCallback(async () => {
     setListError(null);
     try {
@@ -40,10 +54,14 @@ const UserManagementPage: React.FC = () => {
     }
   }, []);
 
+  // Caricamento iniziale degli utenti
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
+  /**
+   * Gestisce l'invio del form per la creazione di un nuovo utente
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -65,6 +83,9 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  /**
+   * Aggiorna il ruolo di un utente esistente
+   */
   const handleRoleChange = async (userId: string, newRole: string) => {
     setPendingRoleId(userId);
     try {
@@ -77,6 +98,9 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  /**
+   * Abilita la modalità modifica inline per un utente
+   */
   const startEdit = (u: UserRecord) => {
     setEditingId(u.id);
     setEditUsername(u.username);
@@ -84,6 +108,9 @@ const UserManagementPage: React.FC = () => {
     setListError(null);
   };
 
+  /**
+   * Salva le modifiche anagrafiche (username ed email) di un utente
+   */
   const handleSaveEdit = async (userId: string) => {
     try {
       await updateUser(userId, { username: editUsername, email: editEmail });
@@ -94,6 +121,9 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  /**
+   * Resetta la password di un utente tramite prompt
+   */
   const handleResetPassword = async (userId: string, targetUsername: string) => {
     const newPassword = window.prompt(`Nuova password per "${targetUsername}":`);
     if (!newPassword) return;
@@ -105,6 +135,9 @@ const UserManagementPage: React.FC = () => {
     }
   };
 
+  /**
+   * Elimina un utente dopo conferma
+   */
   const handleDelete = async (userId: string, targetUsername: string) => {
     if (!window.confirm(`Eliminare definitivamente l'utente "${targetUsername}"?`)) return;
     try {
@@ -117,6 +150,7 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      {/* Modulo di creazione utente */}
       <Card className="max-w-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -171,6 +205,7 @@ const UserManagementPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Tabella degli utenti esistenti */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

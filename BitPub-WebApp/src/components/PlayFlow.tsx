@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Gamepad2, Server, Play, Loader2, Users, Trophy, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './Card';
@@ -119,7 +122,7 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
     return () => { cancelled = true; };
   }, [gameTypeId]);
 
-  // Fallback: finche' la lobby resta in attesa, ripolla la partita nel caso il messaggio MQTT
+  // Meccanismo di fallback per aggiornare lo stato se il messaggio MQTT di inizio partita viene perso
   // di transizione vada perso (il broker e' QoS 0).
   useEffect(() => {
     if (!activeMatch || activeMatch.status !== 'WAITING_FOR_PLAYERS') {

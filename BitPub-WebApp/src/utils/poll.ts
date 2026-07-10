@@ -1,3 +1,7 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
+
 // Ripete fetchFn ogni intervalMs finche' `done` e' true o si esauriscono i tentativi,
 // poi restituisce l'ultimo valore letto.
 //
@@ -8,6 +12,7 @@
 //
 // ponytail: tetto fisso di tentativi, nessun backoff esponenziale. Se l'Edge diventa piu'
 // lento, alzare `tries`.
+// Esegue una funzione di fetching in modo continuativo fino a una condizione di successo o al raggiungimento dei tentativi massimi
 export async function pollUntil<T>(
   fetchFn: () => Promise<T>,
   done: (value: T) => boolean,

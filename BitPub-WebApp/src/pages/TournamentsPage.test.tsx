@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -6,6 +9,7 @@ import { useAuthStore } from '../store/authStore';
 import * as api from '../services/api';
 import { notificationService } from '../services/notificationService';
 
+// Configurazione dei mock per le chiamate API e per il servizio di notifica MQTT
 vi.mock('../services/api', () => ({
   getAllTournaments: vi.fn(),
   getTournamentRegistrationsByPlayer: vi.fn(),
@@ -21,12 +25,17 @@ vi.mock('../services/notificationService', () => ({
 }));
 vi.mock('../components/PlayFlow', () => ({ default: () => <div>play-flow</div> }));
 
+// Dati fittizi del torneo
 const tournament = {
   id: 't1', name: 'Coppa Estate', gameTypeId: 'foosball', teamBased: false,
   status: 'UPCOMING', maxParticipants: 8, registrations: [], bracket: [], localeIds: [],
 };
 
+/**
+ * Suite di test per il componente TournamentsPage
+ */
 describe('TournamentsPage', () => {
+  // Ripristino stato e mock prima di ogni test
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.getState().login('tok', { id: 'u1', username: 'alice', role: 'PLAYER', localeId: null });
@@ -36,6 +45,9 @@ describe('TournamentsPage', () => {
     (api.getGameTypes as any).mockResolvedValue({ data: [{ id: 'foosball', name: 'Calcio Balilla' }] });
   });
 
+  /**
+   * Verifica che i tornei vengano mostrati e che un giocatore possa iscriversi
+   */
   it('lists tournaments and registers a player', async () => {
     (api.registerToTournament as any).mockResolvedValue({ data: { id: 'r1', tournamentId: 't1' } });
     render(<TournamentsPage />);
@@ -49,6 +61,9 @@ describe('TournamentsPage', () => {
   });
 
   // Live: tournament-service pubblica il TournamentDto su bitpub/tournaments/+/state (avvio/avanzamento).
+  /**
+   * Verifica che l'arrivo di un aggiornamento via MQTT mostri il torneo aggiornato/nuovo
+   */
   it('adds a new tournament from an MQTT state message', async () => {
     render(<TournamentsPage />);
     await screen.findByText('Coppa Estate');

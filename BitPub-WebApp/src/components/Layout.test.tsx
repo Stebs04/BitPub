@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +13,10 @@ function renderAs(role: 'PLAYER' | 'PLATFORM_ADMIN' | 'LOCALE_ADMIN') {
   return render(<MemoryRouter><Layout /></MemoryRouter>);
 }
 
+/**
+ * Suite di test per il componente Layout e la sua navigazione.
+ * Assicura che le diverse voci di menu appaiano a seconda del ruolo (PLAYER, PLATFORM_ADMIN, ecc.).
+ */
 describe('Layout navigation', () => {
   beforeEach(() => useAuthStore.getState().logout());
 

@@ -1,9 +1,16 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Gamepad2, LayoutDashboard, Trophy, MapPin, LogOut, Activity, Users, Boxes, BarChart3, Swords, Play } from 'lucide-react';
 import { cn } from './Button';
 
+/**
+ * Componente di layout principale.
+ * Include una barra di navigazione laterale e gestisce la visualizzazione delle voci in base al ruolo dell'utente.
+ */
 const Layout: React.FC = () => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);

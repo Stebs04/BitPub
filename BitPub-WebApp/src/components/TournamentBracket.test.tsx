@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -12,6 +15,10 @@ function m(over: Partial<TournamentMatchRecord>): TournamentMatchRecord {
   };
 }
 
+/**
+ * Suite di test per il componente TournamentBracket.
+ * Verifica la corretta visualizzazione del tabellone a eliminazione e l'interazione per l'assegnazione del vincitore.
+ */
 describe('TournamentBracket', () => {
   it('renders nothing when there are no matches', () => {
     const { container } = render(<TournamentBracket matches={[]} />);

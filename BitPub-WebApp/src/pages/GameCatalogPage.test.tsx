@@ -1,3 +1,6 @@
+/**
+ * Autore: Luca Franzon 20054744
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -13,6 +16,7 @@ vi.mock('../services/api', () => ({
   deleteGameType: vi.fn(),
 }));
 
+// Dati di esempio per i test del catalogo
 const games = [
   { id: 'foosball', name: 'Calcio Balilla', description: 'Biliardino', winScoreTarget: 8,
     sensors: [{ id: 's1', type: 'GOAL', description: 'goal', actuator: false, scoreIncrement: 1, successProbability: 1 }] },
@@ -25,6 +29,7 @@ describe('GameCatalogPage', () => {
     (getGameTypes as any).mockResolvedValue({ data: games });
   });
 
+  // Verifica la visualizzazione della lista dei giochi e del primo elemento
   it('lists game types and shows the first one selected with its sensors', async () => {
     render(<GameCatalogPage />);
     expect(await screen.findByText('Tipologie (2)')).toBeInTheDocument();
@@ -33,6 +38,7 @@ describe('GameCatalogPage', () => {
     expect(screen.getByText('goal')).toBeInTheDocument();          // descrizione del sensore GOAL
   });
 
+  // Verifica il cambio di selezione di un tipo di gioco
   it('selects another game type on click', async () => {
     render(<GameCatalogPage />);
     await screen.findByText('Tipologie (2)');

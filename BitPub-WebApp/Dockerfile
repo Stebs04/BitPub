@@ -1,3 +1,5 @@
+# Autore: Luca Franzon 20054744
+# Configurazione per la creazione dell'immagine Docker
 # Build stage
 FROM node:22-alpine AS build
 WORKDIR /app

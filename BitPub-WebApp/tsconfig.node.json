@@ -1,3 +1,7 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Configurazione TypeScript per i file Node (es. Vite config).
+ */
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
