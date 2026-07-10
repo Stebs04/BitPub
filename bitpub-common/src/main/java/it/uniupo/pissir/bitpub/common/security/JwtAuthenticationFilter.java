@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ *
+ * Filtro per l'autenticazione basata su JWT. Si occupa di intercettare le richieste, 
+ * estrarre il token e validarne l'autenticità prima di concedere l'accesso alle risorse.
+ */
 package it.uniupo.pissir.bitpub.common.security;
 
 import jakarta.servlet.FilterChain;
@@ -29,33 +35,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         
         try {
+            // Estrazione del token dalla richiesta corrente
             String jwt = parseJwt(request);
+            
+            // Verifichiamo la presenza e la validità del token prima di procedere
             if (jwt != null && jwtUtils.validateToken(jwt)) {
+                // Recuperiamo i dati principali dell'utente direttamente dal payload del token
                 String username = jwtUtils.getUsernameFromToken(jwt);
                 String role = jwtUtils.getRoleFromToken(jwt);
                 String userId = jwtUtils.getUserIdFromToken(jwt);
                 String localeId = jwtUtils.getLocaleIdFromToken(jwt);
 
-                // Add ROLE_ prefix for Spring Security
+                // Aggiungiamo il prefisso standard richiesto da Spring Security per i ruoli
                 String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
 
+                // Creiamo l'oggetto di autenticazione con le informazioni estratte
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         new UserPrincipal(userId, username, role, localeId), null, Collections.singletonList(new SimpleGrantedAuthority(authority)));
                 
+                // Arricchiamo l'autenticazione con i dettagli specifici della richiesta web
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 
+                // Impostiamo l'autenticazione nel contesto di sicurezza per renderla disponibile globalmente
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e);
+            // In caso di errore durante la validazione logghiamo l'accaduto senza interrompere bruscamente l'esecuzione
+            logger.error("Impossibile impostare l'autenticazione utente: {}", e);
         }
 
+        // Passiamo il controllo al filtro successivo nella catena
         filterChain.doFilter(request, response);
     }
 
+    // Metodo di supporto per isolare la logica di estrazione del token dall'header
     private String parseJwt(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
 
+        // Controlliamo che l'header contenga del testo e inizi con il prefisso previsto
         if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
         }

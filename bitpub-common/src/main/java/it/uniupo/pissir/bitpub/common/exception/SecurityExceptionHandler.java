@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ *
+ * Gestore globale per le eccezioni legate alla sicurezza.
+ * Traduce gli errori interni di autorizzazione e autenticazione in risposte HTTP strutturate.
+ */
 package it.uniupo.pissir.bitpub.common.exception;
 
 import it.uniupo.pissir.bitpub.common.dto.ErrorResponse;
@@ -15,26 +21,30 @@ import java.time.Instant;
 @ConditionalOnClass(name = "org.springframework.security.access.AccessDeniedException")
 public class SecurityExceptionHandler {
 
+    // Intercetta i tentativi di accesso a risorse per le quali l'utente non possiede il ruolo necessario
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        // Costruiamo una risposta d'errore standardizzata per il client
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.FORBIDDEN.value())
                 .error(HttpStatus.FORBIDDEN.getReasonPhrase())
-                .message("Access denied: insufficient role privileges")
-                .path("Unknown")
+                .message("Accesso negato: permessi insufficienti per questa operazione")
+                .path("Sconosciuto")
                 .build();
         return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
+    // Intercetta i problemi legati alla mancata autenticazione o a credenziali errate
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex) {
+        // Prepariamo la risposta indicando chiaramente la necessità di autenticarsi
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.UNAUTHORIZED.value())
                 .error(HttpStatus.UNAUTHORIZED.getReasonPhrase())
-                .message("Authentication required: missing or invalid credentials")
-                .path("Unknown")
+                .message("Autenticazione richiesta: credenziali mancanti o non valide")
+                .path("Sconosciuto")
                 .build();
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
