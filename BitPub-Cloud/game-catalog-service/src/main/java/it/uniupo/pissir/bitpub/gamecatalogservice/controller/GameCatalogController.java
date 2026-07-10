@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.controller;
 
 import it.uniupo.pissir.bitpub.gamecatalogservice.dto.AddSensorRequest;
@@ -20,8 +23,8 @@ public class GameCatalogController {
 
     private final GameCatalogService gameCatalogService;
 
-    // Definizione del catalogo (tipi di gioco ed eventi dei sensori simulati): riservata al GAME_ADMIN.
-    // Le letture restano aperte cosi' che il LOCALE_ADMIN possa consultare i giochi da installare.
+    // Le operazioni di scrittura sul catalogo (tipi di gioco, configurazione sensori) sono esclusive del ruolo GAME_ADMIN.
+    // Al contrario, l'accesso in sola lettura è consentito globalmente per permettere agli amministratori locali la consultazione del parco giochi.
     @PostMapping("/games")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('GAME_ADMIN')")

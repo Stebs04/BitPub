@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -13,9 +16,9 @@ public class AddSensorRequest {
     
     private boolean isActuator;
 
-    // Punti guadagnati quando il sensore si attiva. Default 1.
+    // Incremento punti di base generato all'attivazione del sensore
     private int scoreIncrement = 1;
 
-    // Probabilità RNG (0.0-1.0) di successo dell'azione. Default 1.0 (sempre a segno).
+    // Distribuzione statistica del tasso di successo (1.0 = evento garantito)
     private double successProbability = 1.0;
 }

@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.domain;
 
 import jakarta.persistence.*;
@@ -17,21 +20,21 @@ public class SensorDefinition {
     private String id;
 
     @Column(nullable = false)
-    private String type; // Es. "GOAL", "BALL_POCKETED", "MATCH_START"
+    private String type; // Classificazione della natura dell'evento catturato dal sensore
 
     @Column(nullable = false)
     private String description;
     
     @Column(nullable = false)
-    private boolean isActuator; // True se è un attuatore (es. DISPLAY)
+    private boolean isActuator; // Determina se il componente ha capacità di output attive nel mondo fisico
 
     @Column(nullable = false)
     @Builder.Default
-    private int scoreIncrement = 1; // Punti guadagnati quando il sensore si attiva con successo
+    private int scoreIncrement = 1; // Valore numerico apportato al punteggio ad ogni rilevazione utile
 
     @Column(nullable = false)
     @Builder.Default
-    private double successProbability = 1.0; // 0.0-1.0: probabilità RNG che l'azione vada a segno
+    private double successProbability = 1.0; // Fattore di tolleranza o tasso di conversione successo/fallimento dell'azione
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "game_type_id", nullable = false)

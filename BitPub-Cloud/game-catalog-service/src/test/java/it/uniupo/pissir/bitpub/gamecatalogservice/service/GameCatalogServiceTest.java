@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,6 +30,11 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Suite di verifica strutturale della logica di gestione catalogo.
+ * Assicura il calcolo corretto degli identificativi (Rules Engine) e il rigoroso mantenimento
+ * dei vincoli sull'unicità dei nomi.
+ */
 @ExtendWith(MockitoExtension.class)
 class GameCatalogServiceTest {
 
@@ -46,7 +54,7 @@ class GameCatalogServiceTest {
                 .winScoreTarget(10).sensors(new ArrayList<>()).build();
     }
 
-    // --- createGameType ---
+    // ── Area collaudo Creazione tipologie di gioco ──
     @Test
     void createGameType_duplicateName_conflict() {
         when(gameTypeRepository.findByName("Pool")).thenReturn(Optional.of(gameType("g1", "Pool")));
@@ -64,7 +72,7 @@ class GameCatalogServiceTest {
         when(gameTypeRepository.save(any(GameType.class))).thenAnswer(inv -> { GameType g = inv.getArgument(0); g.setId("g1"); return g; });
 
         CreateGameTypeRequest req = new CreateGameTypeRequest();
-        req.setName("Calcio Balilla"); req.setDescription("d"); req.setWinScoreTarget(0); // 0 => default 10
+        req.setName("Calcio Balilla"); req.setDescription("d"); req.setWinScoreTarget(0); // 0 implica il ripristino al valore limite predefinito (10)
 
         service.createGameType(req);
 
@@ -74,11 +82,11 @@ class GameCatalogServiceTest {
         assertThat(captor.getValue().getWinScoreTarget()).isEqualTo(10);
     }
 
-    // --- updateGameType ---
+    // ── Area collaudo Aggiornamento anagrafica gioco ──
     @Test
     void updateGameType_doesNotRegenerateRulesEngineId() {
         GameType existing = gameType("g1", "Pool");
-        existing.setRulesEngineId("pool"); // chiave stabile usata dal match-service
+        existing.setRulesEngineId("pool"); // Identificativo statico ad uso vincolato del match-service
         when(gameTypeRepository.findById("g1")).thenReturn(Optional.of(existing));
         when(gameTypeRepository.findByName("Pool Deluxe")).thenReturn(Optional.empty());
         when(gameTypeRepository.save(any(GameType.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -90,7 +98,7 @@ class GameCatalogServiceTest {
 
         ArgumentCaptor<GameType> captor = ArgumentCaptor.forClass(GameType.class);
         verify(gameTypeRepository).save(captor.capture());
-        assertThat(captor.getValue().getRulesEngineId()).isEqualTo("pool"); // invariato
+        assertThat(captor.getValue().getRulesEngineId()).isEqualTo("pool"); // Si assicura che permanga invariato
         assertThat(captor.getValue().getName()).isEqualTo("Pool Deluxe");
         assertThat(captor.getValue().getWinScoreTarget()).isEqualTo(15);
     }
@@ -109,7 +117,7 @@ class GameCatalogServiceTest {
                 .satisfies(e -> assertThat(((BitpubException) e).getStatus()).isEqualTo(HttpStatus.CONFLICT));
     }
 
-    // --- deleteSensor ---
+    // ── Area collaudo Cancellazione sensori ──
     @Test
     void deleteSensor_notBelongingToGameType_badRequest() {
         GameType other = gameType("gOther", "X");
@@ -121,7 +129,7 @@ class GameCatalogServiceTest {
                 .satisfies(e -> assertThat(((BitpubException) e).getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
     }
 
-    // --- addSensorToGameType ---
+    // ── Area collaudo Inserimento sensori aggiuntivi ──
     @Test
     void addSensor_appliesDefaultsWhenZero() {
         GameType g = gameType("g1", "Pool");
@@ -130,7 +138,7 @@ class GameCatalogServiceTest {
 
         AddSensorRequest req = new AddSensorRequest();
         req.setType("goal"); req.setDescription("d");
-        req.setScoreIncrement(0); req.setSuccessProbability(0); // 0 => default 1 / 1.0
+        req.setScoreIncrement(0); req.setSuccessProbability(0); // L'utilizzo di 0 forza i fallback logici a 1 e 1.0
 
         service.addSensorToGameType("g1", req);
 
@@ -140,7 +148,7 @@ class GameCatalogServiceTest {
         assertThat(captor.getValue().getSuccessProbability()).isEqualTo(1.0);
     }
 
-    // --- deleteGameType ---
+    // ── Area collaudo Eliminazione fisica specialità ──
     @Test
     void deleteGameType_publishesEmptyRetainedConfig() {
         GameType g = gameType("g1", "Pool");
@@ -149,6 +157,6 @@ class GameCatalogServiceTest {
         service.deleteGameType("g1");
 
         verify(gameTypeRepository).delete(g);
-        verify(configPublisher).publish(eq(""), any()); // payload vuoto = cancella retained
+        verify(configPublisher).publish(eq(""), any()); // Emette payload di dimensione zero, ripulendo lo stato ritentato sul broker
     }
 }

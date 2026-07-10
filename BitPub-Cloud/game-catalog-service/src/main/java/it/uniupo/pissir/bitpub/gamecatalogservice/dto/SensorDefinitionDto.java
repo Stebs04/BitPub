@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.dto;
 
 import lombok.AllArgsConstructor;
@@ -11,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SensorDefinitionDto {
     private String id;
-    private String type; // es. DIGITAL, ANALOG, RFID
+    private String type; // Modello di ricezione o interpretazione per i segnali hardware
     private String description;
     private boolean isActuator;
     private int scoreIncrement;

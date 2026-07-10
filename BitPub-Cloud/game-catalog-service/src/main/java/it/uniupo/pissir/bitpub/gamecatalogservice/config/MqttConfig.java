@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -19,12 +22,14 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.Header;
 
 /**
- * Outbound: publishes retained game-config snapshots so any simulator that comes online later still
- * receives the latest rules for each game type without a replay request.
- *
- * <p>Inbound: durable subscriber to Edge-forwarded catalog CUD commands (system-action topic), so the
- * WebApp manages the game catalog through the Edge instead of hitting the gateway REST directly — same
- * pattern as user/locale services. See {@link SystemActionCommandListener}.
+ * Configurazione infrastrutturale per l'integrazione MQTT del servizio catalogo giochi.
+ * 
+ * Canale Outbound: distribuisce gli snapshot di configurazione in modalità 'retained',
+ * assicurando che qualsiasi simulatore connesso in ritardo riceva i parametri operativi correnti.
+ * 
+ * Canale Inbound: implementa una sottoscrizione persistente per i comandi di gestione catalogo
+ * instradati dal nodo Edge. Evita chiamate REST dirette adottando lo stesso paradigma asincrono
+ * degli altri microservizi core.
  */
 @Configuration
 public class MqttConfig {
@@ -62,7 +67,7 @@ public class MqttConfig {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(clientId, mqttClientFactory());
         handler.setAsync(true);
         handler.setDefaultTopic("bitpub/config/games/default");
-        handler.setDefaultRetained(true); // config snapshots are retained
+        handler.setDefaultRetained(true); // Consente ai client che si collegano successivamente di ricevere l'ultima configurazione nota
         return handler;
     }
 
@@ -71,9 +76,9 @@ public class MqttConfig {
         void publish(String payload, @Header(MqttHeaders.TOPIC) String topic);
     }
 
-    // ── Inbound: durable subscriber to Edge-forwarded catalog CUD commands ───────────
-    // Durable session (cleanSession=false + stable clientId) so the broker queues QoS1 commands
-    // while game-catalog-service is down and redelivers them on reconnect.
+    // ── Gestione Inbound: sottoscrizione ai comandi inoltrati dall'Edge ───────────
+    // La sessione persistente (cleanSession=false) abbinata a un clientId statico garantisce
+    // la conservazione dei messaggi QoS1 in caso di indisponibilità momentanea del servizio.
 
     @Bean
     public MqttPahoClientFactory mqttInboundClientFactory() {

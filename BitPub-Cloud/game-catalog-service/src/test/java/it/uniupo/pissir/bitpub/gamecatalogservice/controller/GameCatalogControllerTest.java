@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,8 +27,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// addFilters=false: la mutazione del catalogo e' @PreAuthorize('GAME_ADMIN'); qui verifico
-// mapping/validation e sblocco i metodi protetti con @WithMockUser(roles=GAME_ADMIN).
+/**
+ * Test unitari focalizzati sulle regole di validazione e la serializzazione delle risposte REST.
+ * L'inibizione dei filtri di sicurezza globali consente di validare puntualmente le autorizzazioni
+ * tramite profili utente simulati (MockUser).
+ */
 @WebMvcTest(GameCatalogController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class GameCatalogControllerTest {

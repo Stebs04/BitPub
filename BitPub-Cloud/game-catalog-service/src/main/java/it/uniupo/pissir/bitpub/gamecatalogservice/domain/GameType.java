@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.domain;
 
 import jakarta.persistence.*;
@@ -19,17 +22,17 @@ public class GameType {
     private String id;
 
     @Column(nullable = false, unique = true)
-    private String name; // Es. "Calciobalilla", "Freccette", "Biliardo"
+    private String name; // Identificativo testuale della specialità
 
     @Column(nullable = false)
     private String description;
     
     @Column(nullable = false)
-    private String rulesEngineId; // Identificativo della logica (Strategy) da applicare nel match-service
+    private String rulesEngineId; // Codice univoco che il motore di simulazione utilizza per caricare la corretta strategia di calcolo
 
     @Column(nullable = false)
     @Builder.Default
-    private int winScoreTarget = 10; // Punti necessari per vincere. Letto dinamicamente dal match-service.
+    private int winScoreTarget = 10; // Soglia punti da raggiungere per decretare la vittoria
 
     @OneToMany(mappedBy = "gameType", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SensorDefinition> sensors;

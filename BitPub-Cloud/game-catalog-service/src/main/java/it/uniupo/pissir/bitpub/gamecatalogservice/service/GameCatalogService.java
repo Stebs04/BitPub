@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,14 +39,10 @@ public class GameCatalogService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Pubblica lo snapshot completo (GameType + Sensori) su bitpub/config/games/{id} (retained),
-     * cosi' i simulatori aggiornano le regole in cache. Fire-and-forget: un errore MQTT non deve
-     * far fallire la mutazione del catalogo.
-     */
-    /**
-     * Al boot ripubblica la config di ogni GameType esistente: il broker perde i messaggi retained
-     * ai riavvii e le config vengono altrimenti pubblicate solo su create/update, lasciando la cache
-     * dei simulatori vuota per i giochi gia' presenti nel DB.
+     * Routine di allineamento eseguita al completamento dell'avvio dell'applicazione.
+     * Riemette le configurazioni di tutti i giochi presenti a database sul broker MQTT: questa operazione
+     * mitiga la perdita dei messaggi 'retained' qualora il broker venisse riavviato, garantendo ai simulatori
+     * il ripristino immediato delle regole applicative correnti.
      */
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
@@ -53,6 +52,11 @@ public class GameCatalogService {
         gameTypes.forEach(dto -> publishConfig(dto.getId()));
     }
 
+    /**
+     * Notifica l'intero ecosistema (i.e. simulatori e nodi fisici) dei parametri attuali associati a una disciplina.
+     * Implementa un meccanismo 'fire-and-forget': eventuali indisponibilità della rete MQTT non compromettono
+     * la corretta persistenza relazionale delle informazioni.
+     */
     public void publishConfig(String gameTypeId) {
         try {
             GameTypeDto dto = getGameTypeById(gameTypeId);
@@ -73,8 +77,8 @@ public class GameCatalogService {
         GameType gameType = GameType.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                // Derived from name since rulesEngineId is not part of the create request;
-                // match-service's Strategy lookup uses this key (e.g. "Calciobalilla" -> "calciobalilla").
+                // Derivazione deterministica dell'identificativo strategico dal nome del gioco.
+                // Tale chiave viene sfruttata dal match-service per istanziare il corretto motore logico.
                 .rulesEngineId(request.getName().trim().toLowerCase().replaceAll("\\s+", "_"))
                 .winScoreTarget(request.getWinScoreTarget() > 0 ? request.getWinScoreTarget() : 10)
                 .sensors(new ArrayList<>())
@@ -86,9 +90,9 @@ public class GameCatalogService {
     }
 
     /**
-     * Modifica nome/descrizione di un tipo di gioco. Il rulesEngineId NON viene rigenerato:
-     * e' la chiave usata dal match-service per selezionare la Strategy e cambiarlo
-     * desincronizzerebbe le partite gia' collegate a questo GameType.
+     * Aggiorna le specifiche anagrafiche della tipologia di gioco.
+     * Il campo rulesEngineId viene deliberatamente preservato per garantire la compatibilità retroattiva
+     * con i motori di simulazione operanti sui match attualmente in corso.
      */
     @Transactional
     public GameTypeDto updateGameType(String id, CreateGameTypeRequest request) {
@@ -112,8 +116,8 @@ public class GameCatalogService {
     }
 
     /**
-     * Rimuove un evento simulato (SensorDefinition) da un tipo di gioco.
-     * Verifica che il sensore appartenga davvero al GameType indicato.
+     * Dissocia e sopprime in modo permanente la definizione hardware di un sensore legata a un determinato gioco.
+     * Viene garantito a monte il controllo dell'effettiva affiliazione logica tra le due entità.
      */
     @Transactional
     public void deleteSensor(String gameTypeId, String sensorId) {
@@ -124,8 +128,8 @@ public class GameCatalogService {
             throw new BitpubException("Sensor does not belong to the specified GameType", HttpStatus.BAD_REQUEST);
         }
 
-        // Rimuovi dalla collezione in memoria + flush: publishConfig rilegge il GameType nella
-        // stessa transazione e senza questo vedrebbe il sensore appena cancellato (dirty read).
+        // Rimozione sincronizzata dal contesto di persistenza (collezione in memoria) seguita da flush immediato.
+        // Evita letture sporche (dirty read) durante la pubblicazione del nuovo stato via MQTT.
         GameType gameType = sensor.getGameType();
         if (gameType.getSensors() != null) {
             gameType.getSensors().remove(sensor);
@@ -136,8 +140,9 @@ public class GameCatalogService {
     }
 
     /**
-     * Rimuove un tipo di gioco dal catalogo e pulisce la config retained sull'edge
-     * pubblicando un payload vuoto su bitpub/config/games/{id} (cancella il messaggio retained).
+     * Purga una tipologia di gioco dal database relazionale.
+     * Procede parimenti alla rimozione del messaggio MQTT 'retained' inviando un payload vuoto, 
+     * scongiurando così il provisioning di dati obsoleti ai nuovi nodi in ascolto.
      */
     @Transactional
     public void deleteGameType(String id) {
@@ -176,8 +181,8 @@ public class GameCatalogService {
 
         SensorDefinition saved = sensorDefinitionRepository.save(sensor);
 
-        // Aggiungi alla collezione in memoria + flush: publishConfig rilegge il GameType nella
-        // stessa transazione e senza questo non vedrebbe il sensore appena salvato (dirty read).
+        // Allineamento della cache di sessione per includere il nuovo sensore prima della sincronizzazione.
+        // Il flush assicura l'estrazione aggiornata per il corretto invio del payload configurativo.
         if (gameType.getSensors() != null) {
             gameType.getSensors().add(saved);
         } else {

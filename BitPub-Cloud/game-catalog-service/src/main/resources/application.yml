@@ -1,3 +1,4 @@
+# Autore: Stefano Bellan Matricola 20054330
 server:
   port: 8084
 
@@ -19,7 +20,7 @@ spring:
 mqtt:
   broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
   client-id: ${MQTT_CLIENT_ID:game-catalog-service-${random.uuid}}
-  # Stable id + durable session so the broker queues Edge-forwarded catalog commands while this service is down.
+  # Identificativo stabile accoppiato a una sessione persistente per garantire che il broker accodi i comandi in caso di disconnessione.
   inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:game-catalog-service-command-ingest}
   topic:
     system-action: bitpub/cloud/commands/system/catalog/action

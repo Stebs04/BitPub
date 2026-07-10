@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.config;
 
 import org.springframework.context.annotation.Bean;
@@ -8,10 +11,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Il ruolo effettivo (dal token JWT inoltrato dal gateway) viene stabilito dal
- * JwtAuthenticationFilter condiviso in bitpub-common, che popola il SecurityContext.
- * La catena HTTP resta aperta: l'accesso e' vincolato a livello di metodo con @PreAuthorize.
- * La scrittura del catalogo (create GameType / add SensorDefinition) e' riservata al GAME_ADMIN.
+ * Gestisce le configurazioni di sicurezza HTTP interne per il microservizio catalogo.
+ * L'identità dell'utente viene processata a monte tramite il JwtAuthenticationFilter di libreria comune.
+ * Si delega l'applicazione dei vincoli autorizzativi direttamente ai singoli metodi mediante @PreAuthorize.
  */
 @Configuration
 @EnableMethodSecurity

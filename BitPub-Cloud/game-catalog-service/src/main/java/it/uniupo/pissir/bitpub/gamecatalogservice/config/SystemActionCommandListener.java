@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,15 +18,12 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 /**
- * Consumes Edge-forwarded game-catalog CUD commands from the Cloud system-action MQTT topic and
- * orchestrates the matching {@link GameCatalogService} call. The inner payload JSON carries an
- * {@code action} discriminant (CREATE_GAME_TYPE / UPDATE_GAME_TYPE / DELETE_GAME_TYPE / ADD_SENSOR /
- * DELETE_SENSOR) plus the data. Replaces the former direct REST calls from the WebApp to
- * /api/v1/catalog.
+ * Componente in ascolto sui canali MQTT dedicati alle operazioni di sistema (creazione/modifica/eliminazione) sul catalogo giochi.
+ * Interpreta il payload JSON e orchestra la chiamata corrispondente sul layer di servizio.
+ * Questa architettura sostituisce le vecchie interazioni dirette REST dal gateway.
  *
- * <p>The Edge validated the caller's JWT but not their role (MQTT carries no HTTP headers, so the
- * gateway {@code @PreAuthorize} no longer runs on this path). Catalog management is GAME_ADMIN-only,
- * so the role is re-checked here from the wrapper before any mutation.
+ * Provvede autonomamente alla verifica delle prerogative dell'attore (limitato a GAME_ADMIN),
+ * sopperendo alla mancanza del contesto HTTP @PreAuthorize su chiamate veicolate tramite protocollo MQTT.
  */
 @Component
 @RequiredArgsConstructor
@@ -55,11 +55,11 @@ public class SystemActionCommandListener {
             }
             log.info("Processed catalog action {} via MQTT (actor {})", action, wrapper.actorUserId());
         } catch (BitpubException e) {
-            // Genuine rejection (409 duplicate name, 404 not found, 400 bad sensor). Log, don't crash the
-            // subscriber or nack the QoS1 message — a retry would only replay the same rejected command.
+            // Eccezione applicativa gestita (es. conflitti di nome o risorse inesistenti).
+            // Si evita l'arresto del subscriber o il reject del messaggio QoS1 per impedire loop di retry infiniti.
             log.info("Rejected catalog action via MQTT ({}): {}", e.getStatus(), e.getMessage());
         } catch (Exception e) {
-            // Poison message — swallow so it doesn't wedge the durable queue.
+            // Errore critico in decodifica: il messaggio viene scartato per prevenire il blocco della coda persistente.
             log.error("Failed to process inbound catalog command: {}", message.getPayload(), e);
         }
     }

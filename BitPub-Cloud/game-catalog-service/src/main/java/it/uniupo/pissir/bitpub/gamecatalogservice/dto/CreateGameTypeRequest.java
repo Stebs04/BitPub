@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
@@ -11,6 +14,6 @@ public class CreateGameTypeRequest {
     @NotBlank
     private String description;
 
-    // Punti necessari per vincere. Default 10 se non specificato dal client.
+    // Obiettivo di punteggio predefinito per la vittoria
     private int winScoreTarget = 10;
 }

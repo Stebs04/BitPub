@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.repository;
 
 import it.uniupo.pissir.bitpub.gamecatalogservice.domain.GameType;

@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.gamecatalogservice.config;
 
 import it.uniupo.pissir.bitpub.gamecatalogservice.domain.GameType;
@@ -12,11 +15,11 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Semina i tipi di gioco base (Calciobalilla, Biliardo, Freccette) cosi' che un LOCALE_ADMIN
- * abbia machine da poter aggiungere al proprio locale senza dover prima passare da GAME_ADMIN.
- * Idempotente: salta i tipi gia' presenti (findByName), non tocca eventuali dati creati a mano.
+ * Popola il database con configurazioni di base per i giochi (es. Calciobalilla, Biliardo, Freccette),
+ * garantendo agli amministratori di locale una dotazione iniziale immediata.
+ * L'esecuzione è idempotente e previene sovrascritture di tipologie già esistenti.
  */
-// @Component  // ponytail: seed demo disabilitato - all'avvio si creano solo i 4 utenti base
+// @Component // Seed automatico attualmente disattivato per limitare l'inizializzazione ai soli profili essenziali
 @RequiredArgsConstructor
 public class GameCatalogDataSeeder implements CommandLineRunner {
 
@@ -24,7 +27,7 @@ public class GameCatalogDataSeeder implements CommandLineRunner {
     private final SensorDefinitionRepository sensorDefinitionRepository;
     private final GameCatalogService gameCatalogService;
 
-    // Sensori di controllo: non segnano punti, si attivano sempre.
+    // Definizione dei sensori di sistema: governano il ciclo di vita del match senza influire sul punteggio.
     private static final SensorSeed START = new SensorSeed("MATCH_START", "Inizio partita", false, 0, 1.0);
     private static final SensorSeed END = new SensorSeed("MATCH_END", "Fine partita", false, 0, 1.0);
 
@@ -78,7 +81,7 @@ public class GameCatalogDataSeeder implements CommandLineRunner {
                     .build());
         }
 
-        // Pubblica lo snapshot retained cosi' i simulatori hanno le regole anche per i giochi seminati.
+        // Espone la configurazione aggiornata tramite MQTT (con flag retained) per mantenere sincronizzati i simulatori.
         gameCatalogService.publishConfig(saved.getId());
     }
 
