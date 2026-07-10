@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,11 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * FASE 5 — Scenario 1: flusso Sensore -> Edge -> Cloud su MQTT reale (mosquitto in Testcontainers).
- * Un evento sensore valido pubblicato sul topic locale (bitpub/sensors/#) viene validato dal
- * RuleEngine dell'Edge e ri-pubblicato sul topic di ingest del Cloud
- * (bitpub/cloud/sensors/{gameInstanceId}/event). Sottoscrivendo quel topic con un client MQTT
- * grezzo verifichiamo l'inoltro end-to-end attraverso il broker.
+ * Test di integrazione per verificare il flusso MQTT tra Sensore, Edge e Cloud usando Testcontainers.
+ * Controlliamo che un evento valido arrivato sul topic locale venga elaborato dal motore regole
+ * e inoltrato correttamente sul topic di destinazione per il Cloud.
+ * Sfruttiamo un client MQTT di supporto per accertarci che il messaggio passi lungo tutta la catena.
  */
 @SpringBootTest
 @Testcontainers
@@ -38,7 +40,7 @@ public class EdgeMqttIntegrationTest {
     public static GenericContainer<?> mosquittoContainer =
             new GenericContainer<>(DockerImageName.parse("eclipse-mosquitto:2"))
                     .withExposedPorts(1883)
-                    // eclipse-mosquitto:2 nega gli anonimi di default: monto una conf che li abilita.
+                    // Per evitare blocchi di default di eclipse-mosquitto:2, passiamo un file di configurazione per autorizzare le connessioni anonime.
                     .withClasspathResourceMapping("mosquitto.conf", "/mosquitto/config/mosquitto.conf", org.testcontainers.containers.BindMode.READ_ONLY);
 
     private static String brokerUrl() {
@@ -47,7 +49,7 @@ public class EdgeMqttIntegrationTest {
 
     @DynamicPropertySource
     static void mqttProperties(DynamicPropertyRegistry registry) {
-        // L'Edge (inbound + cloud-outbound) punta al broker del container.
+        // Configuro i parametri di connessione dell'Edge affinché punti al broker isolato avviato nel container.
         registry.add("bitpub.mqtt.local.broker-url", EdgeMqttIntegrationTest::brokerUrl);
     }
 
@@ -68,15 +70,15 @@ public class EdgeMqttIntegrationTest {
                 received.countDown();
             });
 
-            // Evento sensore valido (senza matchId: nessuno stato live, inoltro puro Edge -> Cloud).
+            // Simulo un evento di gioco valido, in questo caso ometto il matchId per testare il puro instradamento.
             UUID eventId = UUID.randomUUID();
             String json = mapper.writeValueAsString(Map.of(
                     "eventId", eventId.toString(),
                     "gameInstanceId", gameInstanceId,
                     "sensorType", "GOAL"));
 
-            // L'adapter dell'Edge impiega un istante a connettersi/sottoscrivere dopo lo startup:
-            // ripubblico finche' l'inoltro non arriva (QoS1, idempotente lato Cloud su eventId).
+            // Visto che l'Edge potrebbe richiedere qualche istante per connettersi all'avvio,
+            // continuo a pubblicare il messaggio finché non viene ricevuto, sfruttando l'idempotenza basata sull'eventId.
             for (int i = 0; i < 20 && received.getCount() > 0; i++) {
                 probe.publish(localSensorTopic, new MqttMessage(json.getBytes()));
                 if (received.await(500, TimeUnit.MILLISECONDS)) break;

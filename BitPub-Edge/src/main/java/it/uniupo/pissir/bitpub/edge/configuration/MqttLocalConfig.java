@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.configuration;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -29,7 +32,7 @@ public class MqttLocalConfig {
     @Value("${bitpub.mqtt.local.topic-sensors}")
     private String topicSensors;
 
-    // Stable client id so the durable cloud subscriber (match-service) keeps its QoS1 queue.
+    // Uso un client id stabile così il subscriber cloud (match-service) mantiene in piedi la sua coda QoS1.
     @Value("${bitpub.mqtt.cloud.client-id}")
     private String cloudClientId;
 
@@ -52,8 +55,8 @@ public class MqttLocalConfig {
         return new DirectChannel();
     }
 
-    // ── Cloud egress: publish validated sensor events to the Cloud ingest topic (QoS1). ──
-    // Same broker as local in this deployment; a separate handler/client keeps the roles distinct.
+    // Egress verso il Cloud: pubblico gli eventi sensore validati sul topic di ingest cloud in QoS1.
+    // Anche se in questo rilascio il broker è lo stesso, tengo separati handler e client per mantenere distinti i ruoli.
 
     @Bean
     public MessageChannel cloudMqttOutboundChannel() {
@@ -65,13 +68,13 @@ public class MqttLocalConfig {
     public MessageHandler cloudMqttOutbound() {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(cloudClientId, mqttClientFactory());
         handler.setAsync(true);
-        handler.setDefaultQos(1); // QoS1 so the broker queues for the durable cloud subscriber while it is down
+        handler.setDefaultQos(1); // Manteniamo QoS1 per far accodare i messaggi al broker nel caso in cui il subscriber cloud cada
         return handler;
     }
 
-    // ── Local egress: publish game actions straight to the local simulator (QoS1), NO cloud buffer. ──
-    // Used by EdgeCommandController.gameAction so an offline Edge drives the local simulator directly
-    // instead of buffering the action toward a Cloud that never receives it.
+    // Egress locale: pubblico le azioni di gioco direttamente verso il simulatore locale in QoS1, senza passare dal buffer cloud.
+    // Questo permette a EdgeCommandController.gameAction di pilotare il simulatore direttamente quando l'Edge è offline,
+    // evitando di accodare un'azione verso un Cloud che tanto non la riceverebbe.
     @Bean
     public MessageChannel localMqttOutboundChannel() {
         return new DirectChannel();
@@ -97,10 +100,10 @@ public class MqttLocalConfig {
         return adapter;
     }
 
-    // ── Cloud ingress: subscribe to the Cloud match-state sync push (Cloud -> Edge). ──
-    // On IN_PROGRESS the Cloud publishes the full match state here; the Edge eagerly initializes its
-    // authoritative LocalMatchState from this push instead of a REST pull, so it runs autonomously
-    // while the Cloud is unreachable. Same broker as local in this deployment.
+    // Ingress dal Cloud: mi iscrivo al push di sincronizzazione dello stato partita (Cloud -> Edge).
+    // Quando lo stato passa a IN_PROGRESS, il Cloud spinge qui tutto lo stato; l'Edge lo usa per inizializzare subito
+    // il suo LocalMatchState autoritativo invece di fare una chiamata REST, così può continuare a funzionare da solo
+    // anche se il Cloud risulta irraggiungibile. In questa configurazione il broker è sempre quello locale.
 
     @Bean
     public MessageChannel matchSyncInputChannel() {
@@ -119,7 +122,7 @@ public class MqttLocalConfig {
         return adapter;
     }
 
-    // ── Cloud ingress: subscribe to game ADD/REMOVE events for this locale. ──
+    // Ingress dal Cloud: sottoscrizione agli eventi ADD/REMOVE dei giochi per questo locale.
 
     @Bean
     public MessageChannel cloudGamesInputChannel() {

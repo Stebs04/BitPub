@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import org.junit.jupiter.api.Test;
@@ -24,13 +27,13 @@ class MqttBufferServiceTest {
         MessageChannel channel = mock(MessageChannel.class);
         MqttBufferService buffer = new MqttBufferService(channel);
 
-        // Cloud drops: subsequent sends are queued, not forwarded.
+        // Simulo la caduta del Cloud: gli invii successivi devono essere messi in coda, non inoltrati.
         buffer.onConnectionFailed(new MqttConnectionFailedEvent(this, new RuntimeException("lost")));
         buffer.send(msg("r1"), "result 1");
         buffer.send(msg("r2"), "result 2");
         verify(channel, never()).send(any());
 
-        // Reconnect: the whole buffer is flushed in order.
+        // Alla riconnessione verifichiamo che tutto il buffer venga svuotato nell'ordine corretto.
         buffer.onSubscribed(new MqttSubscribedEvent(this, "topic"));
         verify(channel, times(2)).send(any());
     }
@@ -38,12 +41,12 @@ class MqttBufferServiceTest {
     @Test
     void up_sendsThrough_noQueue() {
         MessageChannel channel = mock(MessageChannel.class);
-        MqttBufferService buffer = new MqttBufferService(channel); // cloudUp=true by default
+        MqttBufferService buffer = new MqttBufferService(channel); // Per default consideriamo la connessione attiva
 
         buffer.send(msg("r1"), "result 1");
 
         verify(channel, times(1)).send(any());
-        // A later reconnect event has nothing to flush.
+        // Un eventuale evento di riconnessione non troverà niente in coda da svuotare.
         buffer.onSubscribed(new MqttSubscribedEvent(this, "topic"));
         verify(channel, times(1)).send(any());
     }
@@ -51,14 +54,14 @@ class MqttBufferServiceTest {
     @Test
     void sendFailure_fallsBackToBuffer_thenFlushesWhenChannelRecovers() {
         MessageChannel channel = mock(MessageChannel.class);
-        // First send throws (broker down mid-send) so the message is queued despite cloudUp=true.
+        // Simulo che il broker cada proprio durante l'invio: il messaggio andrà in coda anche se il sistema lo riteneva attivo.
         org.mockito.Mockito.doThrow(new RuntimeException("broker down")).doReturn(true).when(channel).send(any());
         MqttBufferService buffer = new MqttBufferService(channel);
 
-        buffer.send(msg("r1"), "result 1"); // throws internally, gets queued
+        buffer.send(msg("r1"), "result 1"); // L'eccezione interna viene catturata e il messaggio va in coda
         verify(channel, times(1)).send(any());
 
-        // Reconnect: channel now succeeds, the queued message is flushed.
+        // Al ritorno della connessione, il canale funziona di nuovo e il messaggio in coda viene smaltito con successo.
         buffer.onSubscribed(new MqttSubscribedEvent(this, "topic"));
         verify(channel, times(2)).send(any());
     }

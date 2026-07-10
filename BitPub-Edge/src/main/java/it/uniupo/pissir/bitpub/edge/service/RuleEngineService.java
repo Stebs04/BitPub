@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,13 +19,13 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Motore di gioco dell'Edge: valida i sensor event e ora tiene lo STATO LIVE autoritativo di ogni
- * partita attiva (turno, punteggi, tiri a freccette) in memoria. La logica live e' migrata qui dal
- * Cloud: l'Edge decide di chi e' il turno, aggiorna il punteggio ad ogni evento (anche i MISS),
- * alterna il turno e a fine partita produce l'esito finale arricchito riportato al Cloud via MQTT.
- * Lo stato iniziale (giocatori, ordine, turno) NON e' piu' caricato via REST: il Cloud lo pubblica
- * su MQTT (topic edge-match-sync) quando la partita va IN_PROGRESS, cosi' l'Edge opera in autonomia
- * anche a Cloud irraggiungibile (nessuna chiamata sincrona sul percorso caldo).
+ * Motore di gioco locale per il nodo Edge. Valida gli eventi dei sensori e gestisce in memoria
+ * lo stato della partita corrente, fungendo da sorgente autoritativa per turni, punteggi e tiri.
+ * Manteniamo qui tutta la logica di gioco: l'Edge determina a chi tocca, calcola i punteggi
+ * per ogni azione (inclusi i mancati bersagli), gestisce l'alternanza dei giocatori e, al termine,
+ * impacchetta il risultato finale per inviarlo al Cloud tramite MQTT.
+ * Lo stato iniziale viene ricevuto via MQTT non appena la partita inizia, permettendoci di operare
+ * senza interruzioni anche in assenza di connettività verso il server centrale.
  */
 @Service
 @Slf4j
@@ -30,7 +33,7 @@ public class RuleEngineService {
 
     private final ObjectMapper objectMapper;
 
-    // Stato live per matchId, popolato dal push MQTT del Cloud (initFromSync).
+    // Mappa per tenere in memoria lo stato delle partite correnti indicizzate per ID, popolate dal Cloud.
     private final Map<String, LocalMatchState> states = new ConcurrentHashMap<>();
 
     public RuleEngineService() {
@@ -52,14 +55,16 @@ public class RuleEngineService {
         }
     }
 
-    /** Stato live in-memory di una partita attiva su questo Edge. Struct interno: campi pubblici. */
+    /**
+     * Struttura dati per lo stato della partita, mantenuto in memoria per tutta la durata del match sull'Edge.
+     */
     public static class LocalMatchState {
         public String matchId;
         public String gameInstanceId;
         public String localeId;
         public String gameTypeId;
-        public boolean darts;                 // freccette: 3 tiri per giocatore prima di alternare
-        public int winTarget = Integer.MAX_VALUE; // dal payload winScoreTarget (data-driven)
+        public boolean darts;                 // Indica se si gioca a freccette, influenzando il cambio turno.
+        public int winTarget = Integer.MAX_VALUE; // Punteggio da raggiungere per la vittoria
         public final List<String> teamOrder = new ArrayList<>();       // [teamAName, teamBName]
         public final List<String> playerUserIds = new ArrayList<>();   // [userA, userB], stesso ordine
         public final Map<String, Integer> scoreByTeam = new LinkedHashMap<>();
@@ -69,12 +74,12 @@ public class RuleEngineService {
         public boolean finished = false;
     }
 
-    // ── Turno: interrogato dall'EdgeCommandController prima di inoltrare un'azione ──────────────
+    // ── Gestione Turni ──────────────────────────────────────────────────────────────────────────
 
     /**
-     * true se l'azione di {@code userId} e' ammessa. Fail-open se lo stato live non e' presente
-     * (sync non ancora ricevuto o partita non live): meglio non applicare il turno che deadlockare
-     * la partita bloccando entrambi i giocatori.
+     * Verifica se il giocatore specificato è autorizzato ad agire in questo momento.
+     * In caso di stato mancante concediamo comunque il turno per non bloccare la partita,
+     * preferendo un approccio permissivo per evitare stalli.
      */
     public boolean isPlayersTurn(String matchId, String userId) {
         LocalMatchState s = states.get(matchId);
@@ -84,24 +89,26 @@ public class RuleEngineService {
         return s.currentTurnUserId.equals(userId);
     }
 
-    /** Stato live autoritativo di una partita (o null se non tracciata): usato dal Controller per
-     *  risolvere la squadra di chi agisce e gli id del gioco prima di inoltrare l'azione al simulatore. */
+    /**
+     * Recupera lo stato attuale della partita. Il Controller lo usa per capire
+     * a quale squadra appartiene il giocatore prima di passare l'azione al simulatore.
+     */
     public LocalMatchState getState(String matchId) {
         return states.get(matchId);
     }
 
-    // ── Evento: aggiorna punteggio + turno, segnala fine partita ───────────────────────────────
+    // ── Gestione Eventi e Punteggi ──────────────────────────────────────────────────────────────
 
     /**
-     * Applica un sensor event allo stato live: accredita il punteggio (0 = MISS), alterna il turno
-     * (freccette: dopo 3 tiri dello stesso giocatore) e marca la fine al raggiungimento del target
-     * o su MATCH_END. Ritorna lo stato aggiornato, o empty se l'evento non e' legato a una partita
-     * live tracciabile (matchId assente / non caricabile / gia' finita).
+     * Aggiorna lo stato della partita applicando l'evento del sensore appena ricevuto.
+     * Si occupa di assegnare i punti, avanzare i turni secondo le regole del gioco specifico
+     * e dichiarare la fine del match se necessario.
+     * Restituisce lo stato aggiornato, oppure vuoto se la partita non è attiva o non tracciata.
      */
     public Optional<LocalMatchState> applyEvent(SensorEvent event) {
         String matchId = event.getMatchId();
         if (matchId == null || matchId.isBlank()) {
-            return Optional.empty(); // eventi non interattivi (es. autoplay senza matchId): nessuno stato live
+            return Optional.empty(); // Saltiamo gli eventi non interattivi che non necessitano di uno stato.
         }
         LocalMatchState s = states.get(matchId);
         if (s == null || s.finished) {
@@ -110,7 +117,10 @@ public class RuleEngineService {
         return applyToState(s, event);
     }
 
-    /** Transizione pura (turno/punteggio/fine) su uno stato gia' risolto — testabile senza il Cloud. */
+    /**
+     * Calcola il nuovo stato partendo da quello attuale e dall'evento, mantenendo la logica
+     * isolata per facilitare i test senza dipendenze dal Cloud.
+     */
     Optional<LocalMatchState> applyToState(LocalMatchState s, SensorEvent event) {
         Map<String, Object> p = event.getPayload();
         String team = p != null && p.get("team") != null ? p.get("team").toString() : null;
@@ -126,7 +136,7 @@ public class RuleEngineService {
             return Optional.of(s); // stato gia' inizializzato dal roster
         }
 
-        // Punteggio: modello data-driven, somma verso winTarget (come faceva il Cloud).
+        // Aggiorniamo il punteggio sommando il valore ricevuto e verifichiamo la condizione di vittoria.
         if (inc != 0 && team != null && s.scoreByTeam.containsKey(team)) {
             int ns = s.scoreByTeam.get(team) + inc;
             s.scoreByTeam.put(team, ns);
@@ -136,7 +146,7 @@ public class RuleEngineService {
             }
         }
 
-        // Turno: ogni tiro conta (anche MISS). Freccette: alterna dopo 3 tiri dello stesso giocatore.
+        // Gestiamo il passaggio di turno. Per le freccette il cambio avviene ogni 3 tiri, compresi i tiri a vuoto.
         if (s.darts) {
             s.throwsThisTurn++;
             if (s.throwsThisTurn >= 3) {
@@ -149,7 +159,9 @@ public class RuleEngineService {
         return Optional.of(s);
     }
 
-    /** Payload di stato per il broker locale: stessi campi del GameState del frontend + currentTurnUserId. */
+    /**
+     * Costruisce i dati sullo stato della partita pronti per essere pubblicati sul broker locale per il frontend.
+     */
     public Map<String, Object> buildStatePayload(LocalMatchState s, String eventMessage) {
         String a = !s.teamOrder.isEmpty() ? s.teamOrder.get(0) : "A";
         String b = s.teamOrder.size() > 1 ? s.teamOrder.get(1) : "B";
@@ -169,10 +181,9 @@ public class RuleEngineService {
     }
 
     /**
-     * Payload finale ARRICCHITO verso il Cloud: oltre ai punteggi esatti (scoreByTeam) include i
-     * giocatori connessi (playerUserIds) e il vincitore (winnerName). Serializzato e pubblicato via
-     * MQTT (QoS1) dall'EventForwardingService attraverso il buffer offline, cosi' l'esito di una
-     * partita conclusa a Cloud irraggiungibile non va perso.
+     * Genera il riepilogo di fine partita con tutti i dettagli: punteggi, partecipanti e il nome del vincitore.
+     * Questo pacchetto viene inviato al Cloud tramite il buffer offline per garantire che il risultato
+     * arrivi a destinazione anche in caso di disconnessione.
      */
     public Map<String, Object> buildResultPayload(LocalMatchState s) {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -183,12 +194,14 @@ public class RuleEngineService {
         return p;
     }
 
-    /** Libera lo stato live di una partita conclusa (chiamato dopo aver pubblicato l'esito). */
+    /**
+     * Pulisce dalla memoria lo stato della partita una volta che l'esito è stato pubblicato con successo.
+     */
     public void clearState(String matchId) {
         states.remove(matchId);
     }
 
-    // ── internals ──────────────────────────────────────────────────────────────────────────────
+    // ── Metodi di Supporto ──────────────────────────────────────────────────────────────────────
 
     private void finish(LocalMatchState s) {
         s.finished = true;
@@ -196,7 +209,9 @@ public class RuleEngineService {
         s.winnerName = leader(s);
     }
 
-    /** Team col punteggio piu' alto; null se pareggio (nessun vincitore), come nel Cloud. */
+    /**
+     * Determina la squadra in testa calcolando il punteggio maggiore. Restituisce null in caso di pareggio.
+     */
     private String leader(LocalMatchState s) {
         String best = null;
         int max = Integer.MIN_VALUE, min = Integer.MAX_VALUE;
@@ -207,7 +222,9 @@ public class RuleEngineService {
         return max == min ? null : best;
     }
 
-    /** Alterna tra i due userId del roster; se non c'e' un secondo giocatore resta invariato. */
+    /**
+     * Passa il turno al prossimo giocatore disponibile nella lista dei partecipanti.
+     */
     private String other(LocalMatchState s, String current) {
         if (s.playerUserIds.size() < 2) return current;
         String a = s.playerUserIds.get(0), b = s.playerUserIds.get(1);
@@ -215,10 +232,9 @@ public class RuleEngineService {
     }
 
     /**
-     * Inizializza (o rimpiazza) lo stato live da un push MQTT del Cloud (topic edge-match-sync).
-     * Sostituisce il vecchio loadRoster REST: nessuna chiamata sincrona, l'Edge riceve lo stato
-     * completo (giocatori, punteggi, turno) quando la partita va IN_PROGRESS. Ignora payload non
-     * IN_PROGRESS. {@code m} e' il MatchDto serializzato dal match-service.
+     * Prepara lo stato iniziale della partita a partire dai dati ricevuti dal Cloud.
+     * Elaboriamo le informazioni su squadre e turni solo se la partita è attivamente in corso,
+     * ignorando i messaggi per match in altri stati.
      */
     public void initFromSync(JsonNode m) {
         if (m == null) {
@@ -226,7 +242,7 @@ public class RuleEngineService {
         }
         String matchId = text(m, "id");
         if (matchId == null || !"IN_PROGRESS".equals(text(m, "status"))) {
-            return; // tracciamo solo partite live
+            return; // Gestiamo e teniamo in memoria unicamente le partite attualmente in corso.
         }
         LocalMatchState s = new LocalMatchState();
         s.matchId = matchId;

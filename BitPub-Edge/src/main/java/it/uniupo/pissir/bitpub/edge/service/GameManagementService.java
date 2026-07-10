@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,9 +14,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Keeps the Edge node's local view of installed game instances in sync with the cloud catalog.
- * locale-service publishes ADD/REMOVE events on bitpub/locales/games/{localeId}; this service
- * applies them to an in-memory registry (gameInstanceId -> gameTypeId).
+ * Mantiene sincronizzata la vista locale delle istanze di gioco con il catalogo del Cloud.
+ * Ascolta gli eventi ADD/REMOVE e aggiorna di conseguenza un registro in memoria che mappa
+ * gli id delle istanze ai tipi di gioco.
  */
 @Service
 @Slf4j
@@ -21,7 +24,7 @@ public class GameManagementService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // ponytail: in-memory registry, ephemeral by design; persist to edge-db if state must survive restart.
+    // Il registro in memoria è effimero. Nel caso in cui lo stato dovesse sopravvivere a un riavvio andrà salvato su db.
     private final Map<String, String> installedGames = new ConcurrentHashMap<>();
 
     @ServiceActivator(inputChannel = "cloudGamesInputChannel")

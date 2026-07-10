@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
@@ -57,7 +60,7 @@ class EventForwardingServiceTest {
 
         service.handleMqttMessage(msg("{...}"));
 
-        verify(mqttBuffer, times(1)).send(any(), any()); // solo l'ingest verso il Cloud
+        verify(mqttBuffer, times(1)).send(any(), any()); // Controlliamo che avvenga unicamente l'inoltro verso il Cloud
         verify(ruleEngineService, never()).clearState(any());
     }
 
@@ -76,9 +79,9 @@ class EventForwardingServiceTest {
 
         service.handleMqttMessage(msg("{...}"));
 
-        // Un send per lo stato live locale + un send per l'esito finale + un send per l'ingest cloud.
+        // In totale ci aspettiamo tre messaggi inviati: uno per lo stato locale, uno per il resoconto e l'ultimo per l'inoltro verso il cloud
         verify(mqttBuffer, times(3)).send(any(), any());
-        verify(ruleEngineService).clearState("m1"); // fine partita: stato liberato dopo il report
+        verify(ruleEngineService).clearState("m1"); // Una volta finita la partita, ci assicuriamo che lo stato in memoria venga rimosso
     }
 
     @Test

@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -13,14 +16,11 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Buffer offline esplicito a livello applicativo per l'egress Edge -> Cloud su MQTT. NON si affida
- * alla coda invisibile di Paho/broker: traccia lo stato della connessione MQTT verso il Cloud
- * (UP/DOWN) tramite gli eventi di Spring Integration e, quando e' DOWN, accoda in memoria i risultati
- * delle partite e i comandi di torneo, per poi svuotare la coda alla riconnessione con log espliciti.
- * Garantisce che l'esito di una partita/torneo attivo non vada perso durante un'interruzione del Cloud.
- *
- * ponytail: coda in memoria; persa a un riavvio del processo Edge. Persistere sull'H2 edge-db solo se
- * serve la sopravvivenza anche a un crash dell'Edge (il requisito riguarda la caduta del Cloud).
+ * Servizio di buffering offline a livello applicativo per le comunicazioni in uscita dall'Edge verso il Cloud.
+ * Evitiamo di affidarci unicamente alle code interne del broker e tracciamo esplicitamente lo stato della connessione.
+ * In caso di disconnessione, i risultati e i comandi vengono accodati in memoria, per poi essere inviati
+ * non appena la connessione torna attiva, garantendo l'integrità dei dati.
+ * Attualmente la coda vive solo in memoria ed è pensata per gestire le cadute del Cloud, non i crash locali.
  */
 @Service
 @Slf4j
@@ -35,8 +35,8 @@ public class MqttBufferService {
     }
 
     /**
-     * Invia il messaggio al Cloud se la connessione e' UP, altrimenti lo accoda localmente.
-     * {@code description} identifica l'azione bufferizzata nel log offline.
+     * Tenta l'invio del messaggio verso il Cloud.
+     * Se la connessione risulta inattiva, salva il messaggio localmente nella coda.
      */
     public void send(Message<?> message, String description) {
         if (cloudUp) {
@@ -44,7 +44,7 @@ public class MqttBufferService {
                 cloudMqttOutboundChannel.send(message);
                 return;
             } catch (Exception e) {
-                // Broker/Cloud caduto tra un evento e l'altro: ripiega sul buffer e marca DOWN.
+                // Il sistema remoto è caduto tra un controllo e l'altro, passiamo al buffer e segniamo offline.
                 cloudUp = false;
                 log.warn("Cloud send failed, switching to offline buffer", e);
             }
@@ -63,7 +63,7 @@ public class MqttBufferService {
 
     @EventListener
     public void onSubscribed(MqttSubscribedEvent event) {
-        // (Ri)connessione + subscribe riuscita: connessione UP, svuota la coda accumulata.
+        // Sottoscrizione avvenuta con successo, il Cloud è di nuovo raggiungibile, svuotiamo la coda.
         cloudUp = true;
         flush();
     }
@@ -80,7 +80,7 @@ public class MqttBufferService {
                 buffer.poll();
                 flushed++;
             } catch (Exception e) {
-                // Ancora irraggiungibile: lascia il resto in coda per il prossimo tentativo.
+                // Il server è di nuovo irraggiungibile, lasciamo i restanti messaggi in coda per la prossima volta.
                 cloudUp = false;
                 log.error("Flush interrupted; {} messages still queued", buffer.size(), e);
                 break;

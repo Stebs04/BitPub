@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,8 +25,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-// Unit test diretto: l'Edge non usa spring-security, il controller valida il JWT via JwtUtils
-// e pubblica su MQTT. Nessun MockMvc necessario per la logica di auth/turno/relay.
+// Test unitario per il Controller. Siccome l'Edge non adotta spring-security ma valida i JWT autonomamente,
+// non abbiamo bisogno di usare MockMvc; possiamo testare la logica di turnazione e instradamento isolatamente.
 @ExtendWith(MockitoExtension.class)
 class EdgeCommandControllerTest {
 
@@ -66,7 +69,7 @@ class EdgeCommandControllerTest {
         assertThatThrownBy(() -> controller.gameAction("m1", "{}", "Bearer tok"))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
-        verify(localMqttOutboundChannel, never()).send(any()); // bloccato sull'Edge, non raggiunge il simulatore
+        verify(localMqttOutboundChannel, never()).send(any()); // Blocco preventivo, il simulatore locale non deve essere chiamato
     }
 
     @Test
@@ -88,7 +91,7 @@ class EdgeCommandControllerTest {
         var response = controller.gameAction("m1", "{\"sensorType\":\"GOAL\",\"eventId\":\"e1\"}", "Bearer tok");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        verify(localMqttOutboundChannel).send(any()); // instradato al simulatore locale, NON bufferizzato al Cloud
+        verify(localMqttOutboundChannel).send(any()); // Inviato direttamente in locale senza passare dal buffer verso il Cloud
         verify(mqttBuffer, never()).send(any(), any());
     }
 

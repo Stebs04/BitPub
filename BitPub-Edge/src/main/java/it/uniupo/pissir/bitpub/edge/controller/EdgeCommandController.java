@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,16 +27,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Inbound REST ingress for WebApp commands: interactive game actions and tournament match results.
- * The WebApp calls the Edge (reachable on the local network even when the cloud is briefly down);
- * the Edge validates the caller's JWT once (trusted origin) and relays the command to the Cloud
- * 100% over MQTT (QoS1) through the explicit offline buffer (MqttBufferService), which queues the
- * command locally while the Cloud connection is DOWN and flushes it on reconnect. Everything returns
- * 202 — the resulting state reaches the WebApp on its own live MQTT topic (match-state / tournament-state).
+ * Endpoint REST per i comandi in ingresso dalla WebApp, ovvero le azioni interattive e i risultati dei tornei.
+ * La WebApp contatta l'Edge, raggiungibile nella rete locale anche in caso di down temporaneo del Cloud;
+ * l'Edge a sua volta valida il JWT e inoltra il comando al Cloud tramite MQTT in QoS1.
+ * Ci appoggiamo al buffer offline per accodare i comandi localmente se la connessione è caduta.
+ * Rispondiamo sempre con 202, lasciando che lo stato si aggiorni in autonomia sulla WebApp tramite i topic dedicati.
  */
 @RestController
 @RequestMapping("/edge")
-@CrossOrigin(origins = "*") // ponytail: demo-open CORS; lock to the WebApp origin for production
+@CrossOrigin(origins = "*") // Apertura CORS per la demo, per la produzione andrà limitato all'origine della WebApp
 @Slf4j
 public class EdgeCommandController {
 
@@ -55,12 +57,10 @@ public class EdgeCommandController {
     }
 
     /**
-     * Interactive game action from the turn player. Body = GameActionRequestDto JSON incl. eventId.
-     * L'Edge NON delega piu' l'orchestrazione al Cloud: risolve localmente la squadra di chi agisce e
-     * inoltra l'azione DIRETTAMENTE al simulatore locale (topic bitpub/simulators/{gameInstanceId}/action)
-     * su un canale MQTT non bufferizzato. Il simulatore ripubblica il SensorEvent in locale, sbloccando
-     * il turno nel RuleEngineService anche a Cloud irraggiungibile. Returns 202 — lo stato risultante
-     * raggiunge la WebApp sul topic match-state.
+     * Gestisce l'azione interattiva inviata dal giocatore.
+     * L'Edge risolve localmente chi sta agendo e manda l'azione direttamente al simulatore, senza passare per il Cloud.
+     * Questo sblocca il turno anche se il Cloud è irraggiungibile. Ritorniamo 202 e lo stato aggiornato
+     * arriverà alla WebApp tramite il topic match-state.
      */
     @PostMapping("/matches/{matchId}/action")
     public ResponseEntity<String> gameAction(@PathVariable("matchId") String matchId,
@@ -68,8 +68,8 @@ public class EdgeCommandController {
                                              @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Actor actor = authenticate(authHeader);
 
-        // Gate del turno sullo stato live locale (autoritativo sull'Edge): se non e' il turno del
-        // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore.
+        // Controllo il turno basandomi sullo stato locale, che per noi è la fonte di verità.
+        // Se non è il turno di chi ha fatto la chiamata, blocco l'azione prima che arrivi al simulatore.
         if (!ruleEngine.isPlayersTurn(matchId, actor.userId())) {
             log.info("Blocked out-of-turn action for match {} by actor {}", matchId, actor.userId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non e' il tuo turno");
@@ -80,7 +80,7 @@ public class EdgeCommandController {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Partita non attiva sull'Edge");
         }
 
-        // Risolvi la squadra di chi agisce: indice dello userId in playerUserIds -> teamOrder omologo.
+        // Ricavo la squadra di chi agisce partendo dall'indice del giocatore
         int idx = state.playerUserIds.indexOf(actor.userId());
         String team = (idx >= 0 && idx < state.teamOrder.size())
                 ? state.teamOrder.get(idx)
@@ -94,7 +94,7 @@ public class EdgeCommandController {
         request.put("matchId", matchId);
         request.put("sensorType", body.path("sensorType").asText(null));
         request.put("team", team);
-        request.put("eventId", body.path("eventId").asText(null)); // idempotenza propagata al sensor event
+        request.put("eventId", body.path("eventId").asText(null)); // Manteniamo l'id per garantire l'idempotenza
 
         String topic = MqttTopics.getSimulatorActionTopic(state.gameInstanceId);
         localMqttOutboundChannel.send(MessageBuilder.withPayload(toJson(request))
@@ -106,9 +106,9 @@ public class EdgeCommandController {
     }
 
     /**
-     * Tournament match result reported by a LOCALE_ADMIN. Published to the cloud over MQTT (QoS1);
-     * tournament-service validates the role from the wrapper and advances the bracket. Returns 202 —
-     * the updated bracket reaches the WebApp via the tournament-state MQTT topic.
+     * Risultato della partita riportato da un amministratore di locale.
+     * Viene inviato al Cloud via MQTT per poi avanzare il tabellone del torneo.
+     * Ritorniamo 202, e il tabellone aggiornato sarà inviato alla WebApp in un secondo momento.
      */
     @PutMapping("/tournaments/{tournamentId}/matches/{tMatchId}/result")
     public ResponseEntity<String> tournamentResult(@PathVariable("tournamentId") String tournamentId,
@@ -126,11 +126,9 @@ public class EdgeCommandController {
     }
 
     /**
-     * Generic CUD (Create/Update/Delete) command for any cloud entity (users, locales, catalog, ...).
-     * The WebApp posts the raw action body; the Edge validates the JWT once and relays it to the Cloud
-     * 100% over MQTT (QoS1), packed in an MqttCommandWrapper. {entity} is echoed in the topic so each
-     * cloud service subscribes only to its own slice. Returns 202 — result flows back on the entity's
-     * own live MQTT topic. The action verb (CREATE/UPDATE/DELETE) travels inside the body JSON.
+     * Comando generico di creazione, aggiornamento o eliminazione per le entità del cloud.
+     * Dopo aver validato il token, l'Edge inoltra il payload incapsulato in un wrapper via MQTT.
+     * Ritorniamo 202 per confermare l'accettazione della richiesta.
      */
     @PostMapping("/system/{entity}/action")
     public ResponseEntity<String> systemAction(@PathVariable("entity") String entity,
@@ -143,13 +141,13 @@ public class EdgeCommandController {
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
-    // ── internals ───────────────────────────────────────────────────────────────
+    // ── Utility interne ─────────────────────────────────────────────────────────
 
     private record Actor(String userId, String role) {}
 
     /**
-     * Packs identity + body into an MqttCommandWrapper and relays it to the cloud command topic (QoS1)
-     * through the explicit offline buffer, which queues it locally if the Cloud connection is DOWN.
+     * Prepara il pacchetto con identità e payload, accodandolo nel buffer in attesa dell'invio al Cloud.
+     * Se la connessione è assente, il messaggio resta al sicuro localmente.
      */
     private void publishCommand(String topic, String targetId, Actor actor, String payloadJson, String description) {
         String json = toJson(new MqttCommandWrapper(actor.userId(), actor.role(), targetId, payloadJson));

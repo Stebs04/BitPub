@@ -1,3 +1,6 @@
+/**
+ * Autore: Timothy Giolito 20054431
+ */
 package it.uniupo.pissir.bitpub.edge.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,9 +34,10 @@ public class EventForwardingService {
     }
 
     /**
-     * Cloud -> Edge full match state push (topic bitpub/edge/matches/+/sync). Eagerly initializes the
-     * authoritative LocalMatchState so the Edge no longer pulls the roster via REST and keeps running
-     * (turn gate + live scoring) even while the Cloud is unreachable.
+     * Ricezione dello stato partita completo dal Cloud.
+     * Inizializza subito lo stato locale (LocalMatchState) in modo che l'Edge possa gestire in autonomia
+     * il calcolo del punteggio e il cambio dei turni, senza fare chiamate REST e garantendo il funzionamento
+     * anche a Cloud spento.
      */
     @ServiceActivator(inputChannel = "matchSyncInputChannel")
     public void handleMatchSync(Message<String> message) {
@@ -46,10 +50,10 @@ public class EventForwardingService {
     }
 
     /**
-     * Validated sensor events are forwarded Edge -> Cloud over MQTT (QoS1) through the explicit offline
-     * buffer, which queues them locally while the Cloud connection is DOWN and flushes on reconnect.
-     * At match end the enriched final result (players, exact scores, winner) is published the same way,
-     * so a result produced during a cloud outage is buffered instead of lost.
+     * Inoltra gli eventi dei sensori validati verso il Cloud tramite MQTT (QoS1).
+     * Sfrutta il buffer offline per non perdere i messaggi quando la connessione cade.
+     * A fine partita prepariamo un resoconto arricchito con punteggi e vincitore, e lo pubblichiamo
+     * usando lo stesso canale per assicurarci che non vada perso.
      */
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMqttMessage(Message<String> message) {
@@ -63,9 +67,9 @@ public class EventForwardingService {
 
         SensorEvent event = optionalEvent.get();
 
-        // Stato live autoritativo sull'Edge: aggiorna turno + punteggio e pubblica SUBITO il nuovo
-        // stato sul broker locale (topic match-state) cosi' il frontend dell'altro giocatore sblocca
-        // il turno all'istante. A fine partita riporta l'esito finale arricchito al Cloud (via buffer).
+        // Manteniamo lo stato sul nodo Edge. Aggiorniamo turno e punteggio e li pubblichiamo
+        // immediatamente sul broker locale, permettendo ai frontend di aggiornarsi senza ritardi.
+        // A fine partita ci occupiamo di preparare l'esito finale per il Cloud.
         ruleEngineService.applyEvent(event).ifPresent(state -> {
             publishLocalState(state, event.getSensorType());
             if (state.finished) {
@@ -89,9 +93,9 @@ public class EventForwardingService {
     }
 
     /**
-     * A fine partita pubblica l'esito finale arricchito (giocatori, punteggi esatti, vincitore) sul
-     * topic edge-match-result via il buffer offline, poi libera lo stato live. Sostituisce la vecchia
-     * POST REST /result: se il Cloud e' giu' l'esito viene bufferizzato e riconsegnato al ripristino.
+     * Pubblica l'esito conclusivo della partita includendo giocatori, punteggi e vincitore.
+     * Utilizza MQTT con il buffer offline invece della vecchia chiamata REST, in modo
+     * da accodare l'esito qualora il Cloud risulti offline al momento della fine.
      */
     private void reportResult(RuleEngineService.LocalMatchState state) {
         try {
@@ -108,10 +112,10 @@ public class EventForwardingService {
     }
 
     /**
-     * Pubblica lo stato live sul broker locale (topic match-state), con RETAINED cosi' un subscriber
-     * tardivo/riconnesso riceve subito l'ultimo stato. ponytail: qui il broker locale e quello cloud
-     * sono la stessa mosquitto, quindi si riusa il buffer/canale cloud; separarli solo se le due
-     * istanze verranno davvero divise.
+     * Rende disponibile lo stato della partita sul broker locale usando l'opzione RETAINED,
+     * consentendo a eventuali client disconnessi di riallinearsi istantaneamente.
+     * In questa demo usiamo la stessa istanza Mosquitto sia per locale che per cloud, riutilizzando
+     * così il canale del buffer.
      */
     private void publishLocalState(RuleEngineService.LocalMatchState state, String eventMessage) {
         try {
