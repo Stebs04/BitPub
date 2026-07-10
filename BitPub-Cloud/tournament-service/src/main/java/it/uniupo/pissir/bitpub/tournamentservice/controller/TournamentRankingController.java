@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.controller;
 
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRankingDto;
@@ -8,6 +11,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Controller REST per la consultazione e l'aggiornamento delle classifiche dei tornei.
+ * Rende disponibili gli endpoint per recuperare lo stato della classifica in tempo reale.
+ */
 @RestController
 @RequestMapping("/api/v1/tournaments/{tournamentId}/rankings")
 @RequiredArgsConstructor

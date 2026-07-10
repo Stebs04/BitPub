@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
@@ -27,6 +30,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Classe di test per verificare la logica di calcolo delle classifiche dei tornei.
+ */
 @ExtendWith(MockitoExtension.class)
 class TournamentRankingServiceImplTest {
 
@@ -84,7 +90,7 @@ class TournamentRankingServiceImplTest {
         verify(rankingRepository, times(2)).save(any()); // una riga per iscritto
     }
 
-    // ── getTournamentRankings: la classifica si ricostruisce dai vincitori del tabellone ──
+    // ── Test per la ricostruzione della classifica in base all'esito delle partite nel tabellone ──
     @Test
     void getTournamentRankings_countsWinsFromBracket() {
         Tournament t = tournament("t1");

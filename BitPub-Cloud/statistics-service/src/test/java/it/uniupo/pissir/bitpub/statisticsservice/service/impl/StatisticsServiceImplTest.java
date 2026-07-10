@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +22,10 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Test suite del core logico per la generazione e aggiornamento statistiche.
+ * Comprende scenari per l'idempotenza e l'isolamento dei dati legati ai tornei.
+ */
 @ExtendWith(MockitoExtension.class)
 class StatisticsServiceImplTest {
 
@@ -51,11 +58,11 @@ class StatisticsServiceImplTest {
 
         int processed = service.rebuildLeaderboard(List.of(normal, tournament));
 
-        assert processed == 2; // conteggio = eventi ricevuti, incluso quello di torneo
+        assert processed == 2; // Verifica che entrambi gli eventi siano stati processati
         verify(leaderboardRepository).deleteAll();
-        // solo il match non-torneo scrive la classifica (1 save: vincitore, nessun loser)
+        // Assicura che solo l'evento relativo a un match non di torneo incida sulla classifica
         verify(leaderboardRepository, times(1)).save(any(Leaderboard.class));
-        // un solo broadcast: gameTypeId "chess" distinto
+        // Controlla che venga emesso esattamente un solo broadcast per la singola tipologia di gioco
         verify(mqttOutboundChannel, times(1)).send(any());
     }
 }

@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.domain;
 
 import jakarta.persistence.*;
@@ -19,13 +22,13 @@ public class AggregateStatistic {
     private String id;
 
     @Column(nullable = false)
-    private String entityId; // ID del giocatore, del locale, del gioco
+    private String entityId; // Identificativo dell'entità target (es. ID del giocatore, del locale o del gioco)
 
     @Column(nullable = false)
-    private String entityType; // PLAYER, LOCALE, GAME_TYPE
+    private String entityType; // Tipologia dell'entità coinvolta (es. PLAYER, LOCALE, GAME_TYPE)
 
     @Column(nullable = false)
-    private String metricName; // E.g., MATCHES_PLAYED, WIN_RATE, AVERAGE_SCORE
+    private String metricName; // Nome identificativo della metrica calcolata (es. MATCHES_PLAYED, WIN_RATE)
 
     @Column(nullable = false)
     private double metricValue;

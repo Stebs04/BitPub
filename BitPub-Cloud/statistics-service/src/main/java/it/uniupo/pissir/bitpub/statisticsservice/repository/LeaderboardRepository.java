@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.repository;
 
 import it.uniupo.pissir.bitpub.statisticsservice.domain.Leaderboard;
@@ -11,25 +14,25 @@ import java.util.Optional;
 @Repository
 public interface LeaderboardRepository extends JpaRepository<Leaderboard, String> {
 
-    /** Returns all entries for a game type, ordered by wins DESC then totalPoints DESC. */
+    /** Estrae l'intera classifica per un gioco specifico, ordinando per vittorie e poi per punteggio totale. */
     List<Leaderboard> findByGameTypeIdOrderByWinsDescTotalPointsDesc(String gameTypeId);
 
-    /** Find a specific player's entry for a given game type. */
+    /** Ricerca lo specifico posizionamento in classifica di un giocatore all'interno di un dato gioco. */
     Optional<Leaderboard> findByPlayerNameIgnoreCaseAndGameTypeId(String playerName, String gameTypeId);
 
-    /** Tutte le entry di un giocatore su ogni tipo di gioco (statistiche personali, una sola query). */
+    /** Recupera in un'unica operazione tutte le presenze in classifica di un singolo giocatore su ogni disciplina. */
     List<Leaderboard> findByPlayerNameIgnoreCase(String playerName);
 
-    /** Returns top-N players across all game types (for a global leaderboard if needed). */
+    /** Ritorna la top 10 globale calcolata trasversalmente su tutti i giochi disponibili. */
     List<Leaderboard> findTop10ByOrderByWinsDescTotalPointsDesc();
 
-    /** Returns all entries for a game type within a single locale, ordered by wins DESC then totalPoints DESC. */
+    /** Filtra e ordina la classifica per un gioco circoscrivendo la ricerca a un singolo locale (utile per gli admin). */
     List<Leaderboard> findByGameTypeIdAndLocaleIdOrderByWinsDescTotalPointsDesc(String gameTypeId, String localeId);
 
-    /** Tutte le entry registrate in un locale (per aggregare i giochi piu' usati). */
+    /** Ottiene tutte le entry di classifica maturate in un locale, funzionale al calcolo dei giochi più popolari. */
     List<Leaderboard> findByLocaleId(String localeId);
 
-    /** gameTypeId distinti su cui il giocatore ha almeno una entry (statistiche personali dinamiche). */
+    /** Identifica dinamicamente le tipologie di gioco in cui il giocatore vanta almeno una partecipazione. */
     @Query("SELECT DISTINCT l.gameTypeId FROM Leaderboard l WHERE l.playerName = :playerName")
     List<String> findDistinctGameTypeIdsByPlayerName(String playerName);
 }

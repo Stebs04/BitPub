@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +37,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+/**
+ * Suite di test per la logica di core business dei tornei.
+ * Copre i flussi di generazione del tabellone, avanzamento turni e validazione iscritti.
+ */
 @ExtendWith(MockitoExtension.class)
 class TournamentServiceImplTest {
 
@@ -63,7 +70,7 @@ class TournamentServiceImplTest {
         return TournamentRegistration.builder().participantId(pid).participantName(name).build();
     }
 
-    // ── Scenario 3: generazione tabellone a eliminazione diretta (4 iscritti) ──
+    // ── Test per la generazione del tabellone a eliminazione diretta ──
     @Test
     void generateBracket_4participants_buildsTwoRoundsLinkedByNextMatch() {
         Tournament t = tournament("t1", 4);
@@ -88,13 +95,13 @@ class TournamentServiceImplTest {
         assertThat(round0).hasSize(2);
         assertThat(round1).hasSize(1);
 
-        // Tutti e 4 gli iscritti compaiono negli slot del primo round.
+        // Verifica che tutti e quattro gli iscritti siano stati assegnati agli slot del primo turno
         assertThat(round0).flatExtracting(TournamentMatchDto::getPlayer1Name, TournamentMatchDto::getPlayer2Name)
                 .containsExactlyInAnyOrder("A", "B", "C", "D");
-        // La finale non ha ancora giocatori e non ha match successivo.
+        // Assicurarsi che la finale inizialmente sia vuota e non preveda incontri successivi
         assertThat(round1.get(0).getPlayer1Name()).isNull();
         assertThat(round1.get(0).getNextMatchId()).isNull();
-        // Le semifinali puntano alla finale.
+        // Controlla che il round successivo delle semifinali punti correttamente alla finale
         String finalId = round1.get(0).getId();
         assertThat(round0).allSatisfy(m -> assertThat(m.getNextMatchId()).isEqualTo(finalId));
     }
@@ -120,7 +127,7 @@ class TournamentServiceImplTest {
                 .satisfies(e -> assertThat(((BitpubException) e).getStatus()).isEqualTo(HttpStatus.CONFLICT));
     }
 
-    // ── updateMatchResult: avanzamento vincitore + chiusura finale ──
+    // ── Test per l'aggiornamento dei risultati del match e la progressione nel torneo ──
     @Test
     void updateMatchResult_winnerAdvancesToNextMatch() {
         Tournament t = tournament("t1", 4);
@@ -166,7 +173,7 @@ class TournamentServiceImplTest {
                 .satisfies(e -> assertThat(((BitpubException) e).getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
     }
 
-    // ── registerToTournament: iscrizione duplicata ──
+    // ── Test per prevenire doppie iscrizioni ──
     @Test
     void registerToTournament_duplicateParticipant_rejected() {
         Tournament t = tournament("t1", 4);
@@ -180,7 +187,7 @@ class TournamentServiceImplTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    // ── isPlayerInBracketMatch ──
+    // ── Test per la validazione della partecipazione di un giocatore in un incontro specifico ──
     @Test
     void isPlayerInBracketMatch_playerInSlot_returnsTrue() {
         Tournament t = tournament("t1", 4);

@@ -1,3 +1,4 @@
+# Autore: Stefano Bellan Matricola 20054330
 server:
   port: 8087
 
@@ -26,11 +27,12 @@ locale:
   service:
     url: ${LOCALE_SERVICE_URL:http://localhost:8083}
 
-# MQTT: outbound leaderboard-update publisher + durable inbound ingest of completed-match results.
+# Configurazione MQTT: gestisce la pubblicazione degli aggiornamenti in tempo reale per le classifiche (outbound)
+# e la ricezione garantita e duratura dei risultati delle partite concluse (inbound ingest).
 mqtt:
   broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
   client-id: ${MQTT_CLIENT_ID:statistics-service-${random.uuid}}
-  # Stable id + durable session so the broker queues match results while this service is down.
+  # L'utilizzo di un ID stabile e di una sessione duratura garantisce che il broker accodi i risultati dei match anche in caso di down temporaneo del servizio.
   inbound-client-id: ${MQTT_INBOUND_CLIENT_ID:statistics-service-result-ingest}
   topic:
     cloud-matches-result: bitpub/cloud/matches/result

@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.dto;
 
 import lombok.*;
@@ -10,6 +13,6 @@ public class StatisticUpdateRequest {
     private String entityId;
     private String entityType;
     private String metricName;
-    private double deltaValue; // Or absolute value if it's a replacement, but delta is common (e.g. +1 match)
-    private boolean isAbsolute; // if true, metricValue = deltaValue. if false, metricValue += deltaValue
+    private double deltaValue;  // Rappresenta l'incremento numerico o il valore assoluto della metrica da aggiornare
+    private boolean isAbsolute; // Flag per decidere se sovrascrivere l'attuale metrica (true) o sommare il deltaValue (false)
 }

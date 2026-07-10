@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.config;
 
 import org.springframework.context.annotation.Bean;
@@ -8,9 +11,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Il ruolo effettivo (X-User-Id / X-User-Role -> SecurityContext) viene stabilito dal
- * JwtAuthenticationFilter condiviso in bitpub-common a partire dal token JWT inoltrato dal gateway.
- * La catena HTTP resta aperta: l'accesso e' vincolato a livello di metodo con @PreAuthorize.
+ * Configurazione del livello di sicurezza dell'applicazione.
+ * L'estrazione e validazione del ruolo dell'utente avvengono tramite il JwtAuthenticationFilter condiviso,
+ * il quale legge le intestazioni fornite dal gateway (X-User-Id e X-User-Role) per popolare il contesto di sicurezza.
+ * La SecurityFilterChain di base è configurata per permettere il traffico in ingresso, demandando i
+ * controlli autorizzativi di grana fine alle annotazioni @PreAuthorize poste sui singoli metodi.
  */
 @Configuration
 @EnableMethodSecurity

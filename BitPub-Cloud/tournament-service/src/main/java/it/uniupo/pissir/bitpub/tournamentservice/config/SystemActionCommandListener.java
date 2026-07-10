@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,17 +21,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Consumes Edge-forwarded tournament CUD commands from the Cloud system-action MQTT topic and
- * orchestrates the matching {@link TournamentServiceImpl} call. The inner payload JSON carries an
- * {@code action} discriminant (CREATE_TOURNAMENT / UPDATE_TOURNAMENT / DELETE_TOURNAMENT) plus the
- * data. Replaces the former direct REST calls from the WebApp to /api/v1/tournaments.
+ * Ascoltatore che consuma i comandi di gestione (creazione, modifica, eliminazione) dei tornei
+ * inoltrati dall'Edge tramite il topic MQTT di sistema, orchestrando le chiamate al servizio {@link TournamentServiceImpl}.
+ * Il payload JSON contiene un campo 'action' che determina il tipo di operazione da eseguire.
+ * Questo meccanismo va a sostituire le precedenti chiamate REST dirette fatte dalla WebApp.
  *
- * <p>Tournaments are LOCALE_ADMIN-only and locale-scoped: every ownership check needs the admin's
- * localeId. The gateway used to inject it as {@code X-User-Locale-Id}, but the MqttCommandWrapper
- * carries only actorUserId + actorRole (MQTT has no HTTP headers). So the role is re-checked here and
- * the localeId is resolved from the actor via locale-service — the same lookup statistics-service
- * uses. ponytail: one REST hop per command keeps this contained to tournament-service; the leaner
- * alternative is to add localeId to MqttCommandWrapper and have the Edge fill it from the JWT claim.
+ * I tornei possono essere gestiti solo dagli amministratori di locale (LOCALE_ADMIN). Poiché il wrapper MQTT
+ * non trasporta gli header HTTP (come ad esempio l'ID del locale), verifichiamo nuovamente il ruolo dell'utente
+ * e recuperiamo il suo locale di competenza interrogando il locale-service. Questo passaggio extra è necessario 
+ * per garantire i corretti permessi senza dover appesantire la struttura del messaggio MQTT.
  */
 @Component
 @Slf4j
@@ -86,12 +87,12 @@ public class SystemActionCommandListener {
             }
             log.info("Processed tournament action {} via MQTT (actor {})", action, wrapper.actorUserId());
         } catch (BitpubException e) {
-            // Genuine rejection (403 not owner, 404 not found, 409 has registrations). Log, don't crash
-            // the subscriber or nack the QoS1 message — a retry would only replay the same rejection.
-            log.info("Rejected tournament action via MQTT ({}): {}", e.getStatus(), e.getMessage());
+            // Eccezioni di business (es. utente non autorizzato o torneo inesistente).
+            // Logghiamo l'evento senza bloccare il consumatore o respingere il messaggio QoS1, altrimenti andrebbe in loop.
+            log.info("Azione sul torneo respinta via MQTT ({}): {}", e.getStatus(), e.getMessage());
         } catch (Exception e) {
-            // Poison message — swallow so it doesn't wedge the durable queue.
-            log.error("Failed to process inbound tournament command: {}", message.getPayload(), e);
+            // Messaggio malformato o imprevisto: intercettiamo l'errore per evitare che blocchi la coda durevole.
+            log.error("Impossibile elaborare il comando in ingresso per il torneo: {}", message.getPayload(), e);
         }
     }
 
@@ -103,7 +104,7 @@ public class SystemActionCommandListener {
         }
     }
 
-    /** localeId del locale gestito dall'adminId, o null se nessuno (stesso lookup di statistics-service). */
+    /** Recupera l'ID del locale gestito dall'amministratore specificato, oppure null se non ne gestisce nessuno. */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private String resolveAdminLocaleId(String adminId) {
         if (adminId == null) return null;

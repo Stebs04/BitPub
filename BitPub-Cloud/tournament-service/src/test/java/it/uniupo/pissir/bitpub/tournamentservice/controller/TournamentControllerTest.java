@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Suite di test unitari per il controller dei tornei.
+ * Verifica i vincoli di accesso basati sui ruoli e la corretta mappatura degli endpoint HTTP.
+ */
 @WebMvcTest(TournamentController.class)
 @Import(GlobalExceptionHandler.class)
 class TournamentControllerTest {

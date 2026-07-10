@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.controller;
 
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
@@ -11,9 +14,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Exposes the real leaderboard split by game type.
- * GET /api/v1/statistics/leaderboard/{gameTypeId}
- * Returns entries ordered by wins DESC, totalPoints DESC.
+ * Controller REST dedicato all'esposizione delle classifiche, suddivise per tipologia di gioco.
+ * L'endpoint restituisce le posizioni ordinate primariamente per numero di vittorie decrescenti,
+ * seguite dai punti totali in caso di parità.
  */
 @RestController
 @RequestMapping("/api/v1/statistics/leaderboard")
@@ -30,8 +33,10 @@ public class LeaderboardController {
     }
 
     /**
-     * Leaderboard filtrata per locale, per il pannello del LOCALE_ADMIN.
-     * Se il chiamante e' un LOCALE_ADMIN, localeId deve corrispondere al proprio locale.
+     * Restituisce la classifica globale filtrata per uno specifico locale. Questo endpoint è primariamente utilizzato
+     * all'interno del pannello di controllo degli amministratori di locale (LOCALE_ADMIN).
+     * In questo scenario viene applicato un controllo di sicurezza per garantire che l'amministratore 
+     * possa visualizzare esclusivamente i dati relativi al proprio locale.
      */
     @GetMapping("/locale/{localeId}/{gameTypeId}")
     public ResponseEntity<List<LeaderboardEntryDto>> getLeaderboardByLocale(

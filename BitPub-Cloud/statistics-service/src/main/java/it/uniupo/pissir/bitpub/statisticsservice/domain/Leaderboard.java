@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.domain;
 
 import jakarta.persistence.*;
@@ -6,8 +9,8 @@ import lombok.*;
 import java.time.Instant;
 
 /**
- * Tracks per-player, per-game-type leaderboard entries.
- * playerName is a plain string (not a FK) for fast demo usage.
+ * Entità che traccia le voci di classifica, raggruppate per giocatore e tipologia di gioco.
+ * Il nome del giocatore viene memorizzato come stringa piatta per ottimizzare i tempi di lettura.
  */
 @Entity
 @Table(
@@ -25,18 +28,18 @@ public class Leaderboard {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    /** Free-text player/team name entered in the simulator setup. */
+    /** Nome in chiaro del giocatore o della squadra per una rapida consultazione. */
     @Column(nullable = false)
     private String playerName;
 
-    /** E.g. "biliardo", "calciobalilla", "freccette" */
+    /** Tipologia di gioco a cui si riferisce questa voce di classifica (es. biliardo, freccette). */
     @Column(nullable = false)
     private String gameTypeId;
 
-    /** Locale in cui e' stato registrato l'ultimo match, per il filtro leaderboard-per-locale del LOCALE_ADMIN. */
+    /** Identificativo del locale associato all'ultimo scontro disputato, fondamentale per le proiezioni geografiche dell'amministratore. */
     private String localeId;
 
-    /** true se l'entry rappresenta una squadra (partita a squadre), false se un singolo giocatore. */
+    /** Booleano che indica se questa voce classifica i risultati di un'intera squadra piuttosto che di un singolo partecipante. */
     @Builder.Default
     @Column(columnDefinition = "boolean not null default false")
     private boolean teamBased = false;

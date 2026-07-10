@@ -1,10 +1,13 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.dto;
 
 import lombok.*;
 
 import java.time.Instant;
 
-/** Public DTO representing a leaderboard entry returned by the API. */
+/** Rappresentazione di una singola voce all'interno della classifica (Leaderboard). */
 @Data
 @Builder
 @NoArgsConstructor

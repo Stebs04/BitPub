@@ -1,14 +1,17 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.dto;
 
 import lombok.*;
 
-/** Uso di un tipo di gioco in un locale: metrica "Giochi piu' utilizzati in un locale". */
+/** Data Transfer Object per la reportistica sull'utilizzo dei giochi all'interno di un locale specifico. */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class GameUsageDto {
     private String gameTypeId;
-    private int matchesPlayed; // partecipazioni registrate in leaderboard per questo gioco nel locale
-    private int players;       // giocatori/squadre distinti che hanno giocato questo gioco nel locale
+    private int matchesPlayed; // Totale delle partecipazioni estrapolate dalla classifica per questa specifica attività
+    private int players;       // Numero di entità distinte (giocatori singoli o squadre) che hanno usufruito del gioco
 }

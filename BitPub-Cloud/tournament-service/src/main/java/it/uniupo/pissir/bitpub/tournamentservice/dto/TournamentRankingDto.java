@@ -1,7 +1,14 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.dto;
 
 import lombok.*;
 
+/**
+ * Data Transfer Object per la classifica di un torneo.
+ * Trasporta le statistiche di ogni partecipante (gol, partite vinte) calcolate durante la competizione.
+ */
 @Data
 @Builder
 @NoArgsConstructor

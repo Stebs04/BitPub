@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.controller;
 
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentRankingDto;
@@ -16,6 +19,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Test unitari per il controller delle classifiche.
+ * Assicura che i dati della classifica vengano restituiti correttamente e formattati secondo le attese.
+ */
 @WebMvcTest(TournamentRankingController.class)
 class TournamentRankingControllerTest {
 

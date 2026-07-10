@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice;
 
 import it.uniupo.pissir.bitpub.tournamentservice.dto.TournamentDto;
@@ -23,11 +26,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * FASE 5 — Scenario 3: generazione automatica del tabellone e avanzamento del vincitore.
- * Creato un torneo da 4 posti, alla quarta iscrizione il tabellone (2 semifinali + finale) si
- * genera da solo. Riportando l'esito di ciascuna semifinale, il vincitore avanza in finale.
- * E2E completo via HTTP contro un Postgres reale (Testcontainers). tournament-service non ha
- * dipendenze REST esterne, quindi nessuno stub serve.
+ * Test End-to-End (E2E) per verificare la logica del tabellone a eliminazione diretta.
+ * Il test simula uno scenario completo: creazione del torneo, iscrizione dei giocatori e 
+ * generazione automatica del tabellone. Successivamente verifica il corretto avanzamento 
+ * dei vincitori fino alla finale.
+ * L'esecuzione sfrutta Testcontainers per utilizzare un database PostgreSQL reale.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -57,7 +60,7 @@ public class TournamentBracketE2ETest {
 
     @Test
     void bracketAutoGeneratesAndWinnersAdvanceToFinal() {
-        // 1. LOCALE_ADMIN crea un torneo da 4 posti.
+        // Fase 1: Creazione di un torneo da 4 partecipanti da parte di un LOCALE_ADMIN
         TournamentDto create = new TournamentDto();
         create.setName("Coppa E2E");
         create.setGameTypeId("foosball");
@@ -69,7 +72,7 @@ public class TournamentBracketE2ETest {
         assertEquals(HttpStatus.CREATED, created.getStatusCode());
         String tid = created.getBody().getId();
 
-        // 2. Quattro PLAYER si iscrivono; alla quarta il tabellone si genera.
+        // Fase 2: Iscrizione di quattro giocatori. Al raggiungimento della capienza, il tabellone si genera automaticamente
         for (int i = 1; i <= 4; i++) {
             TournamentRegistrationDto reg = new TournamentRegistrationDto();
             reg.setParticipantId("p" + i);
@@ -83,7 +86,7 @@ public class TournamentBracketE2ETest {
             assertEquals(HttpStatus.CREATED, r.getStatusCode());
         }
 
-        // 3. Tabellone generato: 2 semifinali (round 0) + 1 finale (round 1).
+        // Fase 3: Verifica strutturale del tabellone generato (2 semifinali + 1 finale)
         TournamentDto withBracket = getTournament(tid);
         List<TournamentMatchDto> bracket = withBracket.getBracket();
         assertNotNull(bracket);
@@ -94,7 +97,7 @@ public class TournamentBracketE2ETest {
         assertNull(finalMatch.getPlayer1Id(), "la finale parte senza giocatori");
         assertNull(finalMatch.getPlayer2Id());
 
-        // 4. Riporto l'esito di entrambe le semifinali: vince il player1 di ciascuna.
+        // Fase 4: Registrazione dei risultati delle semifinali (simulando la vittoria del player1 per ciascuna)
         for (TournamentMatchDto semi : semis) {
             ResponseEntity<Void> res = restTemplate.exchange(
                     "/api/v1/tournaments/matches/" + semi.getId() + "/result?winnerId=" + semi.getPlayer1Id(),
@@ -102,7 +105,7 @@ public class TournamentBracketE2ETest {
             assertEquals(HttpStatus.OK, res.getStatusCode());
         }
 
-        // 5. I due vincitori sono avanzati in finale.
+        // Fase 5: Verifica che i due vincitori siano stati promossi correttamente alla finale
         TournamentMatchDto advancedFinal = getTournament(tid).getBracket().stream()
                 .filter(m -> m.getRound() == 1).findFirst().orElseThrow();
         assertNotNull(advancedFinal.getPlayer1Id(), "primo vincitore avanzato in finale");

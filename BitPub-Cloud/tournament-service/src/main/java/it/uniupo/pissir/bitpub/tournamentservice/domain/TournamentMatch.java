@@ -1,12 +1,15 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 /**
- * Singolo scontro del tabellone a eliminazione diretta.
- * round 0 = primo turno; matchIndex = posizione nel round (0-based).
- * nextMatchId = match a cui avanza il vincitore (null nella finale).
+ * Entità che modella una singola partita all'interno del tabellone a eliminazione diretta.
+ * Contiene informazioni sul turno di gioco, la posizione dello scontro e il percorso di avanzamento
+ * (il vincitore prosegue nel match indicato da nextMatchId).
  */
 @Entity
 @Table(name = "tournament_matches")
@@ -39,10 +42,10 @@ public class TournamentMatch {
     private String winnerId;
     private String winnerName;
 
-    private String score; // punteggio / statistiche dello scontro (testo libero)
+    private String score; // Testo libero che descrive il punteggio o i dettagli finali dell'incontro
 
-    // Gol per slot, ingeriti via MQTT (bitpub/cloud/matches/result). Fonte isolata dei gol del torneo:
-    // solo gli scontri del tabellone contribuiscono, mai la leaderboard globale.
+    // Gol segnati dai due partecipanti durante la partita.
+    // Questi dati vengono ricevuti via MQTT e contribuiscono esclusivamente alle statistiche interne al torneo, senza influenzare la classifica globale.
     @Column(name = "player1_goals")
     private int player1Goals;
     @Column(name = "player2_goals")

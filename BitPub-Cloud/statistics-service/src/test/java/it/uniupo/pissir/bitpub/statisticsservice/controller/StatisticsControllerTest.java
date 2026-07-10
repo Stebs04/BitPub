@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +24,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Classe di test unitari a copertura del StatisticsController.
+ * Verifica in particolare che gli amministratori di locale base abbiano visibilità limitata al proprio ambito.
+ */
 @WebMvcTest(StatisticsController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)

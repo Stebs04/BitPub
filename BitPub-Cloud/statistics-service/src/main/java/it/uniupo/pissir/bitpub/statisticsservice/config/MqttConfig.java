@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -16,8 +19,9 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
 /**
- * MQTT: outbound publisher for live leaderboard updates (bitpub/statistics/update) +
- * durable inbound subscriber for completed-match results forwarded by match-service.
+ * Configurazione infrastrutturale di MQTT per il microservizio statistiche.
+ * Stabilisce sia un canale di pubblicazione per trasmettere in tempo reale gli aggiornamenti della classifica,
+ * sia una sottoscrizione duratura per ricevere in modo affidabile l'esito delle partite dal match-service.
  */
 @Configuration
 public class MqttConfig {
@@ -34,7 +38,7 @@ public class MqttConfig {
     @Value("${mqtt.topic.cloud-matches-result}")
     private String cloudMatchResultTopic;
 
-    // ── Outbound: publish live leaderboard updates to the WebApp ────────────────────
+    // ── Configurazione Outbound: trasmissione in tempo reale degli aggiornamenti della classifica verso la WebApp ──
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -58,14 +62,14 @@ public class MqttConfig {
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(
                 clientId + "_out-" + java.util.UUID.randomUUID(), mqttClientFactory());
         handler.setAsync(true);
-        // Topic per-message via MqttHeaders.TOPIC (dynamic: bitpub/statistics/update/{gameTypeId}).
+        // L'assegnazione del topic avviene dinamicamente a livello di singolo messaggio tramite MqttHeaders.TOPIC
         return handler;
     }
 
-    // ── Inbound: durable subscriber to match-service results (QoS1, cleanSession=false) ──
-    // Stable clientId + durable session so the broker queues completed-match results while
-    // statistics-service is down and redelivers them on reconnect. recordMatchResult is
-    // idempotent on matchId, so a redelivery does not double-count wins/losses.
+    // ── Configurazione Inbound: sottoscrizione garantita e persistente per i risultati del match-service (QoS 1, cleanSession=false) ──
+    // L'utilizzo di un Client ID fisso abbinato a una sessione mantenuta sul broker assicura l'accodamento 
+    // dei messaggi in caso di indisponibilità del servizio, con successiva riconsegna alla riconnessione.
+    // La logica di registrazione è idempotente, scongiurando il rischio di doppi conteggi per le statistiche.
 
     @Bean
     public MqttPahoClientFactory mqttInboundClientFactory() {

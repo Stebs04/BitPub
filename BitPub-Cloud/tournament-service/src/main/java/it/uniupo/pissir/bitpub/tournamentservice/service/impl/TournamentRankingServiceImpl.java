@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
 import it.uniupo.pissir.bitpub.common.exception.ResourceNotFoundException;
@@ -20,6 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Implementazione concreta del servizio di gestione delle classifiche per i tornei.
+ * Ricalcola i punteggi in modo dinamico a partire dai risultati presenti nel tabellone.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -30,10 +37,11 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
     private final TournamentRepository tournamentRepository;
 
     /**
-     * La classifica del torneo si calcola retroattivamente dagli scontri gia' giocati del tabellone
-     * (winnerId valorizzato): sorgente auto-contenuta. Ordinata per vittorie. I gol segnati sono quelli
-     * ingeriti via MQTT sugli scontri del tabellone (player1Goals/player2Goals), ISOLATI dalla
-     * leaderboard globale: contano solo le partite di questo torneo. Ricalcolata a ogni lettura.
+     * Recupera la classifica ricalcolandola retroattivamente basandosi sulle partite concluse nel tabellone
+     * (dove è stato stabilito un vincitore). La classifica è locale per il torneo ed è ordinata in base alle vittorie.
+     * I gol considerati provengono esclusivamente dagli eventi MQTT relativi alle partite del torneo corrente, 
+     * isolandoli in questo modo dalle statistiche e dalle leaderboard globali. 
+     * L'aggiornamento avviene dinamicamente a ogni richiesta di lettura.
      */
     @Override
     @Transactional
@@ -50,13 +58,13 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
         List<TournamentRanking> rankings = rankingRepository.findByTournamentIdOrderByScoreDesc(tournamentId);
         if (rankings.isEmpty()) return;
 
-        // participantId -> [partite giocate, vittorie, gol]. Conta ogni scontro concluso del tabellone;
-        // i gol arrivano dagli eventi MQTT match-result (isolati a questo torneo).
+        // Mappa participantId -> [partite giocate, vittorie, gol nel torneo]. 
+        // Calcola i totali scandendo tutti gli scontri conclusi; i gol arrivano dagli eventi MQTT del match-result.
         Map<String, int[]> tally = new HashMap<>();
         List<TournamentMatch> bracket = tournament.getBracketMatches();
         if (bracket != null) {
             for (TournamentMatch m : bracket) {
-                if (m.getWinnerId() == null) continue; // scontro non ancora giocato
+                if (m.getWinnerId() == null) continue; // Salta le partite non ancora concluse
                 addTally(tally, m.getPlayer1Id(), m.getPlayer1Goals(), m.getWinnerId());
                 addTally(tally, m.getPlayer2Id(), m.getPlayer2Goals(), m.getWinnerId());
             }
@@ -75,9 +83,9 @@ public class TournamentRankingServiceImpl implements TournamentRankingService {
     private void addTally(Map<String, int[]> tally, String participantId, int goals, String winnerId) {
         if (participantId == null) return;
         int[] t = tally.computeIfAbsent(participantId, k -> new int[3]);
-        t[0]++;             // partita giocata
-        t[2] += goals;      // gol nel torneo
-        if (participantId.equals(winnerId)) t[1]++; // vittoria
+        t[0]++;             // Incrementa contatore partite giocate
+        t[2] += goals;      // Aggiorna totale gol segnati nel torneo
+        if (participantId.equals(winnerId)) t[1]++; // Se è il vincitore, incrementa partite vinte
     }
 
     @Override

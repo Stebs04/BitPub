@@ -1,8 +1,15 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
 
+/**
+ * Rappresenta la posizione in classifica di un partecipante all'interno di un torneo specifico.
+ * Raccoglie i dati aggregati relativi alle performance maturate unicamente durante la competizione.
+ */
 @Entity
 @Table(name = "tournament_rankings")
 @Getter
@@ -29,8 +36,8 @@ public class TournamentRanking {
     private int score;
     private int matchesPlayed;
     private int matchesWon;
-    private int goalsScored; // gol segnati SOLO nelle partite di questo torneo (dal tabellone, via MQTT)
+    private int goalsScored; // Somma dei gol realizzati esclusivamente nelle partite ufficiali del torneo corrente
     
     @Column(nullable = false)
-    private int currentRank; // Posizione in classifica
+    private int currentRank; // Posizione occupata attualmente dal partecipante nella classifica generale del torneo
 }

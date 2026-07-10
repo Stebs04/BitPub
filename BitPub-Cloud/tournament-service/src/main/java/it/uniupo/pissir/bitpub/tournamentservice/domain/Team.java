@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.domain;
 
 import jakarta.persistence.*;
@@ -6,10 +9,11 @@ import lombok.*;
 import java.util.List;
 
 /**
- * Squadra di torneo: qui i Team hanno un'anagrafica propria (name obbligatorio) e una lista
- * esplicita di membri (utenti) tramite la tabella di associazione team_members. A differenza del
- * match-service (dove i partecipanti alla singola partita sono MatchParticipant), il concetto di
- * "squadra" con identita' persistente esiste SOLO nei tornei.
+ * Entità che rappresenta una squadra all'interno di un torneo.
+ * A differenza di altre parti del sistema (come il match-service, dove i partecipanti sono effimeri),
+ * qui le squadre possiedono un'anagrafica vera e propria con un nome obbligatorio e una lista di membri
+ * gestita tramite una tabella di associazione dedicata. Questo permette di mantenere l'identità della squadra
+ * per tutta la durata della competizione.
  */
 @Entity
 @Table(name = "teams")
@@ -27,10 +31,10 @@ public class Team {
     @Column(nullable = false)
     private String name;
 
-    // Torneo di appartenenza (loose FK per ID, coerente con il resto della piattaforma).
+    // Riferimento al torneo a cui è iscritta la squadra (chiave esterna debole sull'ID)
     private String tournamentId;
 
-    // Membri della squadra (ID/username utenti) via tabella di associazione esplicita.
+    // Lista degli username o ID degli utenti che compongono la squadra
     @ElementCollection
     @CollectionTable(name = "team_members", joinColumns = @JoinColumn(name = "team_id"))
     @Column(name = "member")

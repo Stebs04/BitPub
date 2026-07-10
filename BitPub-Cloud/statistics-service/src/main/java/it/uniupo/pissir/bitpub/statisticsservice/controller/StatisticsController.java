@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.controller;
 
 import it.uniupo.pissir.bitpub.common.exception.BitpubException;
@@ -23,8 +26,9 @@ public class StatisticsController {
 
     private final StatisticsService statisticsService;
 
-    // Se il chiamante e' un LOCALE_ADMIN, puo' interrogare solo le statistiche aggregate
-    // del proprio locale (entityType=LOCALE, entityId=<il proprio localeId>).
+    // Endpoint per recuperare le statistiche aggregate basate sull'entità (es. giocatore o locale).
+    // Nel caso in cui la richiesta provenga da un amministratore di locale (LOCALE_ADMIN), 
+    // viene applicata una restrizione per limitare la visibilità ai soli dati del locale di competenza.
     @GetMapping
     public ResponseEntity<List<AggregateStatisticDto>> getStatistics(
             @RequestParam String entityId,
@@ -41,7 +45,7 @@ public class StatisticsController {
         return ResponseEntity.ok(statisticsService.getStatisticsByEntity(entityId, entityType));
     }
 
-    // Monitoraggio dell'intero sistema e statistiche aggregate mondiali: riservato a PLATFORM_ADMIN.
+    // Vista globale delle statistiche della piattaforma (es. totale utenti, totale locali). Accesso riservato esclusivamente agli amministratori di piattaforma.
     @GetMapping("/global")
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
     public ResponseEntity<GlobalStatsDto> getGlobalOverview() {
@@ -54,9 +58,9 @@ public class StatisticsController {
     }
 
     /**
-     * Backfill invocato dal match-service: azzera e ricostruisce la leaderboard dai match conclusi.
-     * ponytail: endpoint interno trusted (stesso pattern di /match-result); l'autorizzazione
-     * PLATFORM_ADMIN e' applicata dal match-service che riceve il JWT dal gateway.
+     * Endpoint di ricalcolo (backfill) richiamato internamente dal match-service.
+     * Azzeramento totale e successiva ricostruzione della classifica basata sullo storico delle partite concluse.
+     * Essendo una chiamata inter-servizio fidata, il controllo dei ruoli è già stato gestito a monte dal match-service.
      */
     @PostMapping("/leaderboard/rebuild")
     public ResponseEntity<Integer> rebuildLeaderboard(@RequestBody List<MatchResultEvent> events) {
@@ -64,8 +68,8 @@ public class StatisticsController {
     }
 
     /**
-     * Metrica "Giochi piu' utilizzati in un locale". Aperta a tutti i ruoli in lettura;
-     * un LOCALE_ADMIN puo' consultare solo il proprio locale.
+     * Espone le metriche relative ai giochi maggiormente utilizzati all'interno di uno specifico locale.
+     * La lettura è pubblica per i giocatori, mentre gli amministratori di locale rimangono vincolati al proprio spazio.
      */
     @GetMapping("/locale/{localeId}/games-usage")
     public ResponseEntity<List<GameUsageDto>> getMostUsedGames(
@@ -83,8 +87,8 @@ public class StatisticsController {
     }
 
     /**
-     * Statistiche personali del PLAYER: le sue righe di leaderboard su tutte le tipologie di gioco,
-     * interrogate direttamente dal DB (una sola query) invece di scorrere e filtrare in memoria.
+     * Recupera le statistiche personali complete per un singolo giocatore, raccogliendo i posizionamenti 
+     * in classifica attraverso tutte le categorie di gioco tramite un'unica query ottimizzata.
      */
     @GetMapping("/leaderboard/me/{playerName}")
     public ResponseEntity<List<LeaderboardEntryDto>> getMyStatistics(@PathVariable String playerName) {

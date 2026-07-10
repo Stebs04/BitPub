@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.service.impl;
 
 import it.uniupo.pissir.bitpub.statisticsservice.domain.AggregateStatistic;
@@ -60,7 +63,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     @Value("${tournament.service.url:http://localhost:8086}")
     private String tournamentServiceUrl;
 
-    /** Aggregates platform-wide monitoring data for the PLATFORM_ADMIN dashboard. */
+    /** Raccoglie i dati aggregati dai vari microservizi (Locali, Utenti, Match, Tornei) per costruire la dashboard globale. */
     @Override
     public GlobalStatsDto getGlobalOverview() {
         return GlobalStatsDto.builder()
@@ -91,7 +94,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         }
     }
 
-    /** Returns the localeId of the locale owned by the given adminId, or null if none. */
+    /** Risolve in maniera distribuita (chiamando il locale-service) l'ID del locale gestito dall'admin. */
     @Override
     public String resolveAdminLocaleId(String adminId) {
         if (adminId == null) {
@@ -151,8 +154,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     /**
-     * Records the result of a completed match and upserts leaderboard entries for winner and loser.
-     * Also updates per-userId AggregateStatistic (WINS, LOSSES, MATCHES_PLAYED) when userId is known.
+     * Gestisce l'ingresso di un nuovo risultato aggiornando conseguentemente sia la classifica generale 
+     * che le metriche aggregate personali dei giocatori coinvolti.
      */
     @Override
     @Transactional
@@ -160,8 +163,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         log.info("Recording match result: winner={} ({}), loser={} ({}), gameType={}",
                 event.getWinnerName(), event.getWinnerId(), event.getLoserName(), event.getLoserId(), event.getGameTypeId());
 
-        // Idempotenza: la sessione MQTT durevole (QoS1) puo' riconsegnare lo stesso risultato al
-        // riavvio; senza questo guard i wins/losses verrebbero contati due volte. matchId = chiave.
+        // Controllo di idempotenza fondamentale: impedisce che una riconsegna MQTT (QoS 1) o un doppio invio falsifichi i contatori.
         if (event.getMatchId() != null && historyRepository.existsByMatchId(event.getMatchId())) {
             log.info("Match {} gia' registrato, ingest ignorato", event.getMatchId());
             return;
@@ -171,8 +173,8 @@ public class StatisticsServiceImpl implements StatisticsService {
         applyToLeaderboard(event);
         publishLeaderboardUpdate(event.getGameTypeId());
 
-        // ── AggregateStatistic (by userId) ────────────────────────────────────
-        // ponytail: aggiorna solo se winnerId/loserId sono valorizzati (partite dal matchmaking player)
+        // ── Aggiornamento Statistiche Personali ────────────────────────────────────
+        // Viene eseguito solo qualora gli utenti possiedano un ID formale (iscritti ufficiali in piattaforma).
         boolean hasLoser = event.getLoserName() != null
                 && !event.getLoserName().equalsIgnoreCase(event.getWinnerName());
         if (event.getWinnerId() != null) {
@@ -185,7 +187,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         }
     }
 
-    /** Salva lo storico stabile per-partita (chi ha vinto/perso, punteggi, tipo di gioco). */
+    /** Persiste la traccia immutabile del match nello storico, per audit o ricalcoli futuri. */
     private void saveHistory(MatchResultEvent event) {
         historyRepository.save(MatchHistoryRecord.builder()
                 .matchId(event.getMatchId())
@@ -199,9 +201,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .build());
     }
 
-    /** Upsert delle righe leaderboard (vincitore + eventuale perdente) per un singolo match. */
+    /** Applica la logica di upsert sulle entry di classifica, gestendo le casistiche di vincitore e (opzionalmente) perdente. */
     private void applyToLeaderboard(MatchResultEvent event) {
-        // I match di torneo hanno tournamentMatchId valorizzato: esclusi dalla classifica pubblica.
+        // I match collegati a un torneo non partecipano alla classifica pubblica standard per evitare alterazioni.
         if (event.getTournamentMatchId() != null) return;
 
         Leaderboard winner = leaderboardRepository
@@ -238,12 +240,11 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     /**
-     * Pubblica la leaderboard aggiornata del gioco su bitpub/statistics/update cosi' il WebApp la
-     * aggiorna in tempo reale (feeling da app sportiva). Best-effort: un errore di publish non deve
-     * far fallire la registrazione del risultato.
+     * Propaga la nuova classifica via MQTT affinché i client connessi (es. interfaccia web) si aggiornino live.
+     * Implementato con approccio fire-and-forget: un'eventuale anomalia non interromperà il flusso di persistenza.
      */
     private void publishLeaderboardUpdate(String gameTypeId) {
-        if (gameTypeId == null) return; // partite libere senza gioco associato: niente da pubblicare
+        if (gameTypeId == null) return; // Se il gioco è indefinito non vi è alcun aggiornamento da trasmettere
         try {
             String json = objectMapper.writeValueAsString(Map.of(
                     "gameTypeId", gameTypeId,
@@ -257,10 +258,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     /**
-     * Backfill: azzera la leaderboard e la ricostruisce dagli eventi dei match gia' conclusi
-     * (inviati dal match-service). ponytail: reset+rebuild = operazione ripetibile senza doppi
-     * conteggi. AggregateStatistic (per userId) non azzerata: la pagina statistiche personali e'
-     * derivata dallo storico match-service, non da questi contatori.
+     * Operazione di backfill: procede allo svuotamento massivo della classifica corrente e ad una sua completa ricostruzione
+     * passandole in rassegna tutti i match storicizzati. Garantisce resilienza in caso di perdite dati.
      */
     @Override
     @Transactional
@@ -268,7 +267,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         leaderboardRepository.deleteAll();
         if (events == null) return 0;
         events.forEach(this::applyToLeaderboard);
-        // Broadcast MQTT per ogni gioco toccato, cosi' la UI in ascolto si risincronizza dopo il backfill.
+        // Si notificano i client UI per ogni tipologia di gioco impattata dal backfill, forzando la sincronizzazione.
         events.stream()
                 .map(MatchResultEvent::getGameTypeId)
                 .distinct()
@@ -276,7 +275,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         return events.size();
     }
 
-    /** Increment-or-create an AggregateStatistic by 1. */
+    /** Incrementa il valore di una metrica aggregata o la inizializza in caso non esista. */
     private void incrementStat(String entityId, String entityType, String metricName, double delta) {
         AggregateStatistic stat = statisticRepository
                 .findByEntityIdAndEntityTypeAndMetricName(entityId, entityType, metricName)
@@ -318,10 +317,8 @@ public class StatisticsServiceImpl implements StatisticsService {
     }
 
     /**
-     * Metrica "Giochi piu' utilizzati in un locale": aggrega le entry di leaderboard del locale
-     * per gameTypeId, sommando le partite giocate e contando i giocatori/squadre distinti.
-     * ponytail: matchesPlayed e' la somma delle partecipazioni (vincitore+perdente contano 1 ciascuno),
-     * quindi ~2x le partite reali; per il RANKING dei giochi piu' usati l'ordine relativo e' corretto.
+     * Elabora e raggruppa le statistiche dei vari giochi in un locale, stabilendone la popolarità complessiva.
+     * Il calcolo ordina i giochi per numero di partecipazioni riscontrate, individuando le attività di maggior successo.
      */
     @Override
     public List<GameUsageDto> getMostUsedGamesByLocale(String localeId) {
@@ -337,9 +334,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .collect(Collectors.toList());
     }
 
-    // -------------------------------------------------------------------------
-    // Mappers
-    // -------------------------------------------------------------------------
+    // ── Sezione dedicata ai metodi di conversione (Mappers) ──
 
     private AggregateStatisticDto mapToDto(AggregateStatistic stat) {
         return AggregateStatisticDto.builder()

@@ -1,7 +1,14 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.dto;
 
 import lombok.*;
 
+/**
+ * Data Transfer Object per i singoli match del torneo.
+ * Include i dati sui partecipanti, il risultato dello scontro e l'avanzamento nel tabellone.
+ */
 @Data
 @Builder
 @NoArgsConstructor

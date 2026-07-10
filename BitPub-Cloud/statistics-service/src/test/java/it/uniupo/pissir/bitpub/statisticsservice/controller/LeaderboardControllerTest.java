@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.controller;
 
 import it.uniupo.pissir.bitpub.common.exception.GlobalExceptionHandler;
@@ -18,6 +21,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Suite di test per il LeaderboardController.
+ * Verifica i vincoli di sicurezza per la consultazione ristretta e il corretto formato JSON generato.
+ */
 @WebMvcTest(LeaderboardController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import(GlobalExceptionHandler.class)

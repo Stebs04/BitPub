@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +19,11 @@ import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
+/**
+ * Configurazione per la comunicazione MQTT del servizio tornei.
+ * Gestisce sia la pubblicazione degli aggiornamenti verso la WebApp
+ * sia la ricezione dei risultati e dei comandi di sistema.
+ */
 @Configuration
 @Slf4j
 public class MqttConfig {
@@ -41,7 +49,7 @@ public class MqttConfig {
     @Value("${mqtt.topic.system-action}")
     private String systemActionTopic;
 
-    // ── Outbound: publish live TournamentDto updates to the WebApp (bitpub/tournaments/{id}/state) ──
+    // Canale in uscita: pubblica gli aggiornamenti di stato del torneo in tempo reale verso la WebApp
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
@@ -69,9 +77,9 @@ public class MqttConfig {
         return handler;
     }
 
-    // ── Inbound: durable subscriber to Edge-forwarded tournament results (QoS1, cleanSession=false) ──
-    // Stable clientId + durable session so the broker queues results while this service is down and
-    // redelivers on reconnect. updateMatchResult sets deterministic values, so a redelivery is safe.
+    // Canale in entrata: sottoscrizione durevole per i risultati del torneo inoltrati dall'Edge.
+    // Utilizziamo QoS1 e sessioni non pulite per garantire che il broker accodi i messaggi se il servizio va giù,
+    // ritentando la consegna alla riconnessione. Dato che gli aggiornamenti sono deterministici, la riconsegna è sicura.
 
     @Bean
     public MqttPahoClientFactory mqttInboundClientFactory() {
@@ -100,9 +108,9 @@ public class MqttConfig {
         return adapter;
     }
 
-    // ── Inbound: completed-match results (bitpub/cloud/matches/result), the same durable QoS1 stream
-    // statistics-service consumes. Source of tournament-isolated goals: only bracket matches update
-    // per-tournament goals, decoupled from the global leaderboard. Distinct clientId = own subscription. ──
+    // Canale in entrata per i risultati delle partite completate. Consuma lo stesso flusso durevole QoS1
+    // usato dal servizio di statistiche. Serve per tracciare i gol validi solo per il torneo corrente, 
+    // tenendoli separati dalla classifica globale. Ha un clientId dedicato per mantenere la propria coda.
 
     @Bean
     public MessageChannel mqttMatchResultInboundChannel() {
@@ -121,10 +129,9 @@ public class MqttConfig {
         return adapter;
     }
 
-    // ── Inbound: durable subscriber to Edge-forwarded tournament CUD commands (system-action topic) ──
-    // So the WebApp manages tournaments through the Edge instead of the gateway REST directly — same
-    // pattern as user/locale services. Distinct clientId = own durable subscription. See
-    // SystemActionCommandListener. Reuses the durable (cleanSession=false) inbound factory.
+    // Sottoscrizione in entrata per i comandi di gestione tornei (Creazione/Aggiornamento/Eliminazione) inoltrati dall'Edge.
+    // In questo modo la WebApp passa sempre dall'Edge invece di chiamare direttamente le API REST sul gateway cloud,
+    // uniformando il comportamento con gli altri servizi. Usa una sottoscrizione durevole separata.
 
     @Bean
     public MessageChannel systemActionInboundChannel() {

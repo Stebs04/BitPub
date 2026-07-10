@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.tournamentservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +42,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Implementazione principale per la gestione della logica di business dei tornei.
+ * Gestisce iscrizioni, tabellone, ciclo di vita della competizione e ricezione di eventi MQTT.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -57,13 +64,11 @@ public class TournamentServiceImpl implements TournamentService {
     private MessageChannel mqttOutboundChannel;
 
     /**
-     * Ingerisce l'esito manuale di uno scontro inviato dall'Edge su MQTT (QoS1). Identita' e ruolo
-     * viaggiano nel wrapper (MQTT non ha header): solo il LOCALE_ADMIN puo' registrare un esito.
-     * Cattura le eccezioni per non far crashare il subscriber ne' nack-are il messaggio QoS1
-     * (un replay ripeterebbe lo stesso esito deterministico).
-     * ponytail: il vecchio path REST verificava anche la proprieta' del locale (assertOwns). Il
-     * wrapper non porta il localeId, quindi qui si controlla solo il ruolo; per ripristinare il
-     * controllo di proprieta' aggiungere il localeId a MqttCommandWrapper e riverificarlo.
+     * Riceve ed elabora l'esito manuale di uno scontro inviato dal nodo Edge via MQTT (con QoS 1).
+     * Le informazioni di identità e ruolo sono contenute nel wrapper del messaggio, poiché MQTT non dispone di header HTTP.
+     * Solo gli amministratori di locale (LOCALE_ADMIN) possono registrare un esito manualmente.
+     * Le eccezioni vengono catturate internamente per evitare blocchi al processo di sottoscrizione o rifiuti ingiustificati 
+     * del messaggio, dato che i risultati sono idempotenti.
      */
     @ServiceActivator(inputChannel = "mqttResultInboundChannel")
     public void onTournamentResult(Message<String> message) {
@@ -86,10 +91,10 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Ingerisce il risultato di una partita conclusa (bitpub/cloud/matches/result) per attribuire i GOL
-     * al torneo. Isolamento: solo gli eventi con tournamentMatchId aggiornano i gol del tabellone; le
-     * partite libere vengono ignorate, quindi i gol del torneo non dipendono dalla leaderboard globale.
-     * Idempotente: memorizza i gol per slot sullo scontro, una riconsegna QoS1 riscrive lo stesso valore.
+     * Elabora l'evento di conclusione di una partita per attribuire i gol realizzati e l'esito dello scontro al torneo corrente.
+     * Vengono filtrati solo i messaggi contenenti un 'tournamentMatchId' valido, per garantire l'isolamento dei dati del torneo
+     * rispetto alle partite amichevoli e alla classifica globale. 
+     * L'operazione è strutturata per essere idempotente: una riconsegna del messaggio non causerà duplicazioni dei gol.
      */
     @ServiceActivator(inputChannel = "mqttMatchResultInboundChannel")
     @Transactional
@@ -133,7 +138,7 @@ public class TournamentServiceImpl implements TournamentService {
         }
     }
 
-    /** Pubblica il TournamentDto aggiornato sul topic live cosi' il WebApp aggiorna il tabellone in tempo reale. */
+    /** Pubblica lo stato aggiornato del torneo sul topic MQTT live, permettendo alla WebApp di aggiornare l'interfaccia istantaneamente. */
     private void publishState(TournamentDto dto) {
         try {
             String json = objectMapper.writeValueAsString(dto);
@@ -146,7 +151,7 @@ public class TournamentServiceImpl implements TournamentService {
         }
     }
 
-    /** Evento dedicato di fine torneo (bitpub/tournaments/{id}/ended): notifica servizi/edge in tempo reale. */
+    /** Invia un evento MQTT di terminazione del torneo per notificare tempestivamente tutti i servizi interessati e i client Edge. */
     private void publishEnded(TournamentDto dto) {
         try {
             String json = objectMapper.writeValueAsString(dto);
@@ -177,8 +182,8 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Modifica consentita solo finche' nessun giocatore/squadra e' iscritto: cambiare gioco,
-     * locali o modalita' dopo le iscrizioni invaliderebbe i partecipanti gia' registrati.
+     * L'aggiornamento dei parametri strutturali del torneo (come il gioco o i locali coinvolti) 
+     * è permesso solo prima che vengano registrati i primi iscritti, per non invalidare le iscrizioni già raccolte.
      */
     @Override
     @Transactional
@@ -258,8 +263,8 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Player's own tournament registrations — used by the dashboard "my tournaments" view.
-     * No repository finder exists by participantId, so filter in-memory.
+     * Restituisce la lista di tutte le iscrizioni ai tornei di un determinato partecipante.
+     * Utilizzato ad esempio nella dashboard personale dell'utente.
      */
     @Transactional(readOnly = true)
     public List<TournamentRegistrationDto> getRegistrationsByParticipant(String participantId) {
@@ -318,9 +323,9 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Genera il tabellone a eliminazione diretta quando gli iscritti raggiungono maxParticipants.
-     * maxParticipants deve essere potenza di 2. Randomizza gli iscritti, crea i match di ogni round
-     * e li collega tramite nextMatchId. Il torneo passa ad ACTIVE.
+     * Genera l'albero degli scontri a eliminazione diretta una volta raggiunto il tetto massimo di partecipanti.
+     * Esegue una randomizzazione dei giocatori iscritti, definisce le partite per ogni turno e imposta le relazioni
+     * di avanzamento per i vincitori. Infine, segna il torneo come 'ACTIVE'.
      */
     @Override
     @Transactional
@@ -395,8 +400,8 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Registra il vincitore (e le statistiche testuali) di uno scontro e lo fa avanzare nel match
-     * successivo. Se e' la finale, il torneo passa a COMPLETED. Il tabellone resta consultabile.
+     * Registra l'esito di una partita (vincitore e statistiche finali) e fa avanzare il giocatore qualificato al turno successivo.
+     * Nel caso in cui il match disputato fosse la finale, decreta la conclusione del torneo aggiornandone lo stato.
      */
     @Override
     @Transactional
@@ -442,8 +447,8 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * Il player e' uno dei due giocatori abbinati nello scontro del tabellone.
-     * Usato da match-service per impedire a chi non e' abbinato di connettersi alla partita.
+     * Metodo di validazione usato dal match-service per verificare se un giocatore risulta effettivamente 
+     * abbinato alla partita del tabellone. Utile per scartare connessioni di spettatori o partecipanti esterni.
      */
     @Override
     @Transactional(readOnly = true)
@@ -458,10 +463,9 @@ public class TournamentServiceImpl implements TournamentService {
     }
 
     /**
-     * True se userId occupa lo slot participantId dello scontro. Match diretto per l'individuale
-     * (participantId = userId); per le squadre (participantId = teamId) verifica che userId sia tra
-     * i membri della TournamentRegistration di quella squadra nel torneo. Risolve il caso in cui
-     * match-service invia come winnerId l'id del primo membro anziche' il teamId.
+     * Controlla se l'utente specificato appartiene allo slot previsto dal tabellone per quell'incontro.
+     * Nel caso di partite individuali verifica semplicemente l'ID, mentre nei tornei a squadre controlla che
+     * il giocatore sia effettivamente tra i membri della squadra iscritta.
      */
     private boolean isUserInParticipantSlot(String userId, String participantId, String tournamentId) {
         if (userId == null || participantId == null) return false;
@@ -549,7 +553,7 @@ public class TournamentServiceImpl implements TournamentService {
                 .build();
     }
 
-    /** Fase raggiunta dal partecipante, in base al round piu' avanzato in cui compare nel tabellone. */
+    /** Determina l'etichetta testuale della fase più avanzata raggiunta dal giocatore nel torneo in corso. */
     private String stageLabel(int round, int totalRounds) {
         if (round < 0 || totalRounds <= 0) return "—";
         switch (totalRounds - 1 - round) {

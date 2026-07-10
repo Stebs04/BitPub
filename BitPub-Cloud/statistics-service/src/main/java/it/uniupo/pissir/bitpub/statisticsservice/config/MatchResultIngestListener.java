@@ -1,3 +1,6 @@
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ */
 package it.uniupo.pissir.bitpub.statisticsservice.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,10 +13,11 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 /**
- * Consuma i risultati dei match conclusi inoltrati dal match-service via MQTT
- * (bitpub/cloud/matches/result) e li passa a {@link StatisticsService#recordMatchResult}.
- * Sostituisce la vecchia POST REST /api/v1/statistics/match-result. L'ingest e' idempotente
- * sul matchId, quindi una riconsegna QoS1 (sessione durevole) non raddoppia i conteggi.
+ * Listener MQTT dedicato al consumo dei risultati delle partite concluse, inviati dal match-service.
+ * Questi dati vengono successivamente demandati al servizio {@link StatisticsService#recordMatchResult} per l'elaborazione.
+ * Questo approccio asincrono via MQTT sostituisce la precedente chiamata sincrona REST.
+ * L'inserimento dei dati è progettato per essere idempotente basandosi sull'identificativo della partita: 
+ * in questo modo eventuali messaggi riconsegnati (QoS 1 con sessione durevole) non causeranno conteggi duplicati.
  */
 @Component
 @RequiredArgsConstructor
@@ -30,7 +34,7 @@ public class MatchResultIngestListener {
             statisticsService.recordMatchResult(event);
             log.info("Ingested match result via MQTT: match={}, winner={}", event.getMatchId(), event.getWinnerName());
         } catch (Exception e) {
-            // Poison message: swallow so it doesn't wedge the durable queue; idempotency covers replays.
+            // Gestione dei messaggi non validi: l'eccezione viene intercettata e soppressa per non bloccare la coda durevole. L'idempotenza copre i tentativi di riconsegna successivi.
             log.error("Failed to ingest match result: {}", message.getPayload(), e);
         }
     }
