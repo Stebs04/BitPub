@@ -81,19 +81,6 @@ Una volta avviato lo stack:
 *   **WebApp (Frontend):** [http://localhost:3000](http://localhost:3000)
 *   **API Gateway (Backend):** [http://localhost:8080](http://localhost:8080)
 
-### Pannello Simulatori (demo-control-panel)
-Il pannello serve a generare fisicamente gli "eventi" (gol del calciobalilla, tiri a freccette) pubblicandoli sul broker MQTT. È uno strumento **standalone**: nessun altro servizio lo invoca, lo si guida manualmente dal browser.
-
-Viene avviato **automaticamente insieme allo stack** (`docker-compose up`) come servizio `demo-control-panel` (container `bitpub-demo-control-panel`, porta `8090`, frontend React integrato).
-
-In alternativa, per eseguirlo isolato in locale:
-```bash
-cd BitPub-Simulators/demo-control-panel
-mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
-```
-
----
-
 ## 🧪 Esecuzione dei Test
 
 Il progetto è dotato di suite di test unitari e di integrazione. Per eseguire i test su tutta la codebase backend, posizionati nella root del progetto e usa Maven:
@@ -120,7 +107,7 @@ Per registrare un nuovo utente:
 3. Inserisci Email, Username e Password.
 4. Di default verrà assegnato il ruolo `PLAYER`.
 
-> **Utenti di default (seed):** al primo avvio, il `user-service` (`UserDataSeeder`) genera in modo idempotente un utente per ciascun ruolo del sistema. Password comune: `password123`. Login tramite email.
+> **Utenti di default (seed):** al primo avvio, il `user-service` (`UserDataSeeder`) genera in modo idempotente un utente per ciascun ruolo del sistema. Password comune: `password123`. Login tramite username.
 
 | Username | Email | Password | Ruolo |
 | :--- | :--- | :--- | :--- |
