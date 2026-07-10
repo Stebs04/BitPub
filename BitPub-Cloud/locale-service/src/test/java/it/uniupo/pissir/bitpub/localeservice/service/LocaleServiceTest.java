@@ -31,6 +31,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Classe di test unitario per il LocaleService. Verifica la corretta esecuzione della logica di business, 
+ * comprese le autorizzazioni di accesso, la persistenza e la pubblicazione di eventi MQTT.
+ */
 @ExtendWith(MockitoExtension.class)
 class LocaleServiceTest {
 

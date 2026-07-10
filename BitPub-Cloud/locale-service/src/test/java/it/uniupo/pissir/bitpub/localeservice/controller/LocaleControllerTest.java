@@ -26,8 +26,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// addFilters=false: la security a livello di metodo (@PreAuthorize) e' testata sul service
-// (assertLocaleManageable); qui si verifica solo il mapping HTTP e il passaggio degli header.
+// Autore: Stefano Bellan Matricola 20054330
+// Nota: l'impostazione addFilters=false disabilita la sicurezza a livello di metodo (@PreAuthorize) per questo test,
+// in quanto tali logiche sono gia' coperte e verificate nei test del livello di servizio (LocaleService).
+// Lo scopo di questa classe e' unicamente quello di validare la corretta mappatura HTTP e il passaggio degli header.
 @WebMvcTest(LocaleController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class LocaleControllerTest {

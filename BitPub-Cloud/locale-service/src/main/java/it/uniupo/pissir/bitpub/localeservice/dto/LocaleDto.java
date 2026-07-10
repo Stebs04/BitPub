@@ -7,6 +7,12 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Data Transfer Object per la rappresentazione dei dati relativi a un locale.
+ * Contiene sia le informazioni anagrafiche sia la lista dei dispositivi associati.
+ */
 @Data
 @Builder
 @NoArgsConstructor

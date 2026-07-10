@@ -19,11 +19,13 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.Header;
 
 /**
- * MQTT for locale-service:
- *  - outbound: publishes game ADD/REMOVE events so the Edge keeps its local view of installed game
- *    instances in sync with the cloud catalog;
- *  - inbound: subscribes to Edge-forwarded locale CUD commands (see {@link SystemActionCommandListener})
- *    so the WebApp no longer bypasses the Edge for locale management.
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Configurazione per il protocollo MQTT relativo al servizio dei locali.
+ * - In uscita (outbound): pubblica eventi di aggiunta o rimozione dei giochi, 
+ *   mantenendo sincronizzata la visuale locale del dispositivo Edge con il catalogo centrale in cloud.
+ * - In ingresso (inbound): si iscrive ai comandi di gestione dei locali inoltrati dall'Edge, 
+ *   permettendo cosi' una gestione centralizzata senza che l'applicazione web bypassi l'Edge stesso.
  */
 @Configuration
 public class MqttConfig {
@@ -69,9 +71,9 @@ public class MqttConfig {
         void publish(String payload, @Header(MqttHeaders.TOPIC) String topic);
     }
 
-    // ── Inbound: Edge-forwarded locale CUD commands ────────────────────────────────
-    // Durable session (cleanSession=false + stable clientId) so the broker queues QoS1 commands
-    // while locale-service is down and redelivers them on reconnect.
+    // ── Inbound: Comandi di gestione locale inoltrati dall'Edge ────────────────────────────────
+    // Utilizziamo una sessione durevole (cleanSession=false e un clientId stabile) in modo che il broker 
+    // metta in coda i comandi con QoS1 durante eventuali inattivita' del servizio, per poi riconsegnarli alla riconnessione.
 
     @Bean
     public MqttPahoClientFactory mqttInboundClientFactory() {

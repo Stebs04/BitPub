@@ -8,9 +8,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Il ruolo effettivo (X-User-Id / X-User-Role -> SecurityContext) viene stabilito dal
- * JwtAuthenticationFilter condiviso in bitpub-common a partire dal token JWT inoltrato dal gateway.
- * La catena HTTP resta aperta: l'accesso e' vincolato a livello di metodo con @PreAuthorize.
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Configurazione della sicurezza per il servizio.
+ * Il ruolo effettivo dell'utente viene determinato dal JwtAuthenticationFilter, 
+ * che analizza il token JWT inoltrato dal gateway. La catena di filtri HTTP rimane aperta; 
+ * le restrizioni di accesso vengono applicate in modo selettivo sui singoli metodi tramite le annotazioni.
  */
 @Configuration
 @EnableMethodSecurity

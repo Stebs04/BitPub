@@ -13,6 +13,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Controller per esporre le API REST relative alla gestione dei locali e delle relative macchine da gioco.
+ */
 @RestController
 @RequestMapping("/api/v1/locales")
 @RequiredArgsConstructor
@@ -20,8 +25,8 @@ public class LocaleController {
 
     private final LocaleService localeService;
 
-    // Gestione locali (CRUD completo): creazione ed eliminazione riservate a PLATFORM_ADMIN;
-    // la modifica e' consentita anche al LOCALE_ADMIN proprietario (verificato nel service).
+    // Gestione dei locali: creazione ed eliminazione sono operazioni riservate agli amministratori di piattaforma.
+    // L'aggiornamento e' consentito anche all'amministratore del locale proprietario.
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
@@ -34,8 +39,8 @@ public class LocaleController {
         return localeService.getAllLocales();
     }
 
-    // Esplorazione PLAYER: locali attualmente ONLINE (con almeno una macchina simulata attiva),
-    // calcolato in tempo reale sullo stato dei dispositivi, non una lista statica salvata a DB.
+    // Restituisce la lista dei locali attualmente in attivita', calcolata verificando 
+    // la presenza di almeno un dispositivo simulato operativo.
     @GetMapping("/online")
     public List<LocaleDto> getOnlineLocales() {
         return localeService.getOnlineLocales();
@@ -66,8 +71,8 @@ public class LocaleController {
         localeService.deleteLocale(id);
     }
 
-    // Gestione dei dispositivi: riservata al LOCALE_ADMIN proprietario del locale (o PLATFORM_ADMIN).
-    // Ruolo e id del chiamante arrivano dal gateway (JwtAuthenticationFilter) negli header X-User-Id / X-User-Role.
+    // Gestione dei dispositivi di gioco: operazioni limitate agli amministratori del locale.
+    // Il ruolo e l'identificativo del chiamante vengono estratti dagli header inviati dal gateway.
     @PostMapping("/{localeId}/games")
     @ResponseStatus(HttpStatus.CREATED)
     public GameInstanceDto addGameInstance(@PathVariable String localeId, @Valid @RequestBody AddGameInstanceRequest request,

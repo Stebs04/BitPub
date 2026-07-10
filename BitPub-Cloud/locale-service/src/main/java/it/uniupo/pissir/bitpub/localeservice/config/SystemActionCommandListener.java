@@ -15,13 +15,14 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 /**
- * Consumes Edge-forwarded locale CUD commands from the Cloud system-action MQTT topic and orchestrates
- * the matching {@link LocaleService} call. The inner payload JSON carries an {@code action} discriminant
- * (CREATE_LOCALE / DELETE_LOCALE / ADD_GAME_INSTANCE / TOGGLE_GAME_INSTANCE / DELETE_GAME_INSTANCE) plus the data.
- *
- * <p>The Edge validated the caller's JWT but not their role. Create/delete of a locale are
- * PLATFORM_ADMIN-only, re-checked here. Add/toggle of a game instance are already authorized inside
- * LocaleService (assertLocaleManageable) against the caller id/role carried in the wrapper.
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Ascoltatore dei messaggi MQTT per la gestione dei locali. 
+ * Consuma i comandi inoltrati dall'Edge e orchestra le relative chiamate al {@link LocaleService}.
+ * Il payload JSON contiene un parametro discriminante per identificare l'azione richiesta, insieme ai dati necessari.
+ * 
+ * L'Edge convalida il JWT ma non il ruolo; pertanto le operazioni critiche (come la creazione o rimozione di un locale) 
+ * vengono controllate nuovamente qui. Le operazioni sulle macchine sono invece validate direttamente nel servizio.
  */
 @Component
 @RequiredArgsConstructor
@@ -62,12 +63,11 @@ public class SystemActionCommandListener {
             }
             log.info("Processed locale action {} via MQTT (actor {})", action, actorId);
         } catch (BitpubException e) {
-            // Genuine rejection (403 not owner / not admin, 404 not found, 409 duplicate). Log, don't
-            // crash the subscriber or nack the QoS1 message — a retry would only replay the rejection.
-            log.info("Rejected locale action via MQTT ({}): {}", e.getStatus(), e.getMessage());
+            // Rifiuto legittimo (non autorizzato, non trovato, duplicato). Si registra l'evento senza causare il blocco della coda.
+            log.info("Azione sul locale rifiutata via MQTT ({}): {}", e.getStatus(), e.getMessage());
         } catch (Exception e) {
-            // Poison message — swallow so it doesn't wedge the durable queue.
-            log.error("Failed to process inbound locale command: {}", message.getPayload(), e);
+            // Errore generico o messaggio malformato. Catturiamo l'eccezione per non bloccare l'elaborazione dei messaggi successivi.
+            log.error("Elaborazione del comando MQTT per il locale fallita: {}", message.getPayload(), e);
         }
     }
 

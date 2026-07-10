@@ -7,6 +7,12 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Data Transfer Object per la rappresentazione delle informazioni di base di un'istanza di gioco.
+ * Utilizzato per esporre i dati tramite le API senza rivelare direttamente le entita' del dominio.
+ */
 @Data
 @Builder
 @NoArgsConstructor

@@ -17,12 +17,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Semina un locale demo assegnato all'utente seed "locale_admin" (user-service), con le
- * game instance dei tipi di gioco seminati da GameCatalogDataSeeder, cosi' il ruolo
- * LOCALE_ADMIN e' testabile end-to-end subito dopo il primo avvio.
- * Idempotente: salta se "locale_admin" ha gia' un locale assegnato.
- * Attende (con retry) che user-service e game-catalog-service siano raggiungibili, dato che
- * l'ordine di startup dei container non e' garantito.
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Inizializza un locale dimostrativo per l'amministratore predefinito "locale_admin".
+ * Si occupa di assegnare le macchine da gioco basandosi sui dati forniti dal catalogo.
+ * L'operazione e' sicura e non duplica i dati se l'utente ha gia' un locale assegnato.
+ * Il processo prevede dei tentativi successivi nel caso i servizi dipendenti non siano immediatamente pronti all'avvio.
  */
 // @Component  // ponytail: seed demo disabilitato - all'avvio si creano solo i 4 utenti base
 @RequiredArgsConstructor
@@ -131,13 +131,14 @@ public class LocaleDataSeeder implements CommandLineRunner {
 
     private void syncAdminLocaleId(String adminId, String localeId) {
         try {
+            // Aggiorno il profilo utente con l'id del nuovo locale assegnato
             RestClient.create(userServiceUrl)
                     .patch()
                     .uri("/api/v1/users/{id}/locale?localeId={localeId}", adminId, localeId)
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
-            log.error("LocaleDataSeeder: sync localeId fallita per adminId {}", adminId, e);
+            log.error("LocaleDataSeeder: sincronizzazione fallita per l'admin con ID {}", adminId, e);
         }
     }
 }

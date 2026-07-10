@@ -25,6 +25,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Autore: Stefano Bellan Matricola 20054330
+ * 
+ * Servizio principale per la gestione della logica di business relativa ai locali e alle rispettive macchine.
+ * Si occupa del ciclo di vita dei locali, dei controlli autorizzativi sulle operazioni,
+ * nonche' della propagazione degli eventi verso il broker MQTT.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -56,8 +63,9 @@ public class LocaleService {
     }
 
     /**
-     * Sincronizza il localeId sull'utente LOCALE_ADMIN, cosi' che al login successivo
-     * il claim JWT (e X-User-Locale-Id inoltrato dal gateway) rifletta il locale assegnato.
+     * Sincronizza l'identificativo del locale nel profilo dell'utente amministratore (user-service).
+     * Questo permette che al successivo accesso il token JWT contenga il riferimento corretto al locale, 
+     * abilitando le funzionalita' previste per l'amministratore.
      */
     private void syncAdminLocaleId(String adminId, String localeId) {
         if (adminId == null) return;
@@ -80,7 +88,8 @@ public class LocaleService {
     }
 
     /**
-     * Modifica di un locale: consentita al PLATFORM_ADMIN o al LOCALE_ADMIN proprietario del locale.
+     * Consente di aggiornare le informazioni di un locale esistente.
+     * L'operazione e' consentita agli amministratori di piattaforma e all'amministratore associato al locale.
      */
     @Transactional
     public LocaleDto updateLocale(String id, CreateLocaleRequest request, String callerId, String callerRole) {
@@ -99,7 +108,8 @@ public class LocaleService {
     }
 
     /**
-     * Eliminazione di un locale: operazione riservata al PLATFORM_ADMIN (CRUD completo sui locali).
+     * Elimina definitivamente un locale. 
+     * Essendo un'operazione distruttiva e a livello globale, e' riservata esclusivamente agli amministratori di piattaforma.
      */
     @Transactional
     public void deleteLocale(String id) {
@@ -124,10 +134,9 @@ public class LocaleService {
     }
 
     /**
-     * Locali "ONLINE" per l'esplorazione del PLAYER: non un elenco statico, ma il filtro in
-     * tempo reale sui locali che hanno almeno una gameInstance attiva. Il flag active e' lo
-     * stesso heartbeat simulato gia' pilotato dal LOCALE_ADMIN (toggle dispositivo simulato),
-     * quindi riflette lo stato corrente del locale senza introdurre nuova infrastruttura.
+     * Restituisce l'elenco dei locali considerati attivi.
+     * Un locale e' considerato "online" se ha almeno un'istanza di gioco attualmente in esecuzione (active = true).
+     * Questo stato si basa sull'ultimo battito cardiaco simulato inviato dalle macchine, offrendo una vista in tempo reale.
      */
     @Transactional(readOnly = true)
     public List<LocaleDto> getOnlineLocales() {
@@ -162,7 +171,8 @@ public class LocaleService {
     }
 
     /**
-     * Rimozione di una macchina dal locale: consentita al LOCALE_ADMIN proprietario o al PLATFORM_ADMIN.
+     * Gestisce la disinstallazione di una macchina dal locale.
+     * Verifica l'appartenenza della macchina al locale e l'autorizzazione dell'utente richiedente.
      */
     @Transactional
     public void removeGameInstance(String localeId, String gameInstanceId, String callerId, String callerRole) {
@@ -201,7 +211,8 @@ public class LocaleService {
     }
 
     /**
-     * Toggles a simulated device on/off for the LOCALE_ADMIN device-config panel.
+     * Attiva o disattiva il dispositivo simulato, aggiornandone lo stato.
+     * Questa funzione simula l'interruttore fisico presente nel pannello di configurazione hardware.
      */
     @Transactional
     public GameInstanceDto setGameInstanceActive(String localeId, String gameInstanceId, boolean active, String callerId, String callerRole) {
@@ -226,8 +237,8 @@ public class LocaleService {
     }
 
     /**
-     * A LOCALE_ADMIN may only manage game instances of the locale they are assigned to (locale.adminId).
-     * PLATFORM_ADMIN bypasses the check.
+     * Valida le autorizzazioni per la gestione del locale.
+     * Verifica che il chiamante sia un amministratore globale oppure l'amministratore specifico del locale richiesto.
      */
     private void assertLocaleManageable(Locale locale, String callerId, String callerRole) {
         if ("PLATFORM_ADMIN".equals(callerRole)) {
