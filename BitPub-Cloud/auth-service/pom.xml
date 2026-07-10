@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Autore: Luca Franzon 20054744
+  File di configurazione Maven per il modulo auth-service. 
+  Gestisce le dipendenze specifiche per lo sviluppo web, l'integrazione con il database 
+  e le librerie condivise del progetto BitPub.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">

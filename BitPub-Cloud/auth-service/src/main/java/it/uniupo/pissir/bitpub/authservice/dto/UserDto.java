@@ -1,3 +1,8 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Data Transfer Object utilizzato per la deserializzazione dei dati dell'utente
+ * provenienti dal microservizio deputato alla loro gestione.
+ */
 package it.uniupo.pissir.bitpub.authservice.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -11,5 +16,9 @@ public class UserDto {
     private String email;
     private String role;
     private String localeId;
-    // Potremmo aggiungere passwordHash se lo strato auth lo verifica
+    /*
+     * Nota architetturale: qualora la responsabilità della verifica dell'hash
+     * ricadesse completamente su questo strato, il campo relativo all'hash 
+     * della password dovrebbe essere mappato all'interno di questa struttura.
+     */
 }

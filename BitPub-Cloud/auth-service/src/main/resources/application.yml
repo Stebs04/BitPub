@@ -1,3 +1,8 @@
+# Autore: Luca Franzon 20054744
+# File di configurazione principale per il servizio di autenticazione. 
+# Contiene i parametri di avvio, le impostazioni per la validazione JWT 
+# e le comunicazioni con altri servizi.
+
 server:
   port: 8081
 

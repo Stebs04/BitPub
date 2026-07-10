@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Servizio principale per l'autenticazione. Gestisce la comunicazione con
+ * il microservizio utente per la validazione delle credenziali e si occupa
+ * della creazione e firma dei token JWT.
+ */
 package it.uniupo.pissir.bitpub.authservice.service;
 
 import it.uniupo.pissir.bitpub.authservice.dto.JwtResponse;
@@ -23,8 +29,20 @@ public class AuthService {
     @Value("${bitpub.services.user-service.url:http://localhost:8082}")
     private String userServiceUrl;
 
+    /**
+     * Esegue il processo di autenticazione verificando le credenziali fornite.
+     * In caso di successo, procede alla generazione di un token JWT valido per le 
+     * successive richieste autenticate.
+     *
+     * @param request i dati di login inviati dal client
+     * @return un oggetto JwtResponse contenente il token e i dettagli base dell'utente
+     * @throws BitpubException se le credenziali risultano non valide o la comunicazione remota fallisce
+     */
     public JwtResponse login(LoginRequest request) {
-        // Chiama user-service per verificare username/password contro l'hash memorizzato
+        /*
+         * Viene effettuata una chiamata HTTP verso il servizio utente per convalidare 
+         * la combinazione di username e password. La risposta conterrà i dati aggiornati dell'utente.
+         */
         UserDto user;
         try {
             user = restClient.post()

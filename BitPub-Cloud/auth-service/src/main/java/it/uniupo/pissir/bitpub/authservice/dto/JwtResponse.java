@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Data Transfer Object utilizzato per incapsulare la risposta a seguito
+ * di un accesso avvenuto con successo. Contiene il token di autorizzazione e
+ * le informazioni essenziali del profilo utente.
+ */
 package it.uniupo.pissir.bitpub.authservice.dto;
 
 import lombok.AllArgsConstructor;

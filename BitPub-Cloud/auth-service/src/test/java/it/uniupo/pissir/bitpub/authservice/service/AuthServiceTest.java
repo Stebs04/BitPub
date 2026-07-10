@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Classe di test unitario focalizzata sulla logica applicativa del servizio 
+ * di autenticazione. Valuta l'integrazione con i client HTTP e la corretta 
+ * gestione dei token per le risposte autorizzate e non.
+ */
 package it.uniupo.pissir.bitpub.authservice.service;
 
 import it.uniupo.pissir.bitpub.authservice.dto.JwtResponse;

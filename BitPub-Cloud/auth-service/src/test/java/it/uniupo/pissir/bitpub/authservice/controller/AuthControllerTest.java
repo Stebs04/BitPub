@@ -1,3 +1,9 @@
+/**
+ * Autore: Luca Franzon 20054744
+ * Classe di test unitario dedicata alla validazione delle funzionalità offerte
+ * dal controller di autenticazione. Verifica in particolare il comportamento
+ * degli endpoint esposti in diverse casistiche di utilizzo.
+ */
 package it.uniupo.pissir.bitpub.authservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
