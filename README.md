@@ -161,14 +161,10 @@ Ecco il flusso per disputare un incontro (es. Calciobalilla):
 
 1. **Creazione della Lobby (Cloud):** Un utente dalla WebApp seleziona una macchina dal suo locale e clicca "Inizia Partita". Lo stato della macchina diventa `WAITING_FOR_PLAYERS`.
 2. **Ingresso Giocatori:** Il secondo dovrá entrare nella stessa lobby e la partita passa allo stato `IN_PROGRESS`.
-3. **Generazione Eventi (Fisico/Simulatore):** 
-   - Apri il **Pannello Simulatori**.
-   - Inserisci l'ID della macchina in partita.
-   - Clicca i bottoni per simulare gli eventi del sensore (es. "Goal Squadra A", "Goal Squadra B").
-4. **Sincronizzazione Real-Time:** 
+3. **Sincronizzazione Real-Time:** 
    - L'evento passa tramite l'Edge Node e arriva al Match Service.
    - Guardando la WebApp, noterai che il punteggio **si aggiorna istantaneamente** senza ricaricare la pagina grazie alle WebSocket!
-5. **Fine Partita:** Quando vengono raggiunti i 10 goal (per il calciobalilla), la partita termina automaticamente (stato `FINISHED`). Le statistiche e le leaderboard vengono aggiornate istantaneamente per mostrare il vincitore!
+4. **Fine Partita:** Quando vengono raggiunti i punteggi massimi per ogni gioco, la partita termina automaticamente (stato `FINISHED`). Le statistiche e le leaderboard vengono aggiornate istantaneamente per mostrare il vincitore!
 
 ---
 
