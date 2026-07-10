@@ -171,7 +171,6 @@ Ecco l'elenco dei servizi presenti, il responsabile tecnico e le porte associate
 | `statistics-service` | 8087 | Leaderboard globali e aggregazioni dati | Stefano B. |
 | `notification-service` | 8088 | Server WebSocket per le notifiche push | Stefano B. |
 | `bitpub-edge` | 8089 | Nodo Edge di prossimità per i buffer MQTT | Timothy G. |
-| `demo-control-panel` | 8090 | Pannello simulatori: genera eventi di gioco su MQTT (frontend React integrato) | Timothy G. |
 
 ---
 
