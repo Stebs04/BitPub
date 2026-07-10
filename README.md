@@ -81,19 +81,6 @@ Una volta avviato lo stack:
 *   **WebApp (Frontend):** [http://localhost:3000](http://localhost:3000)
 *   **API Gateway (Backend):** [http://localhost:8080](http://localhost:8080)
 
-### Pannello Simulatori (demo-control-panel)
-Il pannello serve a generare fisicamente gli "eventi" (gol del calciobalilla, tiri a freccette) pubblicandoli sul broker MQTT. È uno strumento **standalone**: nessun altro servizio lo invoca, lo si guida manualmente dal browser.
-
-Viene avviato **automaticamente insieme allo stack** (`docker-compose up`) come servizio `demo-control-panel` (container `bitpub-demo-control-panel`, porta `8090`, frontend React integrato).
-
-In alternativa, per eseguirlo isolato in locale:
-```bash
-cd BitPub-Simulators/demo-control-panel
-mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
-```
-
----
-
 ## 🧪 Esecuzione dei Test
 
 Il progetto è dotato di suite di test unitari e di integrazione. Per eseguire i test su tutta la codebase backend, posizionati nella root del progetto e usa Maven:
@@ -120,7 +107,7 @@ Per registrare un nuovo utente:
 3. Inserisci Email, Username e Password.
 4. Di default verrà assegnato il ruolo `PLAYER`.
 
-> **Utenti di default (seed):** al primo avvio, il `user-service` (`UserDataSeeder`) genera in modo idempotente un utente per ciascun ruolo del sistema. Password comune: `password123`. Login tramite email.
+> **Utenti di default (seed):** al primo avvio, il `user-service` (`UserDataSeeder`) genera in modo idempotente un utente per ciascun ruolo del sistema. Password comune: `password123`. Login tramite username.
 
 | Username | Email | Password | Ruolo |
 | :--- | :--- | :--- | :--- |
@@ -161,14 +148,10 @@ Ecco il flusso per disputare un incontro (es. Calciobalilla):
 
 1. **Creazione della Lobby (Cloud):** Un utente dalla WebApp seleziona una macchina dal suo locale e clicca "Inizia Partita". Lo stato della macchina diventa `WAITING_FOR_PLAYERS`.
 2. **Ingresso Giocatori:** Il secondo dovrá entrare nella stessa lobby e la partita passa allo stato `IN_PROGRESS`.
-3. **Generazione Eventi (Fisico/Simulatore):** 
-   - Apri il **Pannello Simulatori**.
-   - Inserisci l'ID della macchina in partita.
-   - Clicca i bottoni per simulare gli eventi del sensore (es. "Goal Squadra A", "Goal Squadra B").
-4. **Sincronizzazione Real-Time:** 
+3. **Sincronizzazione Real-Time:** 
    - L'evento passa tramite l'Edge Node e arriva al Match Service.
    - Guardando la WebApp, noterai che il punteggio **si aggiorna istantaneamente** senza ricaricare la pagina grazie alle WebSocket!
-5. **Fine Partita:** Quando vengono raggiunti i 10 goal (per il calciobalilla), la partita termina automaticamente (stato `FINISHED`). Le statistiche e le leaderboard vengono aggiornate istantaneamente per mostrare il vincitore!
+4. **Fine Partita:** Quando vengono raggiunti i punteggi massimi per ogni gioco, la partita termina automaticamente (stato `FINISHED`). Le statistiche e le leaderboard vengono aggiornate istantaneamente per mostrare il vincitore!
 
 ---
 
@@ -188,7 +171,6 @@ Ecco l'elenco dei servizi presenti, il responsabile tecnico e le porte associate
 | `statistics-service` | 8087 | Leaderboard globali e aggregazioni dati | Stefano B. |
 | `notification-service` | 8088 | Server WebSocket per le notifiche push | Stefano B. |
 | `bitpub-edge` | 8089 | Nodo Edge di prossimità per i buffer MQTT | Timothy G. |
-| `demo-control-panel` | 8090 | Pannello simulatori: genera eventi di gioco su MQTT (frontend React integrato) | Timothy G. |
 
 ---
 
