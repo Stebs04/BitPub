@@ -1,34 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Autore: Stefano Bellan Matricola 20054330 -->
+<!-- Modello a oggetti del progetto (POM) per la gestione delle dipendenze e del processo di build del servizio di notifica -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    
+    <!-- Configurazione del progetto padre da cui ereditare impostazioni e versioni -->
     <parent>
         <groupId>it.uniupo.pissir.bitpub</groupId>
         <artifactId>bitpub-cloud</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
+    <!-- Identificativo univoco di questo modulo -->
     <artifactId>notification-service</artifactId>
 
+    <!-- Elenco delle librerie necessarie per il funzionamento del servizio -->
     <dependencies>
+        <!-- Fornisce il supporto per lo sviluppo di applicazioni web, inclusi server REST e Tomcat integrato -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        
+        <!-- Importa le classi condivise e le configurazioni di base utilizzate trasversalmente nell'ecosistema BitPub -->
         <dependency>
             <groupId>it.uniupo.pissir.bitpub</groupId>
             <artifactId>bitpub-common</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        
+        <!-- Aggiunge il supporto per le comunicazioni bidirezionali tramite WebSocket, essenziale per inviare notifiche in tempo reale ai client -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
+        
+        <!-- Facilita l'accesso ai dati relazionali utilizzando Java Persistence API (JPA) ed Hibernate -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        
+        <!-- Driver JDBC specifico per l'interazione con il database PostgreSQL -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
