@@ -1,4 +1,6 @@
 {
+  "//": "autore Timothy Giolito 20054431",
+  "//comment": "Impostazioni TypeScript specifiche per il bundle dell'applicazione frontend.",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",

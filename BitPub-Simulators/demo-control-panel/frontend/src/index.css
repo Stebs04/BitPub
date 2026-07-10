@@ -1,3 +1,5 @@
+/* autore Timothy Giolito 20054431 */
+/* Fogli di stile base, inclusione delle direttive TailwindCSS. */
 @import "tailwindcss";
 
 @layer base {

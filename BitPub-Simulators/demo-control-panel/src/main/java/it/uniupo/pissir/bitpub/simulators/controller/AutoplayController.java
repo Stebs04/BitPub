@@ -1,3 +1,10 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Controller REST incaricato di gestire lo stato dell'autoplay.
+ * Consente l'attivazione o disattivazione della modalità di gioco automatico
+ * per specifiche istanze e ne permette l'interrogazione dello stato attuale.
+ */
 package it.uniupo.pissir.bitpub.simulators.controller;
 
 import it.uniupo.pissir.bitpub.simulators.service.AutoplayService;

@@ -1,4 +1,6 @@
 {
+  "//": "autore Timothy Giolito 20054431",
+  "//comment": "Configurazione radice per TypeScript, che aggrega i file specifici per l'app e l'ambiente Node.",
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

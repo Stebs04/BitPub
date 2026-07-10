@@ -1,3 +1,10 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Controller principale per l'invio degli eventi generati dal simulatore.
+ * Raccoglie le richieste di inizio partita e le interazioni di gioco,
+ * delegando poi al servizio sottostante la pubblicazione degli eventi elaborati.
+ */
 package it.uniupo.pissir.bitpub.simulators.controller;
 
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
@@ -10,15 +17,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Ingressi REST del pannello di controllo demo. Nessuna logica per-gioco: pubblica sensor event
- * grezzi (MATCH_START/MATCH_END o un evento arbitrario) sul topic locale dei sensori. Gli esiti a
- * RNG delle azioni interattive sono gestiti dal {@link GenericSimulator} sul topic delle azioni.
- * Il path mantiene {gameType} solo per compatibilita' dell'URL: non seleziona piu' alcuna regola.
- */
 @RestController
 @RequestMapping("/api/simulators")
-@CrossOrigin(origins = "*") // For demo purposes
+@CrossOrigin(origins = "*")
 public class SimulatorController {
 
     private final GenericSimulator simulator;

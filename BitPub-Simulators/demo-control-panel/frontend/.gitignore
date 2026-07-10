@@ -1,3 +1,5 @@
+# autore Timothy Giolito 20054431
+# File di esclusione per Git. Impedisce il tracciamento di cartelle compilate e log di sistema.
 # Logs
 logs
 *.log

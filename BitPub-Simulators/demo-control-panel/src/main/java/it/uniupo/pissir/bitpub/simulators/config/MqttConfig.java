@@ -1,3 +1,11 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Configurazione principale per il client MQTT dell'applicazione.
+ * Si occupa di definire le connessioni verso il broker e di gestire sia 
+ * i flussi in uscita (eventi dei sensori simulati) sia quelli in entrata 
+ * (configurazioni di gioco e richieste di azioni provenienti dal match-service).
+ */
 package it.uniupo.pissir.bitpub.simulators.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;

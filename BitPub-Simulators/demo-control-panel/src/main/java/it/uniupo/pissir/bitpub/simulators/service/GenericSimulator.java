@@ -1,3 +1,11 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Cuore del sistema di simulazione, questo servizio mantiene un registro locale
+ * delle configurazioni di gioco ricevute e risponde agli eventi interattivi in entrata.
+ * Al momento della ricezione di un'azione, ne determina l'esito basandosi sulle 
+ * probabilità configurate e propaga i relativi eventi di successo o fallimento.
+ */
 package it.uniupo.pissir.bitpub.simulators.service;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -20,14 +28,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Simulatore generico e data-driven: sostituisce i vecchi generator per-gioco (calciobalilla,
- * biliardo, freccette). Tiene in cache le regole di ogni tipo di gioco (ricevute via
- * bitpub/config/games/#) e, quando il match-service inoltra un'azione
- * (bitpub/simulators/{gameInstanceId}/action), tira l'RNG sulla successProbability del sensore:
- * a segno ripubblica il sensor event con lo scoreIncrement configurato, altrimenti un evento MISS
- * (0 punti). Non conosce alcuna regola hard-coded.
- */
 @Service
 @Slf4j
 public class GenericSimulator {

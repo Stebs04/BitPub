@@ -1,4 +1,6 @@
 {
+  "//": "autore Timothy Giolito 20054431",
+  "//comment": "Impostazioni TypeScript per l'ambiente Node, usato prevalentemente per la configurazione di Vite.",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
     "target": "es2023",

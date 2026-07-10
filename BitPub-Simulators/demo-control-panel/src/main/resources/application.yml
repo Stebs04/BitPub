@@ -1,3 +1,5 @@
+# autore Timothy Giolito 20054431
+# Configurazione applicativa principale per il pannello di controllo demo.
 server:
   port: 8085
 

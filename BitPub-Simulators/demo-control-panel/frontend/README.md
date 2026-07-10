@@ -1,3 +1,5 @@
+<!-- autore Timothy Giolito 20054431 -->
+<!-- Documentazione iniziale del progetto React, generata tramite template. -->
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.

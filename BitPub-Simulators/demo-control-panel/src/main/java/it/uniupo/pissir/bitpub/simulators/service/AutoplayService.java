@@ -1,3 +1,11 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Servizio che implementa la logica di gioco automatico (autoplay).
+ * Quando attivato, il servizio simula iterativamente e in modo casuale l'attività
+ * dei sensori di punteggio per le partite in corso. Gestisce inoltre il riavvio
+ * autonomo delle partite a intervalli prestabiliti.
+ */
 package it.uniupo.pissir.bitpub.simulators.service;
 
 import it.uniupo.pissir.bitpub.common.events.SensorEvent;
@@ -15,14 +23,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Autoplay generico e data-driven: nessun ramo per-gioco. Ad ogni tick sceglie un sensore di
- * punteggio dalle regole in cache (via {@link GenericSimulator}), tira l'RNG configurato ed emette
- * il sensor event (o un MISS) come farebbe un tavolo fisico. Il match-service accredita il punteggio
- * e chiude la partita al winScoreTarget; l'autoplay riavvia periodicamente una nuova partita.
- * ponytail: riavvio a intervallo fisso (RESTART_EVERY_TICKS), non alla fine reale del match — evita
- * di dover interrogare il match-service; alzare la cadenza se le partite durano di piu'.
- */
 @Service
 @Slf4j
 public class AutoplayService {

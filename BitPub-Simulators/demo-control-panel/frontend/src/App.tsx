@@ -1,3 +1,10 @@
+/**
+ * autore Timothy Giolito 20054431
+ *
+ * Componente radice dell'applicazione React.
+ * Gestisce lo stato globale dei simulatori, la comunicazione con le API di backend
+ * e l'interfaccia utente principale per il controllo delle partite e dell'autoplay.
+ */
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Gamepad2, Users, Play, Square, RefreshCw, Zap } from 'lucide-react';
