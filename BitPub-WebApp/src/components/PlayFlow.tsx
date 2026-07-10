@@ -282,6 +282,22 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
   }
 
   // ── Vista esplorazione locali/giochi ────────────────────────────────────────
+  // Locali con le loro macchine attive (filtrate per tipo di gioco nel contesto torneo).
+  const localesWithGames = locales
+    .map((locale) => ({
+      locale,
+      games: (locale.games || []).filter(
+        (g) => g.active && (!gameTypeFilter || g.gameTypeId === gameTypeFilter)
+      ),
+    }))
+    .filter((x) => x.games.length > 0 || !gameTypeFilter);
+
+  // In un torneo si gioca un unico scontro: mostriamo una sola macchina (la prima disponibile),
+  // non l'intera lista di macchinari compatibili.
+  const shownLocales = tournamentMatchId && localesWithGames.length > 0
+    ? [{ locale: localesWithGames[0].locale, games: [localesWithGames[0].games[0]] }]
+    : localesWithGames;
+
   return (
     <div className="p-6 md:p-8 animate-slide-up">
       {onClose && (
@@ -320,17 +336,13 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
 
       {loading ? (
         <div className="text-white">Caricamento locali online...</div>
-      ) : locales.length === 0 ? (
+      ) : shownLocales.length === 0 ? (
         <div className="glass-panel p-12 text-center">
           <p className="text-slate-400 text-lg">Nessun locale online al momento. Riprova più tardi.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {locales.map((locale) => {
-            const activeGames = (locale.games || []).filter(
-              (g) => g.active && (!gameTypeFilter || g.gameTypeId === gameTypeFilter)
-            );
-            if (gameTypeFilter && activeGames.length === 0) return null;
+          {shownLocales.map(({ locale, games: activeGames }) => {
             return (
               <Card key={locale.id}>
                 <CardHeader>
