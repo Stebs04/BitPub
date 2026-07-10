@@ -1,6 +1,7 @@
 package it.uniupo.pissir.bitpub.edge.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.constants.MqttTopics;
 import it.uniupo.pissir.bitpub.common.mqtt.MqttCommandWrapper;
@@ -8,13 +9,19 @@ import it.uniupo.pissir.bitpub.common.mqtt.TournamentResultCommand;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
 import it.uniupo.pissir.bitpub.edge.service.MqttBufferService;
 import it.uniupo.pissir.bitpub.edge.service.RuleEngineService;
+import it.uniupo.pissir.bitpub.edge.service.RuleEngineService.LocalMatchState;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.integration.mqtt.support.MqttHeaders;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Inbound REST ingress for WebApp commands: interactive game actions and tournament match results.
@@ -34,20 +41,26 @@ public class EdgeCommandController {
     private final ObjectMapper objectMapper;
     private final MqttBufferService mqttBuffer;
     private final RuleEngineService ruleEngine;
+    private final MessageChannel localMqttOutboundChannel;
 
     public EdgeCommandController(JwtUtils jwtUtils, ObjectMapper objectMapper,
                                 MqttBufferService mqttBuffer,
-                                RuleEngineService ruleEngine) {
+                                RuleEngineService ruleEngine,
+                                @Qualifier("localMqttOutboundChannel") MessageChannel localMqttOutboundChannel) {
         this.jwtUtils = jwtUtils;
         this.objectMapper = objectMapper;
         this.mqttBuffer = mqttBuffer;
         this.ruleEngine = ruleEngine;
+        this.localMqttOutboundChannel = localMqttOutboundChannel;
     }
 
     /**
      * Interactive game action from the turn player. Body = GameActionRequestDto JSON incl. eventId.
-     * Published to the cloud over MQTT (QoS1); identity is packed into the wrapper (MQTT has no
-     * headers). Returns 202 — the resulting state reaches the WebApp via the match-state MQTT topic.
+     * L'Edge NON delega piu' l'orchestrazione al Cloud: risolve localmente la squadra di chi agisce e
+     * inoltra l'azione DIRETTAMENTE al simulatore locale (topic bitpub/simulators/{gameInstanceId}/action)
+     * su un canale MQTT non bufferizzato. Il simulatore ripubblica il SensorEvent in locale, sbloccando
+     * il turno nel RuleEngineService anche a Cloud irraggiungibile. Returns 202 — lo stato risultante
+     * raggiunge la WebApp sul topic match-state.
      */
     @PostMapping("/matches/{matchId}/action")
     public ResponseEntity<String> gameAction(@PathVariable("matchId") String matchId,
@@ -56,15 +69,39 @@ public class EdgeCommandController {
         Actor actor = authenticate(authHeader);
 
         // Gate del turno sullo stato live locale (autoritativo sull'Edge): se non e' il turno del
-        // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore/Cloud.
+        // chiamante l'azione e' bloccata qui, senza nemmeno raggiungere il simulatore.
         if (!ruleEngine.isPlayersTurn(matchId, actor.userId())) {
             log.info("Blocked out-of-turn action for match {} by actor {}", matchId, actor.userId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Non e' il tuo turno");
         }
 
-        String topic = MqttTopics.getCloudMatchActionTopic(matchId);
-        publishCommand(topic, matchId, actor, actionJson, "action for Match " + matchId);
-        log.info("Game action for match {} published to cloud via MQTT {} (actor {})", matchId, topic, actor.userId());
+        LocalMatchState state = ruleEngine.getState(matchId);
+        if (state == null || state.gameInstanceId == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Partita non attiva sull'Edge");
+        }
+
+        // Risolvi la squadra di chi agisce: indice dello userId in playerUserIds -> teamOrder omologo.
+        int idx = state.playerUserIds.indexOf(actor.userId());
+        String team = (idx >= 0 && idx < state.teamOrder.size())
+                ? state.teamOrder.get(idx)
+                : (state.teamOrder.isEmpty() ? null : state.teamOrder.get(0));
+
+        JsonNode body = parseJson(actionJson);
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("gameInstanceId", state.gameInstanceId);
+        request.put("localeId", state.localeId);
+        request.put("gameTypeId", state.gameTypeId);
+        request.put("matchId", matchId);
+        request.put("sensorType", body.path("sensorType").asText(null));
+        request.put("team", team);
+        request.put("eventId", body.path("eventId").asText(null)); // idempotenza propagata al sensor event
+
+        String topic = MqttTopics.getSimulatorActionTopic(state.gameInstanceId);
+        localMqttOutboundChannel.send(MessageBuilder.withPayload(toJson(request))
+                .setHeader(MqttHeaders.TOPIC, topic)
+                .build());
+        log.info("Game action for match {} routed to local simulator via {} (actor {}, team {})",
+                matchId, topic, actor.userId(), team);
         return ResponseEntity.accepted().body("{\"status\":\"ACCEPTED\"}");
     }
 
@@ -119,6 +156,14 @@ public class EdgeCommandController {
         mqttBuffer.send(MessageBuilder.withPayload(json)
                 .setHeader(MqttHeaders.TOPIC, topic)
                 .build(), description);
+    }
+
+    private JsonNode parseJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Corpo azione non valido");
+        }
     }
 
     private String toJson(Object value) {

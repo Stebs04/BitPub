@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
 import it.uniupo.pissir.bitpub.edge.service.MqttBufferService;
 import it.uniupo.pissir.bitpub.edge.service.RuleEngineService;
+import it.uniupo.pissir.bitpub.edge.service.RuleEngineService.LocalMatchState;
+import org.springframework.messaging.MessageChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,12 +30,13 @@ class EdgeCommandControllerTest {
     @Mock private JwtUtils jwtUtils;
     @Mock private MqttBufferService mqttBuffer;
     @Mock private RuleEngineService ruleEngine;
+    @Mock private MessageChannel localMqttOutboundChannel;
 
     private EdgeCommandController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new EdgeCommandController(jwtUtils, new ObjectMapper(), mqttBuffer, ruleEngine);
+        controller = new EdgeCommandController(jwtUtils, new ObjectMapper(), mqttBuffer, ruleEngine, localMqttOutboundChannel);
     }
 
     @Test
@@ -63,20 +66,30 @@ class EdgeCommandControllerTest {
         assertThatThrownBy(() -> controller.gameAction("m1", "{}", "Bearer tok"))
                 .isInstanceOf(ResponseStatusException.class)
                 .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
-        verify(mqttBuffer, never()).send(any(), any()); // bloccato sull'Edge, non raggiunge il Cloud
+        verify(localMqttOutboundChannel, never()).send(any()); // bloccato sull'Edge, non raggiunge il simulatore
     }
 
     @Test
-    void gameAction_validTurn_publishesToCloudAndReturns202() {
+    void gameAction_validTurn_routesToLocalSimulatorAndReturns202() {
         when(jwtUtils.validateToken("tok")).thenReturn(true);
         when(jwtUtils.getUserIdFromToken("tok")).thenReturn("u1");
         when(jwtUtils.getRoleFromToken("tok")).thenReturn("PLAYER");
         when(ruleEngine.isPlayersTurn(eq("m1"), eq("u1"))).thenReturn(true);
 
-        var response = controller.gameAction("m1", "{\"sensorType\":\"GOAL\"}", "Bearer tok");
+        LocalMatchState state = new LocalMatchState();
+        state.matchId = "m1";
+        state.gameInstanceId = "gi1";
+        state.localeId = "loc1";
+        state.gameTypeId = "foosball";
+        state.teamOrder.add("Team A");
+        state.playerUserIds.add("u1");
+        when(ruleEngine.getState("m1")).thenReturn(state);
+
+        var response = controller.gameAction("m1", "{\"sensorType\":\"GOAL\",\"eventId\":\"e1\"}", "Bearer tok");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        verify(mqttBuffer).send(any(), any());
+        verify(localMqttOutboundChannel).send(any()); // instradato al simulatore locale, NON bufferizzato al Cloud
+        verify(mqttBuffer, never()).send(any(), any());
     }
 
     @Test

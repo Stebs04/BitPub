@@ -69,6 +69,23 @@ public class MqttLocalConfig {
         return handler;
     }
 
+    // ── Local egress: publish game actions straight to the local simulator (QoS1), NO cloud buffer. ──
+    // Used by EdgeCommandController.gameAction so an offline Edge drives the local simulator directly
+    // instead of buffering the action toward a Cloud that never receives it.
+    @Bean
+    public MessageChannel localMqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "localMqttOutboundChannel")
+    public MessageHandler localMqttOutbound() {
+        MqttPahoMessageHandler handler = new MqttPahoMessageHandler(clientId + "-sim-action", mqttClientFactory());
+        handler.setAsync(true);
+        handler.setDefaultQos(1);
+        return handler;
+    }
+
     @Bean
     public MessageProducer inbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =

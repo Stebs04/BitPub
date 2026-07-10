@@ -84,6 +84,12 @@ public class RuleEngineService {
         return s.currentTurnUserId.equals(userId);
     }
 
+    /** Stato live autoritativo di una partita (o null se non tracciata): usato dal Controller per
+     *  risolvere la squadra di chi agisce e gli id del gioco prima di inoltrare l'azione al simulatore. */
+    public LocalMatchState getState(String matchId) {
+        return states.get(matchId);
+    }
+
     // ── Evento: aggiorna punteggio + turno, segnala fine partita ───────────────────────────────
 
     /**
