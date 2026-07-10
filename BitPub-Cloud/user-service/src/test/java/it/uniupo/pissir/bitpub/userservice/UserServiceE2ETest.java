@@ -20,6 +20,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Suite di test End-to-End (E2E) per il servizio utenti.
+ * Verifica l'interazione completa del sistema integrato, validando l'intero ciclo 
+ * delle richieste REST in un ambiente realistico isolato mediante Testcontainers (PostgreSQL).
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 public class UserServiceE2ETest {

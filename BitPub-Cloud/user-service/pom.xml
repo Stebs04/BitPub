@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Autore: Luca Franzon 20054744
+  
+  Configurazione Maven per il servizio utenti (User Service).
+  Gestisce le dipendenze principali del progetto tra cui Spring Boot, Spring Security, 
+  JPA per la persistenza dei dati, MQTT e le librerie necessarie per i test.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">

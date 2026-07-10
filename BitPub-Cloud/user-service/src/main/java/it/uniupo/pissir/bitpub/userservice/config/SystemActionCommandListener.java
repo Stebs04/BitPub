@@ -15,14 +15,15 @@ import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
 /**
- * Consumes Edge-forwarded user CUD commands from the Cloud system-action MQTT topic and orchestrates
- * the matching {@link UserService} call. The inner payload JSON carries an {@code action} discriminant
- * (CREATE / UPDATE_ROLE / UPDATE / UPDATE_PASSWORD / DELETE) plus the data. Replaces the former direct
- * REST calls from the WebApp to /api/v1/users.
- *
- * <p>The Edge validated the caller's JWT but not their role (MQTT carries no HTTP headers, so the
- * gateway {@code @PreAuthorize} no longer runs on this path). User management is PLATFORM_ADMIN-only,
- * so the role is re-checked here from the wrapper before any mutation.
+ * Autore: Luca Franzon 20054744
+ * 
+ * Componente in ascolto dei comandi di gestione utenti (CUD) inoltrati dall'Edge 
+ * tramite il topic MQTT di sistema, con lo scopo di orchestrare le chiamate al {@link UserService}.
+ * Il payload JSON definisce il tipo di azione richiesta (CREATE, UPDATE, DELETE, ecc.), 
+ * rimpiazzando in modo asincrono le vecchie invocazioni REST dirette verso le API.
+ * Poiché l'infrastruttura MQTT non trasporta header HTTP, la verifica del ruolo 
+ * viene effettuata nuovamente all'interno di questo listener per garantire che 
+ * solo gli amministratori di piattaforma possano eseguire modifiche strutturali.
  */
 @Component
 @RequiredArgsConstructor

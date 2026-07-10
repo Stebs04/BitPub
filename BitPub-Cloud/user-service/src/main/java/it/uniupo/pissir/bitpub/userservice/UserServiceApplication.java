@@ -1,5 +1,13 @@
 package it.uniupo.pissir.bitpub.userservice;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Classe di avvio principale per il servizio utenti (User Service).
+ * Inizializza l'applicazione Spring Boot e configura la scansione dei componenti
+ * per includere sia il pacchetto corrente che le classi condivise (bitpub-common),
+ * gestendo opportunamente i filtri per non compromettere i test di slice.
+ */
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

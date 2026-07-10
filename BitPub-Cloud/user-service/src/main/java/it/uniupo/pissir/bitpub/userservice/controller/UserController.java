@@ -12,6 +12,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Controller REST che espone gli endpoint per la gestione del ciclo di vita degli utenti.
+ * Fornisce operazioni CRUD riservate agli amministratori di piattaforma, oltre a 
+ * servizi essenziali per l'autenticazione interna tra microservizi.
+ */
+
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor

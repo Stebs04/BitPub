@@ -5,6 +5,13 @@ import lombok.*;
 
 import java.time.Instant;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Entità JPA che rappresenta un utente all'interno del sistema.
+ * Mappa la tabella "users" nel database e definisce le proprietà fondamentali 
+ * come credenziali, ruolo e associazioni specifiche.
+ */
 @Entity
 @Table(name = "users")
 @Getter

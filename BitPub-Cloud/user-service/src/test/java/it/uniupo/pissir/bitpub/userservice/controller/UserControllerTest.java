@@ -26,8 +26,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-// Mapping/validation slice: exclude SecurityConfig so @EnableMethodSecurity/@PreAuthorize don't run
-// (authz is enforced upstream at the gateway), and addFilters=false drops the default security chain.
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Test di unità specifici per il {@link UserController}.
+ * Valida il corretto mapping degli endpoint REST, la gestione degli input, 
+ * ignorando volutamente i filtri di sicurezza globali per isolare i casi di test.
+ */
 @WebMvcTest(controllers = UserController.class,
         excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
                 classes = {SecurityConfig.class, JwtAuthenticationFilter.class}))

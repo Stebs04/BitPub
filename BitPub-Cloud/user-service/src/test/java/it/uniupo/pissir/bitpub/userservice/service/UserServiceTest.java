@@ -23,6 +23,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Test di unità volti a coprire la logica di business implementata nel {@link UserService}.
+ * Utilizza Mockito per isolare le dipendenze (es. l'accesso ai dati o le utility crittografiche), 
+ * verificando con precisione le varie casistiche gestite dal servizio.
+ */
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
 

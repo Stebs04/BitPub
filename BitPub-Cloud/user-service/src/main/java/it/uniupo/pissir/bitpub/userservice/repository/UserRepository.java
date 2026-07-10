@@ -6,6 +6,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Interfaccia di accesso ai dati per le entità utente tramite Spring Data JPA.
+ * Definisce i metodi necessari per le query sul database PostgreSQL sottostante.
+ */
+
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);

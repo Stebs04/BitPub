@@ -7,6 +7,12 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Oggetto di trasferimento dati (DTO) che espone in modo sicuro le informazioni 
+ * dell'utente verso i layer superiori o i client esterni, omettendo dettagli sensibili.
+ */
 @Data
 @Builder
 @NoArgsConstructor

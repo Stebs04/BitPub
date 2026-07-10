@@ -1,3 +1,9 @@
+# Autore: Luca Franzon 20054744
+#
+# File di configurazione principale per il servizio utenti.
+# Definisce le impostazioni del server, la connessione al database PostgreSQL, 
+# la configurazione di Hibernate/JPA, la chiave segreta JWT e i parametri 
+# per la comunicazione con il broker MQTT.
 server:
   port: 8082
 

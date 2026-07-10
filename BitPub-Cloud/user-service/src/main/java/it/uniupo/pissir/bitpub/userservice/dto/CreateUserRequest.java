@@ -4,6 +4,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Data Transfer Object (DTO) utilizzato per incapsulare i dati di richiesta 
+ * durante la creazione di un nuovo utente.
+ */
 @Data
 public class CreateUserRequest {
     @NotBlank(message = "Username is required")

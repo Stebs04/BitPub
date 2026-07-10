@@ -17,6 +17,14 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Servizio di business logic per la gestione degli utenti. 
+ * Si occupa di processare le richieste di creazione, modifica e cancellazione, 
+ * applicando le logiche di validazione (es. verifica duplicati) e l'hashing delle password.
+ */
+
 @Service
 @RequiredArgsConstructor
 public class UserService {

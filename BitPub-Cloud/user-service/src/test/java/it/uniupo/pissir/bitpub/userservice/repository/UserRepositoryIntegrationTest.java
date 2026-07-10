@@ -11,7 +11,13 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-// H2-backed slice: portable, no Docker. Testcontainers/Postgres lives in the E2E suite.
+/**
+ * Autore: Luca Franzon 20054744
+ * 
+ * Test di integrazione mirati per il livello di persistenza ({@link UserRepository}).
+ * Esegue le query su un database in memoria (es. H2) per testare l'affidabilità 
+ * dell'interazione con il database senza l'overhead di container esterni.
+ */
 @DataJpaTest
 public class UserRepositoryIntegrationTest {
 
