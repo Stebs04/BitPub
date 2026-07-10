@@ -80,15 +80,17 @@ docker-compose up --build -d
 Una volta avviato lo stack:
 *   **WebApp (Frontend):** [http://localhost:3000](http://localhost:3000)
 *   **API Gateway (Backend):** [http://localhost:8080](http://localhost:8080)
-*   **Pannello di Controllo Simulatori:** Avviabile in locale sulla porta 8090 (vedi sotto).
 
-### Avvio del Pannello Simulatori in locale
-Per generare fisicamente gli "eventi" (come i gol del calciobalilla o i tiri a freccette), serve lanciare il pannello di simulazione:
+### Pannello Simulatori (demo-control-panel)
+Il pannello serve a generare fisicamente gli "eventi" (gol del calciobalilla, tiri a freccette) pubblicandoli sul broker MQTT. È uno strumento **standalone**: nessun altro servizio lo invoca, lo si guida manualmente dal browser.
+
+Viene avviato **automaticamente insieme allo stack** (`docker-compose up`) come servizio `demo-control-panel` (container `bitpub-demo-control-panel`, porta `8090`, frontend React integrato).
+
+In alternativa, per eseguirlo isolato in locale:
 ```bash
 cd BitPub-Simulators/demo-control-panel
 mvn spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8090"
 ```
-Poi naviga su: [http://localhost:8090](http://localhost:8090).
 
 ---
 
@@ -116,8 +118,16 @@ Per registrare un nuovo utente:
 1. Apri la **WebApp** ([http://localhost:3000](http://localhost:3000)).
 2. Vai su **Sign Up / Registrati**.
 3. Inserisci Email, Username e Password.
-4. Di default verrà assegnato il ruolo `PLAYER`. 
-   > *Per scopi di test o amministrazione, l'utente `platform_admin` (password: `password123`) viene autogenerato dal DB con ruolo `PLATFORM_ADMIN` al primo avvio.*
+4. Di default verrà assegnato il ruolo `PLAYER`.
+
+> **Utenti di default (seed):** al primo avvio, il `user-service` (`UserDataSeeder`) genera in modo idempotente un utente per ciascun ruolo del sistema. Password comune: `password123`. Login tramite email.
+
+| Username | Email | Password | Ruolo |
+| :--- | :--- | :--- | :--- |
+| `player` | `player@test.com` | `password123` | `PLAYER` |
+| `locale_admin` | `locale_admin@test.com` | `password123` | `LOCALE_ADMIN` |
+| `game_admin` | `game_admin@test.com` | `password123` | `GAME_ADMIN` |
+| `platform_admin` | `platform_admin@test.com` | `password123` | `PLATFORM_ADMIN` |
 
 ### 2. Come creare Locali e Macchine
 Solo un utente con ruolo `PLATFORM_ADMIN` (o `LOCALE_ADMIN` autorizzato) può definire la struttura fisica:
@@ -152,7 +162,7 @@ Ecco il flusso per disputare un incontro (es. Calciobalilla):
 1. **Creazione della Lobby (Cloud):** Un utente dalla WebApp seleziona una macchina dal suo locale e clicca "Inizia Partita". Lo stato della macchina diventa `WAITING_FOR_PLAYERS`.
 2. **Ingresso Giocatori:** Il secondo dovrá entrare nella stessa lobby e la partita passa allo stato `IN_PROGRESS`.
 3. **Generazione Eventi (Fisico/Simulatore):** 
-   - Apri il **Pannello Simulatori** ([http://localhost:8090](http://localhost:8090)).
+   - Apri il **Pannello Simulatori**.
    - Inserisci l'ID della macchina in partita.
    - Clicca i bottoni per simulare gli eventi del sensore (es. "Goal Squadra A", "Goal Squadra B").
 4. **Sincronizzazione Real-Time:** 
@@ -178,6 +188,7 @@ Ecco l'elenco dei servizi presenti, il responsabile tecnico e le porte associate
 | `statistics-service` | 8087 | Leaderboard globali e aggregazioni dati | Stefano B. |
 | `notification-service` | 8088 | Server WebSocket per le notifiche push | Stefano B. |
 | `bitpub-edge` | 8089 | Nodo Edge di prossimità per i buffer MQTT | Timothy G. |
+| `demo-control-panel` | 8090 | Pannello simulatori: genera eventi di gioco su MQTT (frontend React integrato) | Timothy G. |
 
 ---
 

@@ -250,13 +250,24 @@ const PlayFlow: React.FC<PlayFlowProps> = ({ tournamentMatchId, gameTypeFilter, 
                 </div>
               )}
 
-              {/* Joypad 100% data-driven: un pulsante per ogni sensore del gioco (dal catalogo). */}
-              <GameControlPanel
-                sensors={sensors}
-                finished={isFinished}
-                sending={!isMyTurn}
-                onAction={(sensorType) => sendAction(sensorType)}
-              />
+              {/* A partita conclusa il joypad non serve piu': mostriamo il pulsante di uscita
+                  (al torneo se siamo in uno scontro del tabellone, altrimenti alla pagina giochi). */}
+              {isFinished ? (
+                <button
+                  onClick={onClose ?? leaveMatch}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-brand to-brand-light hover:opacity-90 rounded-xl text-white font-bold transition-all active:scale-95"
+                >
+                  <ArrowLeft className="w-5 h-5" /> {onClose ? 'Torna al torneo' : 'Torna ai giochi'}
+                </button>
+              ) : (
+                /* Joypad 100% data-driven: un pulsante per ogni sensore del gioco (dal catalogo). */
+                <GameControlPanel
+                  sensors={sensors}
+                  finished={isFinished}
+                  sending={!isMyTurn}
+                  onAction={(sensorType) => sendAction(sensorType)}
+                />
+              )}
 
               {actionError && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 text-center">

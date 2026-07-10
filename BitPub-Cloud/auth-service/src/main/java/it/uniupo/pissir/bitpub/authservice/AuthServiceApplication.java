@@ -10,10 +10,13 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import it.uniupo.pissir.bitpub.common.security.JwtUtils;
+import it.uniupo.pissir.bitpub.common.exception.GlobalExceptionHandler;
 import org.springframework.context.annotation.Import;
 
+// Importiamo anche il GlobalExceptionHandler per mappare la BitpubException su una risposta HTTP pulita (es. 401)
+// evitando che l'eccezione risalga fino al dispatcher generando stack trace superflui nei log.
 @SpringBootApplication
-@Import(JwtUtils.class)
+@Import({JwtUtils.class, GlobalExceptionHandler.class})
 public class AuthServiceApplication {
     /**
      * Metodo di avvio dell'applicazione Spring Boot.

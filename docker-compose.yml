@@ -170,6 +170,10 @@ services:
       - SPRING_DATASOURCE_USERNAME=bitpub
       - SPRING_DATASOURCE_PASSWORD=bitpub_password
       - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - LOCALE_SERVICE_URL=http://locale-service:8083
+      - USER_SERVICE_URL=http://user-service:8082
+      - MATCH_SERVICE_URL=http://match-service:8085
+      - TOURNAMENT_SERVICE_URL=http://tournament-service:8086
     networks:
       - bitpub-network
 

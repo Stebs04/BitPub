@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 @Service
@@ -50,7 +51,12 @@ public class AuthService {
                     .body(request)
                     .retrieve()
                     .body(UserDto.class);
+        } catch (HttpClientErrorException.Unauthorized e) {
+            // Credenziali errate: condizione ordinaria (utente sbaglia password), niente stack trace nei log.
+            log.warn("Login fallito: credenziali non valide");
+            throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
         } catch (Exception e) {
+            // Qui rientrano i guasti reali (user-service irraggiungibile, timeout): tracciati per intero.
             log.error("Login failed for user-service call", e);
             throw new BitpubException("Invalid credentials", HttpStatus.UNAUTHORIZED);
         }
