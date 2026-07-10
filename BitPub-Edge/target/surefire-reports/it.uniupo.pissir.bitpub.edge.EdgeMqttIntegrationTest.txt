@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.edge.EdgeMqttIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 8.428 s -- in it.uniupo.pissir.bitpub.edge.EdgeMqttIntegrationTest

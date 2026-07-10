@@ -98,9 +98,15 @@ const LocalesPage: React.FC = () => {
     e.preventDefault();
     if (!newLocaleName || !newLocaleAddress || !newLocaleAdminId) return;
     const prevLen = locales.length;
+    const tempId = `temp-${Date.now()}`;
     setBusy(true);
     try {
       await createLocale({ name: newLocaleName, address: newLocaleAddress, adminId: newLocaleAdminId });
+      // Optimistic: mostro subito il locale in cima; il refetch di pollUntil lo rimpiazza col reale.
+      setLocales((prev) => [
+        { id: tempId, name: newLocaleName, address: newLocaleAddress, adminId: newLocaleAdminId, games: [] },
+        ...prev,
+      ]);
       setNewLocaleName('');
       setNewLocaleAddress('');
       setNewLocaleAdminId('');
@@ -108,6 +114,8 @@ const LocalesPage: React.FC = () => {
       await pollUntil(fetchLocales, (d) => d.length > prevLen);
     } catch (error) {
       console.error('Error creating locale:', error);
+      // Rollback: rimuovo il locale ottimistico se create/poll falliscono.
+      setLocales((prev) => prev.filter((l) => l.id !== tempId));
     } finally {
       setBusy(false);
     }
@@ -117,13 +125,22 @@ const LocalesPage: React.FC = () => {
     const form = newInstance[localeId];
     if (!form?.localInstanceId || !form?.gameTypeId) return;
     const prevLen = locales.find((l) => l.id === localeId)?.games?.length || 0;
+    const tempId = `temp-${Date.now()}`;
     setBusy(true);
     try {
       await addGameInstance(localeId, form);
+      // Optimistic: aggiungo subito il dispositivo al locale; il refetch di pollUntil lo riconcilia.
+      setLocales((prev) => prev.map((l) => l.id === localeId
+        ? { ...l, games: [...(l.games || []), { id: tempId, localInstanceId: form.localInstanceId, gameTypeId: form.gameTypeId, active: false }] }
+        : l));
       setNewInstance(prev => ({ ...prev, [localeId]: { localInstanceId: '', gameTypeId: '' } }));
       await pollUntil(fetchLocales, (d) => (d.find((l) => l.id === localeId)?.games?.length || 0) > prevLen);
     } catch (error) {
       console.error('Error adding game instance:', error);
+      // Rollback: rimuovo il dispositivo ottimistico se add/poll falliscono.
+      setLocales((prev) => prev.map((l) => l.id === localeId
+        ? { ...l, games: (l.games || []).filter((g) => g.id !== tempId) }
+        : l));
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.edge.controller.EdgeCommandControllerTest
--------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.659 s -- in it.uniupo.pissir.bitpub.edge.controller.EdgeCommandControllerTest

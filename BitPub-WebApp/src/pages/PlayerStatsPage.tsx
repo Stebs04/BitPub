@@ -68,6 +68,7 @@ const PlayerStatsPage: React.FC = () => {
 
   // Nasconde i tornei conclusi dalla vista "Le mie Iscrizioni" (i dati sono sincronizzati via MQTT).
   const activeRegs = tournamentRegs.filter((r) => r.tournamentStatus !== 'COMPLETED');
+  const completedRegs = tournamentRegs.filter((r) => r.tournamentStatus === 'COMPLETED');
 
   if (loading) {
     return (
@@ -166,8 +167,8 @@ const PlayerStatsPage: React.FC = () => {
           {matches.length === 0 ? (
             <p className="text-slate-500 text-sm">Nessuna partita giocata finora.</p>
           ) : (
-          <div className="divide-y divide-white/5">
-              {matches.slice(0, 15).map((m) => {
+          <div className="divide-y divide-white/5 max-h-[480px] overflow-y-auto">
+              {matches.map((m) => {
                 // Determina il team del giocatore corrente
                 const myTeam = m.teams?.find((t) => t.playerIds?.includes(user?.id ?? ''));
                 const oppTeam = m.teams?.find((t) => !t.playerIds?.includes(user?.id ?? ''));
@@ -218,7 +219,29 @@ const PlayerStatsPage: React.FC = () => {
                   <span className="text-slate-300 font-medium min-w-[90px]">{r.participantName}</span>
                   <span className="text-slate-400 flex-1 text-center">{r.currentStage || '—'}</span>
                   <span className="text-slate-400 min-w-[70px] text-center">{r.matchesPlayed ?? 0} partite</span>
-                  <span className="text-brand-light font-bold min-w-[60px] text-right">{r.goalsScored ?? 0} gol</span>
+                  <span className="text-brand-light font-bold min-w-[60px] text-right">{r.goalsScored ?? 0} punti</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {completedRegs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-slate-400" /> Storico Tornei
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y divide-white/5">
+              {completedRegs.map((r) => (
+                <div key={r.id} className="py-3 flex items-center justify-between text-sm gap-3">
+                  <span className="text-slate-300 font-medium min-w-[90px]">{r.participantName}</span>
+                  <span className="text-slate-400 flex-1 text-center">{r.currentStage || '—'}</span>
+                  <span className="text-slate-400 min-w-[70px] text-center">{r.matchesPlayed ?? 0} partite</span>
+                  <span className="text-brand-light font-bold min-w-[60px] text-right">{r.goalsScored ?? 0} punti</span>
                 </div>
               ))}
             </div>

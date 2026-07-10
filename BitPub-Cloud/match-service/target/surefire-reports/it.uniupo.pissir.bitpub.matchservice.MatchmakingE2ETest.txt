@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.matchservice.MatchmakingE2ETest
--------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 9.251 s -- in it.uniupo.pissir.bitpub.matchservice.MatchmakingE2ETest

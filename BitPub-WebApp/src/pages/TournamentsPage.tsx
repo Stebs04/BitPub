@@ -87,6 +87,15 @@ const TournamentsPage: React.FC = () => {
 
   const loadTournaments = () => getAllTournaments().then((res) => setTournaments(res.data || []));
 
+  // Optimistic: aggiunge la registration al torneo cosi' il contatore "Iscritti" sale subito,
+  // senza attendere il refetch. Lo state MQTT bitpub/tournaments/+/state riconcilia poi il torneo.
+  const pushRegistration = (tournamentId: string, registration: TournamentRegistrationRecord) =>
+    setTournaments((prev) =>
+      prev.map((t) =>
+        t.id === tournamentId ? { ...t, registrations: [...(t.registrations ?? []), registration] } : t
+      )
+    );
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -172,6 +181,7 @@ const TournamentsPage: React.FC = () => {
         members: [user.username],
       });
       setMyRegistrations((prev) => [...prev, res.data]);
+      pushRegistration(tournamentId, res.data);
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Iscrizione non riuscita.');
     } finally {
@@ -196,6 +206,7 @@ const TournamentsPage: React.FC = () => {
         members,
       });
       setMyRegistrations((prev) => [...prev, res.data]);
+      pushRegistration(tournamentId, res.data);
       setTeamFormId(null);
       setTeamName('');
       setTeamMembers('');
@@ -512,7 +523,7 @@ const TournamentsPage: React.FC = () => {
                     canEdit={isManager && t.status === 'ACTIVE'}
                     onSetWinner={(m, winnerId) => handleSetWinner(t.id, m, winnerId)}
                     currentUserId={user?.id}
-                    onStartMatch={(m) => setPlayCtx({ matchId: m.id, gameTypeId: gameTypes.find((g) => g.id === t.gameTypeId)?.name ?? t.gameTypeId })}
+                    onStartMatch={(m) => setPlayCtx({ matchId: m.id, gameTypeId: t.gameTypeId })}
                   />
                 )}
 
@@ -528,7 +539,7 @@ const TournamentsPage: React.FC = () => {
                             <th className="py-1 px-2 w-10">#</th>
                             <th className="py-1 px-2">Partecipante</th>
                             <th className="py-1 px-2 text-center">V</th>
-                            <th className="py-1 px-2 text-center">Gol</th>
+                            <th className="py-1 px-2 text-center">Punti</th>
                             <th className="py-1 px-2 text-center">Partite</th>
                           </tr>
                         </thead>

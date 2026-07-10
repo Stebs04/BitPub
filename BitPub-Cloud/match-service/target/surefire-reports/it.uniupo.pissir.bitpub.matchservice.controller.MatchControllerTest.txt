@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest
--------------------------------------------------------------------------------
-Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.878 s -- in it.uniupo.pissir.bitpub.matchservice.controller.MatchControllerTest
