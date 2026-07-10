@@ -17,6 +17,11 @@ spring:
       hibernate:
         format_sql: true
 
+bitpub:
+  jwt:
+    secret: 1234567890123456789012345678901234567890123456789012345678901234
+    expirationMs: 86400000
+
 locale:
   service:
     url: ${LOCALE_SERVICE_URL:http://localhost:8083}
