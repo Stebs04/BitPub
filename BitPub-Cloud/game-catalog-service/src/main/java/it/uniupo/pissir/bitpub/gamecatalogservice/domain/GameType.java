@@ -30,7 +30,7 @@ public class GameType {
     @Column(nullable = false)
     private String rulesEngineId; // Codice univoco che il motore di simulazione utilizza per caricare la corretta strategia di calcolo
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 10 not null")
     @Builder.Default
     private int winScoreTarget = 10; // Soglia punti da raggiungere per decretare la vittoria
 

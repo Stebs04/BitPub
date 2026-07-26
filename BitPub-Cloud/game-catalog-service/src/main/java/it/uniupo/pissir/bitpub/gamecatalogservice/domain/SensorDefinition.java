@@ -28,11 +28,11 @@ public class SensorDefinition {
     @Column(nullable = false)
     private boolean isActuator; // Determina se il componente ha capacità di output attive nel mondo fisico
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 1 not null")
     @Builder.Default
     private int scoreIncrement = 1; // Valore numerico apportato al punteggio ad ogni rilevazione utile
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "double precision default 1.0 not null")
     @Builder.Default
     private double successProbability = 1.0; // Fattore di tolleranza o tasso di conversione successo/fallimento dell'azione
 

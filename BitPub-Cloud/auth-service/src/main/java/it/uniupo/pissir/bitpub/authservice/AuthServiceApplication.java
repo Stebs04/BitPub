@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Import;
 
 // Importiamo anche il GlobalExceptionHandler per mappare la BitpubException su una risposta HTTP pulita (es. 401)
 // evitando che l'eccezione risalga fino al dispatcher generando stack trace superflui nei log.
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "it.uniupo.pissir.bitpub")
 @Import({JwtUtils.class, GlobalExceptionHandler.class})
 public class AuthServiceApplication {
     /**
